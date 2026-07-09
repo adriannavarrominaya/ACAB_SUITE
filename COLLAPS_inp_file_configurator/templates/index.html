@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>COLLAPS inp File Configurator</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="/static/css/style.css" rel="stylesheet">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     BANNER DE NAVEGACIÓN DE LA SUITE ACAB
+     Fragmento común de la suite — mantener sincronizado en los 3 repos
+     (solo cambia qué app va resaltada como actual). JS: static/js/suite_banner.js
+     ═══════════════════════════════════════════════════════════════════════ -->
+<nav id="suite-banner" class="d-flex align-items-center gap-3 px-3 py-1 small"
+     style="background:#161a1f;border-bottom:1px solid #343a40;">
+  <span class="text-secondary text-uppercase fw-semibold"
+        style="font-size:.7rem;letter-spacing:.08em;">Suite ACAB</span>
+  <a href="http://127.0.0.1:5000" class="link-light text-decoration-none" data-suite-port="5000">
+    <span class="suite-dot text-secondary">○</span> INP Configurator
+  </a>
+  <a href="http://127.0.0.1:5001" class="link-light text-decoration-none" data-suite-port="5001">
+    <span class="suite-dot text-secondary">○</span> Fort Analyzer
+  </a>
+  <span class="fw-semibold text-warning">COLLAPS</span>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     TOP NAVBAR
+     ═══════════════════════════════════════════════════════════════════════ -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark px-3 py-2">
+  <span class="navbar-brand fw-bold" data-i18n="nav.brand">
+    <i class="bi bi-radioactive text-warning me-1"></i>COLLAPS inp File Configurator
+  </span>
+
+  <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+          data-bs-target="#mainNav">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <div class="collapse navbar-collapse" id="mainNav">
+    <ul class="navbar-nav me-auto">
+
+      <!-- Archivo -->
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" data-i18n="nav.file">
+          <i class="bi bi-folder2-open me-1"></i>Archivo
+        </a>
+        <ul class="dropdown-menu">
+          <li>
+            <a class="dropdown-item" href="#" id="btn-new" data-i18n="nav.new">
+              <i class="bi bi-file-earmark-plus me-2"></i>Nuevo
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item" href="#" id="btn-load" data-i18n="nav.load">
+              <i class="bi bi-folder-open me-2"></i>Cargar COLL.inp…
+            </a>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <a class="dropdown-item" href="#" id="btn-saveas" data-i18n="nav.saveas">
+              <i class="bi bi-floppy me-2"></i>Guardar como…
+            </a>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <a class="dropdown-item" href="#" id="btn-validate" data-i18n="nav.validate">
+              <i class="bi bi-clipboard-check me-2"></i>Validar
+            </a>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <a class="dropdown-item" href="#" id="btn-preview" data-i18n="nav.preview">
+              <i class="bi bi-eye me-2"></i>Vista previa del fichero
+            </a>
+          </li>
+        </ul>
+      </li>
+
+      <!-- Secciones -->
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" data-i18n="nav.sections">
+          <i class="bi bi-layout-text-sidebar-reverse me-1"></i>Secciones
+        </a>
+        <ul class="dropdown-menu">
+          <li>
+            <a class="dropdown-item section-link" href="#"
+               data-section="sec-bib" data-i18n="nav.sec_bib">
+              <i class="bi bi-database me-2"></i>Biblioteca
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item section-link" href="#"
+               data-section="sec-fis" data-i18n="nav.sec_fis">
+              <i class="bi bi-radioactive me-2"></i>Fisión
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item section-link" href="#"
+               data-section="sec-flu" data-i18n="nav.sec_flu">
+              <i class="bi bi-lightning me-2"></i>Flujo Neutrónico
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item section-link" href="#"
+               data-section="sec-opt" data-i18n="nav.sec_opt">
+              <i class="bi bi-sliders me-2"></i>Opciones
+            </a>
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+    <!-- Language selector -->
+    <div class="d-flex align-items-center ms-3 me-2">
+      <div class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle py-1 px-2 border border-secondary rounded d-flex align-items-center gap-2 text-white" href="#"
+           id="langDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+          <span id="lang-flag" class="lang-flag lang-flag-es"></span>
+          <span id="lang-name">Español</span>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item lang-item d-flex align-items-center gap-2" href="#" data-lang="es">
+            <span class="lang-flag lang-flag-es"></span> Español
+          </a></li>
+          <li><a class="dropdown-item lang-item d-flex align-items-center gap-2" href="#" data-lang="en">
+            <span class="lang-flag lang-flag-en"></span> English
+          </a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Run button -->
+    <button type="button" class="btn btn-outline-success btn-sm me-3" id="btn-run-open" data-i18n="nav.run">
+      <i class="bi bi-play-fill me-1"></i>Ejecutar
+    </button>
+
+    <!-- Status text -->
+    <span class="navbar-text small" id="file-status" data-i18n="status.no_file">
+      <i class="bi bi-circle text-secondary me-1"></i>Sin fichero cargado
+    </span>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     SECTION TABS
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="container-fluid px-3 pt-3">
+  <ul class="nav nav-tabs" id="sectionTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="tab-bib-btn"
+              data-bs-toggle="tab" data-bs-target="#sec-bib"
+              type="button" role="tab" data-i18n="tabs.bib">
+        <i class="bi bi-database me-1"></i>Biblioteca
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-fis-btn"
+              data-bs-toggle="tab" data-bs-target="#sec-fis"
+              type="button" role="tab" data-i18n="tabs.fis">
+        <i class="bi bi-radioactive me-1"></i>Fisión
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-flu-btn"
+              data-bs-toggle="tab" data-bs-target="#sec-flu"
+              type="button" role="tab" data-i18n="tabs.flu">
+        <i class="bi bi-lightning me-1"></i>Flujo Neutrónico
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-opt-btn"
+              data-bs-toggle="tab" data-bs-target="#sec-opt"
+              type="button" role="tab" data-i18n="tabs.opt">
+        <i class="bi bi-sliders me-1"></i>Opciones
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content mt-3" id="sectionContent">
+
+    <!-- ════════════════════════════════════════
+         SECCIÓN: BIBLIOTECA (Cards #1 y #2)
+         ════════════════════════════════════════ -->
+    <div class="tab-pane fade show active" id="sec-bib" role="tabpanel">
+      <div style="max-width:900px">
+
+        <!-- Card #1: ILIB / IESF -->
+        <div class="card mb-3 block-card">
+          <div class="card-header block-card-header" data-i18n="c1.h">
+            Card #1 &mdash; Estructura de grupos (ILIB / IESF)
+          </div>
+          <div class="card-body">
+            <div class="mb-2">
+              <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+                      data-bs-toggle="collapse" data-bs-target="#help-c1" data-i18n="help.btn">
+                <i class="bi bi-question-circle me-1"></i>Ayuda
+              </button>
+            </div>
+            <div class="collapse mb-3" id="help-c1">
+              <div class="block-help-box">
+                <p class="mb-2 fw-semibold">Define las estructuras de grupos de la librería de entrada y la salida colapsada.</p>
+                <table class="table table-sm table-bordered mb-0">
+                  <thead><tr><th style="width:90px">Parámetro</th><th>Descripción</th></tr></thead>
+                  <tbody>
+                    <tr><td><code>ILIB</code></td><td>Estructura de grupos de la librería de secciones eficaces a colapsar.</td></tr>
+                    <tr><td><code>IESF</code></td><td>Estructura de grupos de la librería de salida. Si IESF=5, las fronteras energéticas se definen en Card #6.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="row g-3">
+              <div class="col-md-5">
+                <label class="form-label fw-semibold" for="c1-ILIB" data-i18n="c1.ilib_lbl">
+                  ILIB — Librería de secciones eficaces a colapsar
+                </label>
+                <select id="c1-ILIB" class="form-select">
+                  <option value="1" data-i18n="c1.opt1">1 — GAM-II (100 grupos)</option>
+                  <option value="2" selected data-i18n="c1.opt2">2 — Vitamin-J (175 grupos)</option>
+                  <option value="3" data-i18n="c1.opt3">3 — TART-175 (175 grupos)</option>
+                  <option value="4" data-i18n="c1.opt4">4 — TART-566 (566 grupos)</option>
+                  <option value="5" data-i18n="c1.opt5">5 — Otra (definida en Card #6)</option>
+                  <option value="12" data-i18n="c1.opt12">12 — Vitamin-J+ (211 grupos)</option>
+                </select>
+              </div>
+              <div class="col-md-5">
+                <label class="form-label fw-semibold" for="c1-IESF" data-i18n="c1.iesf_lbl">
+                  IESF — Estructura energética de salida
+                </label>
+                <select id="c1-IESF" class="form-select">
+                  <option value="1" data-i18n="c1.opt1">1 — GAM-II (100 grupos)</option>
+                  <option value="2" selected data-i18n="c1.opt2">2 — Vitamin-J (175 grupos)</option>
+                  <option value="3" data-i18n="c1.opt3">3 — TART-175 (175 grupos)</option>
+                  <option value="4" data-i18n="c1.opt4">4 — TART-566 (566 grupos)</option>
+                  <option value="5" data-i18n="c1.opt5">5 — Otra (definida en Card #6)</option>
+                  <option value="12" data-i18n="c1.opt12">12 — Vitamin-J+ (211 grupos)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card #2: IHEAD -->
+        <div class="card mb-3 block-card">
+          <div class="card-header block-card-header" data-i18n="c2.h">
+            Card #2 &mdash; Líneas de cabecera de la librería (IHEAD)
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-md-3">
+                <label class="form-label fw-semibold" for="c2-IHEAD" data-i18n="c2.ihead_lbl">IHEAD</label>
+                <input id="c2-IHEAD" type="number" class="form-control" min="0" step="1" value="16">
+                <div class="form-text" data-i18n="c2.ihead_hint">
+                  Número de líneas de cabecera en el fichero de secciones eficaces.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /sec-bib -->
+
+    <!-- ════════════════════════════════════════
+         SECCIÓN: FISIÓN (Cards #3 y #4)
+         ════════════════════════════════════════ -->
+    <div class="tab-pane fade" id="sec-fis" role="tabpanel">
+      <div style="max-width:900px">
+
+        <!-- Card #3: ISFIS, IGEN, ISOCA, IBEST -->
+        <div class="card mb-3 block-card">
+          <div class="card-header block-card-header" data-i18n="c3.h">
+            Card #3 &mdash; Modo de fisión y opciones de colapso
+          </div>
+          <div class="card-body">
+            <div class="mb-2">
+              <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+                      data-bs-toggle="collapse" data-bs-target="#help-c3" data-i18n="help.btn">
+                <i class="bi bi-question-circle me-1"></i>Ayuda
+              </button>
+            </div>
+            <div class="collapse mb-3" id="help-c3">
+              <div class="block-help-box">
+                <p class="mb-2 fw-semibold">Controla el modo de colapso de secciones eficaces.</p>
+                <table class="table table-sm table-bordered mb-0">
+                  <thead><tr><th style="width:90px">Parámetro</th><th>Descripción</th></tr></thead>
+                  <tbody>
+                    <tr><td><code>ISFIS</code></td><td>0 = modo estándar (sin procesado de rendimientos de fisión). 1 = modo fisión: procesa rendimientos con el espectro neutrónico. Activa Card #4.</td></tr>
+                    <tr><td><code>IGEN</code></td><td>0 = modo estándar de fisión (genera la librería colapsada de rendimientos). 1 = solo genera las librerías EFY extendidas (EFYBL.dat, EFYAXSL.dat) y detiene la ejecución.</td></tr>
+                    <tr><td><code>ISOCA</code></td><td>0 = lee la librería EFY extendida existente (Unit 18 / EFYBL.dat). 1 = lee y procesa la librería básica de rendimientos de fisión (Unit 17 / FYBL.dat).</td></tr>
+                    <tr><td><code>IBEST</code></td><td>0 = genera la librería de rendimientos (Unit 96) para los nucleidos fisibles de JEF-2.2/JEFF3.1. 1 = para todos los nucleidos fisibles de la librería de activación.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label fw-semibold" for="c3-ISFIS" data-i18n="c3.isfis_lbl">ISFIS</label>
+                <select id="c3-ISFIS" class="form-select">
+                  <option value="0" selected data-i18n="c3.isfis_0">0 — Sin sección de fisión</option>
+                  <option value="1" data-i18n="c3.isfis_1">1 — Incluir sección de fisión (activa Card #4)</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label fw-semibold" for="c3-IGEN" data-i18n="c3.igen_lbl">IGEN</label>
+                <select id="c3-IGEN" class="form-select">
+                  <option value="0" selected data-i18n="c3.igen_0">0 — Espectro fijo</option>
+                  <option value="1" data-i18n="c3.igen_1">1 — Generar espectro</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold" for="c3-ISOCA" data-i18n="c3.isoca_lbl">ISOCA</label>
+                <select id="c3-ISOCA" class="form-select">
+                  <option value="0" data-i18n="c3.isoca_0">0 — Sin SOC</option>
+                  <option value="1" selected data-i18n="c3.isoca_1">1 — Incluir SOC</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold" for="c3-IBEST" data-i18n="c3.ibest_lbl">IBEST</label>
+                <select id="c3-IBEST" class="form-select">
+                  <option value="0" data-i18n="c3.ibest_0">0 — Sin tabla BEST</option>
+                  <option value="1" selected data-i18n="c3.ibest_1">1 — Incluir BEST</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card #4: EB1, EB2 (conditional) -->
+        <div class="card mb-3 block-card" id="card4-panel">
+          <div class="card-header block-card-header">
+            <span data-i18n="c4.h">Card #4 &mdash; Límites energéticos de fisión (EB1 / EB2)</span>
+            <span class="badge bg-warning text-dark ms-2" data-i18n="c4.badge">Solo si ISFIS ≠ 0</span>
+          </div>
+          <div class="card-body">
+            <div id="card4-disabled-msg" class="alert alert-secondary py-2 small mb-3">
+              <i class="bi bi-lock me-1"></i>
+              Esta tarjeta está deshabilitada cuando ISFIS = 0.
+            </div>
+            <div id="card4-fields" class="row g-3" style="display:none!important">
+              <div class="col-md-4">
+                <label class="form-label fw-semibold" for="c4-EB1" data-i18n="c4.eb1_lbl">
+                  EB1 — Energía superior de fisión rápida (eV)
+                </label>
+                <input id="c4-EB1" type="text" class="form-control font-monospace"
+                       placeholder="5.000E+06" data-i18n-ph="c4.eb1_ph">
+                <div class="form-text" data-i18n="c4.eb1_hint">
+                  Valor sugerido: 5×10⁶ eV.
+                </div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold" for="c4-EB2" data-i18n="c4.eb2_lbl">
+                  EB2 — Energía superior de fisión epitérmica (eV)
+                </label>
+                <input id="c4-EB2" type="text" class="form-control font-monospace"
+                       placeholder="2.000E+05" data-i18n-ph="c4.eb2_ph">
+                <div class="form-text" data-i18n="c4.eb2_hint">
+                  Valor sugerido: 2×10⁵ eV.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /sec-fis -->
+
+    <!-- ════════════════════════════════════════
+         SECCIÓN: FLUJO NEUTRÓNICO (Cards #5, #6, #7)
+         ════════════════════════════════════════ -->
+    <div class="tab-pane fade" id="sec-flu" role="tabpanel">
+      <div style="max-width:980px">
+
+        <!-- Card #5: NGROUP, FF -->
+        <div class="card mb-3 block-card">
+          <div class="card-header block-card-header" data-i18n="c5.h">
+            Card #5 &mdash; Grupos del espectro de flujo (NGROUP / FF)
+          </div>
+          <div class="card-body">
+            <div class="mb-2">
+              <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+                      data-bs-toggle="collapse" data-bs-target="#help-c5" data-i18n="help.btn">
+                <i class="bi bi-question-circle me-1"></i>Ayuda
+              </button>
+            </div>
+            <div class="collapse mb-3" id="help-c5">
+              <div class="block-help-box">
+                <p class="mb-2 fw-semibold">Define el número de grupos y las unidades del espectro de flujo neutrónico.</p>
+                <table class="table table-sm table-bordered mb-0">
+                  <thead><tr><th style="width:90px">Parámetro</th><th>Descripción</th></tr></thead>
+                  <tbody>
+                    <tr><td><code>NGROUP</code></td><td>Número de grupos del espectro. Negativo = orden de energía decreciente (habitual); positivo = creciente. |NGROUP| determina cuántos valores de flujo se esperan en Card #7 y cuántas fronteras en Card #6 (si IESF=5).</td></tr>
+                    <tr><td><code>FF</code></td><td>0 = flujo total integrado (n/cm²·s). 1 = densidad de flujo espectral (n/cm²·s·MeV).</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="row g-3">
+              <div class="col-md-3">
+                <label class="form-label fw-semibold" for="c5-NGROUP" data-i18n="c5.ngroup_lbl">NGROUP</label>
+                <input id="c5-NGROUP" type="number" class="form-control" step="1" value="-175">
+                <div class="form-text" data-i18n="c5.ngroup_hint">
+                  Negativo → energía decreciente. |NGROUP| determina el tamaño de FT.
+                </div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold" for="c5-FF" data-i18n="c5.ff_lbl">FF — Unidades del flujo</label>
+                <select id="c5-FF" class="form-select">
+                  <option value="0" selected data-i18n="c5.ff_0">0 — Flujo total (n/cm²·s)</option>
+                  <option value="1" data-i18n="c5.ff_1">1 — Densidad de flujo (n/cm²·s·MeV)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card #6: CX (conditional on IESF=5) -->
+        <div class="card mb-3 block-card" id="card6-panel">
+          <div class="card-header block-card-header">
+            <span data-i18n="c6.h">Card #6 &mdash; Fronteras energéticas personalizadas (CX)</span>
+            <span class="badge bg-warning text-dark ms-2" data-i18n="c6.badge">Solo si IESF = 5</span>
+          </div>
+          <div class="card-body">
+            <div id="card6-disabled-msg" class="alert alert-secondary py-2 small mb-3">
+              <i class="bi bi-lock me-1"></i>
+              Esta tarjeta está deshabilitada cuando IESF ≠ 5.
+            </div>
+            <div id="card6-fields" style="display:none!important">
+              <label class="form-label fw-semibold" for="c6-CX" data-i18n="c6.cx_lbl">
+                CX — ABS(NGROUP)+1 fronteras en eV
+              </label>
+              <textarea id="c6-CX" class="form-control font-monospace array-textarea"
+                        rows="6" placeholder="1.0E+07 6.0657E+06 … (ABS(NGROUP)+1 valores)"></textarea>
+              <div class="form-text" data-i18n="c6.cx_hint">
+                Un valor por frontera energética. Total: |NGROUP|+1 valores.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card #7: FT -->
+        <div class="card mb-3 block-card">
+          <div class="card-header block-card-header d-flex align-items-center gap-2">
+            <span data-i18n="c7.h">Card #7 &mdash; Espectro de flujo neutrónico (FT)</span>
+            <span class="badge bg-secondary" id="ft-count-badge">0 valores</span>
+          </div>
+          <div class="card-body">
+            <label class="form-label fw-semibold" for="c7-FT" data-i18n="c7.ft_lbl">
+              FT — ABS(NGROUP) valores de flujo
+            </label>
+            <textarea id="c7-FT" class="form-control font-monospace array-textarea"
+                      rows="10" placeholder="0.00000E+00 0.00000E+00 …"></textarea>
+            <div class="form-text" data-i18n="c7.ft_hint">
+              Un valor por grupo energético. Total: |NGROUP| valores.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /sec-flu -->
+
+    <!-- ════════════════════════════════════════
+         SECCIÓN: OPCIONES (Cards #8 y #9)
+         ════════════════════════════════════════ -->
+    <div class="tab-pane fade" id="sec-opt" role="tabpanel">
+      <div style="max-width:900px">
+
+        <!-- Card #8: IUNC3G -->
+        <div class="card mb-3 block-card">
+          <div class="card-header block-card-header" data-i18n="c8.h">
+            Card #8 &mdash; Incertidumbre en 3 grupos (IUNC3G)
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold" for="c8-IUNC3G" data-i18n="c8.iunc3g_lbl">IUNC3G</label>
+                <select id="c8-IUNC3G" class="form-select">
+                  <option value="0" selected data-i18n="c8.iunc3g_0">0 — Sin cálculo de incertidumbre</option>
+                  <option value="1" data-i18n="c8.iunc3g_1">1 — Calcular incertidumbre en estructura de 3 grupos</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card #9: ISTOP -->
+        <div class="card mb-3 block-card">
+          <div class="card-header block-card-header" data-i18n="c9.h">
+            Card #9 &mdash; Modo de ejecución (ISTOP)
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold" for="c9-ISTOP" data-i18n="c9.istop_lbl">ISTOP</label>
+                <select id="c9-ISTOP" class="form-select">
+                  <option value="0" selected data-i18n="c9.istop_0">0 — Ejecución completa (colapso de secciones eficaces)</option>
+                  <option value="1" data-i18n="c9.istop_1">1 — Solo información de flujo (sin colapso)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /sec-opt -->
+
+  </div><!-- /tab-content -->
+</div><!-- /container-fluid -->
+
+<!-- Hidden file input -->
+<input type="file" id="file-input" accept=".inp,.5,.txt" style="display:none">
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODAL: Validación
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="validationModal" tabindex="-1"
+     aria-labelledby="validationModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="validationModalLabel">
+          <i class="bi bi-clipboard-check me-2"></i>
+          <span data-i18n="val.modal_title">Resultado de la Validación</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="validation-modal-body">
+        <!-- Populated by JS -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
+                data-i18n="val.close">Cerrar</button>
+        <button type="button" class="btn btn-warning d-none" id="validation-proceed-btn"
+                data-i18n="val.proceed">Continuar de todos modos</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODAL: Vista previa
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="modal.preview_title">
+          <i class="bi bi-file-text me-2"></i>Vista previa — COLL.inp
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <pre id="preview-content"
+             class="m-0 p-3 font-monospace bg-dark text-light"
+             style="font-size:0.82rem; min-height:300px; white-space:pre; overflow-x:auto;"
+             data-i18n="modal.preview_ph">Pulsa 'Vista previa del fichero' en el menú Archivo para generar la vista previa…</pre>
+      </div>
+      <div class="modal-footer">
+        <span id="preview-lines" class="text-muted small me-auto"></span>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-copy-preview"
+                data-i18n="modal.preview_copy">
+          <i class="bi bi-clipboard me-1"></i>Copiar al portapapeles
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"
+                data-i18n="modal.preview_close">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODAL: Guardar como
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="saveasModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="modal.saveas_title">
+          <i class="bi bi-floppy me-2"></i>Guardar como…
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label for="saveas-filename" class="form-label" data-i18n="modal.saveas_lbl">Nombre del fichero</label>
+        <input type="text" id="saveas-filename" class="form-control font-monospace"
+               value="COLL.inp">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"
+                data-i18n="modal.saveas_cancel">Cancelar</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-saveas-confirm"
+                data-i18n="modal.saveas_save">
+          <i class="bi bi-floppy me-1"></i>Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODAL: Ejecución de COLLAPS
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="runModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="run.modal_title">
+          <i class="bi bi-play-circle me-2"></i>Ejecución de COLLAPS
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 mb-2">
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold" for="run-workdir" data-i18n="run.workdir_lbl">
+              Directorio de trabajo
+            </label>
+            <input type="text" id="run-workdir" class="form-control form-control-sm font-monospace"
+                   placeholder="C:\ruta\a\la\simulación">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold" for="run-exe" data-i18n="run.exe_lbl">Ejecutable</label>
+            <input type="text" id="run-exe" class="form-control form-control-sm font-monospace" value="collaps.exe">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold" for="run-timeout" data-i18n="run.timeout_lbl">Timeout (s)</label>
+            <input type="number" id="run-timeout" class="form-control form-control-sm" value="60" min="1" step="1">
+          </div>
+        </div>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="run-save-current" checked>
+          <label class="form-check-label small" for="run-save-current" data-i18n="run.save_current_lbl">
+            Guardar el fichero actual (COLL.inp) en el directorio de trabajo antes de ejecutar
+          </label>
+        </div>
+        <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+          <button type="button" class="btn btn-success btn-sm" id="btn-run-start">
+            <i class="bi bi-play-fill me-1"></i><span data-i18n="run.start_btn">Ejecutar</span>
+          </button>
+          <button type="button" class="btn btn-outline-danger btn-sm" id="btn-run-cancel" disabled>
+            <i class="bi bi-stop-fill me-1"></i><span data-i18n="run.cancel_btn">Cancelar</span>
+          </button>
+          <span id="run-elapsed" class="font-monospace small text-muted"></span>
+          <span id="run-status-badge" class="badge bg-secondary ms-auto"></span>
+        </div>
+        <pre id="run-log"
+             class="m-0 p-2 font-monospace bg-dark text-light rounded"
+             style="font-size:.78rem; height:280px; overflow-y:auto; white-space:pre-wrap; word-break:break-all;"></pre>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" data-i18n="run.close">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     TOAST container
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:11000" id="toast-container">
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     FOOTER
+     ═══════════════════════════════════════════════════════════════════════ -->
+<footer class="text-center text-muted small mt-5 pb-4">
+  <hr>
+  <p class="mb-0" data-i18n="footer.tfg">Trabajo de Fin de Grado — Ingeniería de la Energía | 2026</p>
+  <p class="mb-0" data-i18n="footer.author">Autor: Adrián Navarro Minaya — Tutor: Óscar Luis Cabellos de Francisco</p>
+  <p class="mb-0" data-i18n="footer.center">Escuela Universitaria de Minas y Energía — Universidad Politécnica de Madrid</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/static/js/app.js"></script>
+<script src="/static/js/suite_banner.js"></script>
+</body>
+</html>

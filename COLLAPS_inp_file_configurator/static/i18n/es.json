@@ -1,0 +1,196 @@
+{
+  "_comment": "Español — idioma por defecto",
+
+  "suite": {
+    "offline": "No arrancada — usa suite_launcher.py"
+  },
+
+  "nav": {
+    "brand"    : "COLLAPS inp File Configurator",
+    "file"     : "Archivo",
+    "new"      : "Nuevo",
+    "load"     : "Cargar COLL.inp…",
+    "saveas"   : "Guardar como…",
+    "validate" : "Validar",
+    "preview"  : "Vista previa del fichero",
+    "run"      : "Ejecutar",
+    "sections" : "Secciones",
+    "sec_bib"  : "Biblioteca",
+    "sec_fis"  : "Fisión",
+    "sec_flu"  : "Flujo Neutrónico",
+    "sec_opt"  : "Opciones",
+    "lang_label": "Idioma"
+  },
+
+  "status": {
+    "no_file"  : "Sin fichero cargado",
+    "loading"  : "Cargando…",
+    "modified" : "modificado"
+  },
+
+  "tabs": {
+    "bib" : "Biblioteca",
+    "fis" : "Fisión",
+    "flu" : "Flujo Neutrónico",
+    "opt" : "Opciones"
+  },
+
+  "help": {
+    "btn": "Ayuda"
+  },
+
+  "c1": {
+    "h"         : "Card #1 — Estructura de grupos (ILIB / IESF)",
+    "ilib_lbl"  : "ILIB — Librería de secciones eficaces a colapsar",
+    "iesf_lbl"  : "IESF — Estructura energética de salida",
+    "opt1"      : "1 — GAM-II (100 grupos)",
+    "opt2"      : "2 — Vitamin-J (175 grupos)",
+    "opt3"      : "3 — TART-175 (175 grupos)",
+    "opt4"      : "4 — TART-566 (566 grupos)",
+    "opt5"      : "5 — Otra (definida en Card #6)",
+    "opt12"     : "12 — Vitamin-J+ (211 grupos)"
+  },
+
+  "c2": {
+    "h"          : "Card #2 — Líneas de cabecera de la librería (IHEAD)",
+    "ihead_lbl"  : "IHEAD",
+    "ihead_hint" : "Número de líneas de cabecera en el fichero de secciones eficaces."
+  },
+
+  "c3": {
+    "h"          : "Card #3 — Modo de fisión y opciones de colapso",
+    "isfis_lbl"  : "ISFIS",
+    "isfis_0"    : "0 — Sin procesado de rendimientos de fisión",
+    "isfis_1"    : "1 — Activar modo fisión (activa Card #4)",
+    "igen_lbl"   : "IGEN",
+    "igen_0"     : "0 — Modo estándar (genera librería colapsada de rendimientos)",
+    "igen_1"     : "1 — Solo librerías EFY extendidas (detiene ejecución)",
+    "isoca_lbl"  : "ISOCA",
+    "isoca_0"    : "0 — Leer librería EFY extendida (Unit 18 / EFYBL.dat)",
+    "isoca_1"    : "1 — Procesar librería básica de rendimientos (Unit 17 / FYBL.dat)",
+    "ibest_lbl"  : "IBEST",
+    "ibest_0"    : "0 — Nucleidos fisibles de JEF-2.2/JEFF3.1",
+    "ibest_1"    : "1 — Todos los nucleidos fisibles de la librería de activación"
+  },
+
+  "c4": {
+    "h"       : "Card #4 — Límites energéticos de fisión (EB1 / EB2)",
+    "badge"   : "Solo si ISFIS ≠ 0",
+    "eb1_lbl" : "EB1 — Energía superior de fisión rápida (eV)",
+    "eb1_ph"  : "5.000E+06",
+    "eb1_hint": "Energía superior para la contribución de fisión rápida. Valor sugerido: 5×10⁶ eV.",
+    "eb2_lbl" : "EB2 — Energía superior de fisión epitérmica (eV)",
+    "eb2_ph"  : "2.000E+05",
+    "eb2_hint": "Energía superior para la contribución de fisión epitérmica. Valor sugerido: 2×10⁵ eV."
+  },
+
+  "c5": {
+    "h"          : "Card #5 — Grupos del espectro de flujo (NGROUP / FF)",
+    "ngroup_lbl" : "NGROUP",
+    "ngroup_hint": "Número de grupos del espectro de flujo de entrada. Negativo → orden de energía decreciente (habitual); positivo → creciente.",
+    "ff_lbl"     : "FF — Unidades del flujo",
+    "ff_0"       : "0 — Flujo total (n/cm²·s)",
+    "ff_1"       : "1 — Densidad de flujo (n/cm²·s·MeV)"
+  },
+
+  "c6": {
+    "h"       : "Card #6 — Fronteras energéticas personalizadas (CX)",
+    "badge"   : "Solo si IESF = 5",
+    "cx_lbl"  : "CX — ABS(NGROUP)+1 fronteras en eV",
+    "cx_hint" : "Un valor por frontera energética. Total: |NGROUP|+1 valores. Formato FORTRAN 6E12.5."
+  },
+
+  "c7": {
+    "h"       : "Card #7 — Espectro de flujo neutrónico (FT)",
+    "ft_lbl"  : "FT — ABS(NGROUP) valores de flujo",
+    "ft_hint" : "Un valor de flujo por grupo energético. Total: |NGROUP| valores. Formato FORTRAN 6E12.5.",
+    "count"   : "valores"
+  },
+
+  "c8": {
+    "h"           : "Card #8 — Incertidumbre en 3 grupos (IUNC3G)",
+    "iunc3g_lbl"  : "IUNC3G",
+    "iunc3g_0"    : "0 — Sin cálculo de incertidumbre",
+    "iunc3g_1"    : "1 — Calcular incertidumbre en estructura de 3 grupos"
+  },
+
+  "c9": {
+    "h"        : "Card #9 — Modo de ejecución (ISTOP)",
+    "istop_lbl": "ISTOP",
+    "istop_0"  : "0 — Ejecución completa (colapso de secciones eficaces)",
+    "istop_1"  : "1 — Solo información de flujo (sin colapso)"
+  },
+
+  "modal": {
+    "preview_title" : "Vista previa — COLL.inp",
+    "preview_ph"    : "Pulsa 'Vista previa del fichero' en el menú Archivo para generar la vista previa…",
+    "preview_copy"  : "Copiar al portapapeles",
+    "preview_close" : "Cerrar",
+    "preview_gen"   : "Generando…",
+    "saveas_title"  : "Guardar como…",
+    "saveas_lbl"    : "Nombre del fichero",
+    "saveas_cancel" : "Cancelar",
+    "saveas_save"   : "Guardar"
+  },
+
+  "toast": {
+    "copied"      : "Copiado al portapapeles.",
+    "copy_err"    : "No se pudo copiar.",
+    "new_ok"      : "Nuevo fichero creado.",
+    "file_loaded" : "Fichero \"{name}\" cargado correctamente.",
+    "file_saved"  : "Fichero \"{name}\" guardado.",
+    "session_restored" : "Sesión anterior restaurada.",
+    "lines"       : "{n} líneas",
+    "run_ok"          : "Ejecución completada correctamente.",
+    "run_timeout"     : "La ejecución superó el tiempo máximo y fue detenida.",
+    "run_cancelled"   : "Ejecución cancelada.",
+    "run_error"       : "La ejecución terminó con código de error {code}.",
+    "run_no_workdir"  : "Indica el directorio de trabajo antes de ejecutar."
+  },
+
+  "run": {
+    "modal_title"      : "Ejecución de COLLAPS",
+    "workdir_lbl"      : "Directorio de trabajo",
+    "exe_lbl"          : "Ejecutable",
+    "timeout_lbl"      : "Timeout (s)",
+    "save_current_lbl" : "Guardar el fichero actual (COLL.inp) en el directorio de trabajo antes de ejecutar",
+    "start_btn"        : "Ejecutar",
+    "cancel_btn"       : "Cancelar",
+    "close"            : "Cerrar",
+    "elapsed"          : "{s} s",
+    "badge_running"    : "En ejecución…",
+    "badge_ok"         : "OK",
+    "badge_timeout"    : "Timeout",
+    "badge_cancelled"  : "Cancelado",
+    "badge_error"      : "Error (código {code})"
+  },
+
+  "val": {
+    "toolbar_btn"   : "Validar",
+    "modal_title"   : "Resultado de la Validación",
+    "close"         : "Cerrar",
+    "proceed"       : "Continuar de todos modos",
+    "ok_title"      : "Validación correcta.",
+    "ok_msg"        : "No se han detectado errores ni advertencias.",
+    "errors_title"  : "Errores bloqueantes",
+    "warnings_title": "Advertencias",
+    "v01": "NGROUP no puede ser 0. Debe indicar el número de grupos del espectro de flujo.",
+    "v02": "IHEAD debe ser un entero positivo (≥ 1). Valor actual: {ihead}.",
+    "v03": "Card #7 (FT) debe contener {exp} valores (|NGROUP| = {exp}), pero contiene {got}.",
+    "v04": "Card #6 (CX) debe contener {exp} valores (|NGROUP|+1 con IESF=5), pero contiene {got}.",
+    "v05": "Para IESF={iesf} ({name}) se esperan {exp} grupos; |NGROUP| indica {got}.",
+    "v06": "Card #4 — EB1 y EB2 deben ser positivos (EB1={eb1}, EB2={eb2}). Valores recomendados: 5×10⁶ y 2×10⁵ eV.",
+    "v07": "Card #4 — EB1 debe ser mayor que EB2 (EB1={eb1} > EB2={eb2} es falso).",
+    "v08": "Todos los valores del espectro FT son cero. Sin flujo neutrónico COLLAPS no puede calcular secciones eficaces efectivas.",
+    "v09": "Hay valores negativos en FT. El flujo neutrónico debe ser no negativo.",
+    "v10": "Con ISFIS=1 e IGEN=1, COLLAPS solo generará las librerías EFY extendidas y se detendrá. No se producirá el colapso de secciones eficaces.",
+    "v11": "Con ISFIS=1 e ISOCA=0, COLLAPS leerá la librería EFY extendida (Unit 18 / EFYBL.dat). Asegúrate de que este fichero existe en el directorio de ejecución.",
+    "v12": "ILIB={ilib} ({lib}) y IESF={iesf} ({esf}) usan estructuras de grupos distintas. COLLAPS realizará una conversión interna del espectro antes del colapso."
+  },
+
+  "footer": {
+    "tfg"    : "Trabajo de Fin de Grado — Ingeniería de la Energía | 2026",
+    "author" : "Autor: Adrián Navarro Minaya — Tutor: Óscar Luis Cabellos de Francisco",
+    "center" : "Escuela Universitaria de Minas y Energía — Universidad Politécnica de Madrid"
+  }
+}

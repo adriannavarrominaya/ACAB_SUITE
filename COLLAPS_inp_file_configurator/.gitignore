@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+ENV/
+
+# Variables de entorno
+.env
+.env.*
+
+# pytest / testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDEs
+.vscode/
+.idea/
+
+# Windows
+desktop.ini
+Thumbs.db
+
+# Archivos temporales
+*.tmp
+*.bak
+*.swp
+*~

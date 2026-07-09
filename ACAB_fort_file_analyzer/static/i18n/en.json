@@ -1,0 +1,349 @@
+{
+  "_comment": "English",
+
+  "suite": {
+    "offline": "Not running — use suite_launcher.py"
+  },
+
+  "common": {
+    "close": "Close"
+  },
+
+  "units": {
+    "card": "Units",
+    "select_label": "Activity unit",
+    "volume_label": "Simulated volume [cm³]",
+    "volume_hint": "Must be the volume of the simulated zone.",
+    "bqcm3": "Bq/cm³",
+    "mbqg": "MBq/g",
+    "mbq_total": "Total activity (MBq)",
+    "mci_total": "Total activity (mCi)",
+    "u_bqcm3": "Bq/cm³",
+    "u_mbqg": "MBq/g",
+    "u_mbq_total": "MBq",
+    "u_mci_total": "mCi",
+    "mbqg_disabled": "MBq/g unavailable: the fort.6 has no CONCENTRATIONS(GRAM) section.",
+    "density": "Density",
+    "density_na": "no density",
+    "density_val": "ρ = {d} g/cm³",
+    "no_density_series": "{sim}: no density, omitted in MBq/g."
+  },
+
+  "export": {
+    "csv": "Export CSV",
+    "csv_format": "CSV format",
+    "csv_es": "Spanish (Excel: ; ,)",
+    "csv_intl": "International (, .)",
+    "meta_folder": "Folder",
+    "meta_iso": "Isotope",
+    "meta_unit": "Unit",
+    "meta_date": "Date"
+  },
+
+  "nav": {
+    "brand": "ACAB Fort File Analyzer",
+    "status_none": "No analysis",
+    "lang_label": "Language"
+  },
+
+  "sidebar": {
+    "folder_card": "Simulations Folder",
+    "folder_label": "Simulations folder",
+    "folder_ph": "C:\\path\\to\\simulations\\",
+    "browse": "Browse…",
+    "folder_hint": "Simulation subfolders, each with a <code>fort.6</code>.",
+    "param_source": "Simulation parameters",
+    "src_inp5": "Read from <code>inp.5</code> (automatic)",
+    "src_manual": "Enter manually (override)",
+    "t_irr": "T<sub>irr</sub> [h]",
+    "t_cool": "T<sub>cool</sub> [h]",
+    "phi": "φ total [n/cm²/s]",
+    "analyze": "Analyze",
+    "yaml_none": "No YAML in folder — using default configuration.",
+    "simlist": "Loaded simulations",
+    "iso_summary": "Isotope Summary",
+    "iso_peak": "{label} peak"
+  },
+
+  "welcome": {
+    "title": "ACAB Fort File Analyzer",
+    "lead": "Isotope analysis tool for ACAB simulations.<br>Load the <code>fort.6</code> and <code>inp.5</code> files from multiple simulations<br>and visualise the activity, comparison tables and a detailed report of the selected isotope.",
+    "howto_title": "How to use:",
+    "howto": "<li>Enter the path of the folder that contains the simulation subfolders.</li><li>Each subfolder must contain at least one <code>fort.6</code> file.</li><li>To read T<sub>irr</sub>, T<sub>cool</sub> and flux automatically, include <code>inp.5</code> in each subfolder.</li><li>Optionally, upload a YAML configuration file with half-lives and figures.</li><li>Click <strong>Analyze</strong>.</li>",
+    "structure_title": "Expected structure:",
+    "structure": "parent_folder/<br>&nbsp;&nbsp;simulation_A/fort.6 &nbsp;[inp.5]<br>&nbsp;&nbsp;simulation_B/fort.6 &nbsp;[inp.5]<br>&nbsp;&nbsp;…<br>&nbsp;&nbsp;[figuras - multiples simulaciones.yaml]"
+  },
+
+  "errors": {
+    "title": "Errors in some simulations:"
+  },
+
+  "tabs": {
+    "overview": "Simulations",
+    "charts": "Activity by Isotope",
+    "report": "Isotope Report",
+    "tables": "Comparison Tables",
+    "optim": "Optimisation"
+  },
+
+  "overview": {
+    "title": "Simulations Summary",
+    "th_sim": "Simulation",
+    "th_tirr": "T<sub>irr</sub> [h]",
+    "th_tcool": "T<sub>cool</sub> [h]",
+    "th_phi": "φ [n/cm²/s]",
+    "th_dens": "ρ [g/cm³]",
+    "th_ngrp": "NGRP",
+    "th_iso": "Isotopes",
+    "th_iso_sub": "(irr/cool)",
+    "th_i131": "¹³¹I",
+    "th_inp5": "inp.5",
+    "th_fecha": "fort.6 date",
+    "flux_detail": "{name} — Fluxes per energy group",
+    "th_group": "Group",
+    "th_flux": "Flux",
+    "group_fast": "Fast",
+    "group_thermal": "Thermal",
+    "group_epi": "Epithermal g{n}",
+    "group_row": "Group {n} ({label})",
+    "groups_count": "{n} groups",
+    "detected": "Isotopes detected in fort.6",
+    "click_hint": "Click an isotope to generate its full report:",
+    "desactualizada_badge": "Outdated",
+    "desactualizada_tooltip": "inp.5 was modified after the fort.6 was generated: results may not match the current configuration.",
+    "desactualizada_warning": "One or more simulations have a fort.6 that is outdated with respect to their inp.5. Results may not match the current configuration."
+  },
+
+  "charts": {
+    "title": "Activity Evolution by Isotope",
+    "show_irr": "Show irradiation phase",
+    "filter_all": "All figures",
+    "filter_te": "Tellurium (Te)",
+    "filter_xe": "Xenon (Xe)",
+    "filter_i": "Iodine (I)",
+    "edit": "Edit figures",
+    "edit_title": "Edit figure configuration",
+    "no_figs": "No figures configured for the selected filter.",
+    "fig": "Figure {n}",
+    "irr_suffix": "irr.",
+    "cool_suffix": "cool.",
+    "ax_time": "Time [h]",
+    "ax_time_cool": "Cooling time [h]",
+    "ax_activity": "Activity [{unit}]",
+    "no_data": "No activity data for this isotope.",
+    "end_irr": "End irr. ({t} h)"
+  },
+
+  "report": {
+    "placeholder": "Select an isotope in the <strong>Simulations</strong> tab to generate its full report.",
+    "generating": "Generating report for {label}…",
+    "s1": "1. Nuclear Properties of {label}",
+    "symbol": "Symbol",
+    "za": "Z / A",
+    "halflife": "Half-life T½",
+    "lambda": "Constant λ",
+    "spec_act": "Specific activity",
+    "spec_act_sub": "(pure {label})",
+    "decay_mode": "Decay mode",
+    "decay_val": "β⁻ → ¹³¹Xe (stable) &nbsp; E<sub>β,max</sub> ≈ 606 keV",
+    "gamma_diag": "Diagnostic gamma peak",
+    "gamma_diag_val": "364.5 keV &nbsp; (81.5 %/decay)",
+    "s2": "2. Peak Activity per Simulation",
+    "th_sim": "Simulation",
+    "th_apico": "A<sub>peak</sub> [{unit}]",
+    "th_tpico": "t<sub>peak</sub> [h]",
+    "th_fase": "Phase",
+    "s3": "3. Activity Evolution of {label}",
+    "s3_sub": "(irradiation + cooling)",
+    "s4": "{n}. Gamma Spectrum of {label}",
+    "s4_sub": "(ENSDF / NNDC)",
+    "gamma_lines": "Gamma Lines (ENSDF/NNDC)",
+    "th_energy": "Energy [keV]",
+    "th_intensity": "Intensity [%]",
+    "badge_main": "Main",
+    "badge_strong": "Strong",
+    "s5": "{n}. Activity Data of {label} in fort.6 per Simulation",
+    "irr": "Irradiation",
+    "irr_src": "— <code>NUMBER OF ATOMS</code> → A = λ·N [Bq/cm³]",
+    "th_tirr_a": "A({label}) [{unit}]",
+    "cool": "Cooling",
+    "cool_src": "— <code>NUCLIDE RADIOACTIVITY</code> [Bq/cm³]",
+    "not_in_cool": "{label} not present in the cooling section of fort.6.",
+    "no_data": "No data for {label}.",
+    "ax_activity": "Activity {label} [{unit}]",
+    "gamma_ax_energy": "Energy [keV]",
+    "gamma_ax_intensity": "Intensity [%/decay]",
+    "per_decay": "%/decay",
+    "goto_tables": "Go to the <strong>Comparison Tables</strong> tab to see the data for {label}.",
+    "sim_flux_meta": "— T<sub>irr</sub> {tirr} h | φ = {phi} n/cm²/s"
+  },
+
+  "tables": {
+    "placeholder": "Select an isotope in the <strong>Simulations</strong> tab to see the comparison tables.",
+    "t1_title": "Table 1 — Activity of all isotopes at the instant of the {label} peak",
+    "t1_desc": "For each simulation the instant of maximum {label} activity is determined and the activity of the remaining isotopes at that same instant is listed.",
+    "peak_badge": "{label} peak: {a} {unit}",
+    "t_badge": "t = {t} h",
+    "th_iso": "Isotope",
+    "th_a_tpico": "A at t<sub>peak</sub> [{unit}]",
+    "th_ratio": "A / A({label})",
+    "t2_title": "Table 2 — Peak activity of each isotope",
+    "t2_desc": "For each isotope its own activity peak instant is determined and the {label} activity at that same moment is indicated.",
+    "th_peak_a": "Peak A [{unit}]",
+    "th_tpico": "t<sub>peak</sub> [h]",
+    "th_a_ref": "A({label}) at t<sub>peak</sub> [{unit}]"
+  },
+
+  "figeditor": {
+    "title": "Figure Editor",
+    "reset": "Restore defaults",
+    "cancel": "Cancel",
+    "apply": "Apply",
+    "add_fig": "Add figure",
+    "fig": "Figure {n}",
+    "add_series": "Add series",
+    "label_ph": "Label (opt.)",
+    "remove_series": "Remove series",
+    "remove_fig": "Remove figure",
+    "title_label": "Title",
+    "series_label": "Series"
+  },
+
+  "toast": {
+    "no_folder_selected": "No folder was selected.",
+    "browse_err": "Could not open the folder picker.",
+    "enter_folder": "Enter a folder path.",
+    "unknown_err": "Unknown error.",
+    "errors_count": "{n} simulation(s) with errors. See the results panel.",
+    "net_err": "Network error: {msg}",
+    "analyze_first": "Run an analysis first to edit the figures.",
+    "figs_updated": "Figures updated.",
+    "figs_reset": "Figures restored to default values.",
+    "figs_reset_err": "Error loading default figures."
+  },
+
+  "status": {
+    "analyzing": "Analyzing…",
+    "error": "Error",
+    "net_error": "Network error",
+    "sims_count": "{n} simulation(s)"
+  },
+
+  "loading": {
+    "default": "Analyzing simulations…",
+    "spinner": "Loading…"
+  },
+
+  "yaml": {
+    "loaded": "YAML config loaded ({src})",
+    "src_upload": "uploaded file",
+    "src_auto": "found in folder"
+  },
+
+  "phase": {
+    "irr": "irradiation",
+    "cool": "cooling",
+    "na": "n/a"
+  },
+
+  "refdata": {
+    "load_btn": "Load experimental data",
+    "modal_title": "Import reference data",
+    "modal_lead": "CSV per <code>docs/SPEC_csv_datos_referencia.md</code>: columns t;A[;A_err], optional metadata in <code>#</code> lines.",
+    "preview_title": "Preview (first 5 rows)",
+    "col_label": "Column {n}",
+    "col_role_t": "t (time)",
+    "col_role_a": "A (activity)",
+    "col_role_aerr": "A_err (uncertainty)",
+    "col_role_ignore": "Ignore",
+    "field_tipo": "Series type",
+    "tipo_experimental": "Experimental (hollow — included in deviation metrics)",
+    "tipo_computacional": "Computational reference (filled — plotted only)",
+    "field_fase": "Phase",
+    "field_fase_ph": "— select —",
+    "field_isotopo": "Isotope",
+    "field_unidad_t": "Time unit",
+    "field_unidad_a": "Activity unit",
+    "field_etiqueta": "Label (legend)",
+    "field_fuente": "Source (optional)",
+    "field_refsim": "Reference simulation",
+    "field_refsim_hint": "Used to convert the activity unit and for the deviation metrics.",
+    "btn_choose_file": "Choose file…",
+    "btn_import": "Import",
+    "btn_cancel": "Cancel",
+    "err_parse": "Could not read the file: {msg}",
+    "err_no_rows": "The file has no valid data rows.",
+    "err_col_mapping": "Assign one column to t and another to A before importing.",
+    "err_missing_fields": "Fill in phase, time unit, activity unit and isotope before importing.",
+    "err_no_density": "This series uses MBq/g but the reference simulation has no density (no CONCENTRATIONS(GRAM) section found in its fort.6).",
+    "err_no_volume": "This series uses total activity but there is no valid volume set in the Units card.",
+    "toast_imported": "Series \"{label}\" imported ({n} points).",
+    "list_title": "Loaded reference series",
+    "list_empty": "None.",
+    "remove": "Remove",
+    "remove_title": "Remove this series",
+    "badge_experimental": "experimental",
+    "badge_computacional": "comp. ref.",
+    "metrics_title": "Deviation of {label} vs. {sim}",
+    "metrics_mean": "Mean bias: {v} %",
+    "metrics_max": "Max deviation: {v} %",
+    "metrics_th_t": "t [h]",
+    "metrics_th_aexp": "A exp. [{unit}]",
+    "metrics_th_ainterp": "A ACAB interp. [{unit}]",
+    "metrics_th_dev": "Dev. [%]",
+    "metrics_export": "Export CSV"
+  },
+
+  "metrics": {
+    "title": "{n}. Production-Optimisation Metrics of {label}",
+    "sat_trace": "theoretical saturation",
+    "sat_title": "Theoretical Saturation Curve",
+    "sat_desc": "A<sub>theo</sub>(t) = A<sub>sat</sub>·(1−e<sup>−λt</sup>) during irradiation, anchored to the ACAB value at the end of T<sub>irr</sub>. Times to reach 50/75/90/95 % of saturation and whether they fit within the current irradiation.",
+    "sat_na": "not applicable (unknown half-life or T<sub>irr</sub> = 0).",
+    "sat_th_pct": "% saturation",
+    "sat_th_tx": "t<sub>x</sub> [h]",
+    "sat_th_ok": "Fits in T<sub>irr</sub>?",
+    "rend_title": "Production Yield",
+    "rend_desc": "Mean activity produced per hour of irradiation (A<sub>peak</sub>/T<sub>irr</sub>) versus the rate of the last 10 % of the irradiation tramo — answers whether it still pays off to keep irradiating.",
+    "rend_th_medio": "Mean yield [{unit}/h]",
+    "rend_th_afin": "A(t<sub>end</sub>) [{unit}]",
+    "rend_th_marginal": "Marginal yield last 10 % [{unit}/h]",
+    "rend_th_compensa": "Worth continuing?",
+    "rend_si": "Yes",
+    "rend_no": "No",
+    "rend_na": "no T_irr > 0.",
+    "pureza_title": "Radionuclidic Purity at the Peak",
+    "pureza_desc": "P = A(target isotope) / Σ A(isotopes considered) at the peak instant, expressed in %. By default the isotopes of the same element present in the fort.6 are considered (after radiochemical separation the product contains only that element).",
+    "pureza_tooltip": "Default criterion: isotopes of the same target element (e.g. for I131: I130, I132, I133… whichever are present in the fort.6). Editable via the checklist below.",
+    "pureza_na": "no t<sub>peak</sub> or total activity is zero.",
+    "pureza_badge": "P = {v} %",
+    "pureza_th_iso": "Isotope",
+    "pureza_th_a": "A [{unit}]",
+    "pureza_th_pct": "Contribution",
+    "pureza_recalc": "Recalculate purity"
+  },
+
+  "optim": {
+    "placeholder": "Select an isotope in the <strong>Simulations</strong> tab to see the sweep optimisation.",
+    "goto": "Go to the <strong>Optimisation</strong> tab to see the sweep for {label}.",
+    "no_manifest": "This folder has no parametric sweep (no <code>sweep_manifest.json</code> found in the analysed root). This tab only activates for folders generated by the INP File Configurator's sweep generator.",
+    "no_rows": "None of the analysed simulations has an entry in the sweep manifest.",
+    "no_numeric_params": "The sweep manifest has no numeric parameters to plot.",
+    "title": "Parametric Sweep — {label}",
+    "desc": "Combines the sweep parameters with the peak, purity and yield already computed in the Isotope Report (no formula is recomputed).",
+    "param_label": "Parameter (X axis)",
+    "yvar_label": "Variable (Y axis)",
+    "yvar_apico": "Peak activity",
+    "yvar_tpico": "Peak time",
+    "yvar_pureza": "Radionuclidic purity at peak time",
+    "yvar_rendimiento": "Yield (peak activity / T_irr)",
+    "series_default": "series",
+    "th_apico": "A<sub>peak</sub> [{unit}]",
+    "th_tpico": "t<sub>peak</sub> [h]",
+    "th_pureza": "Purity [%]",
+    "th_rendimiento": "Yield [{unit}/h]",
+    "type_flux": "flux sweep",
+    "type_mass": "mass sweep",
+    "type_time": "time sweep"
+  }
+}

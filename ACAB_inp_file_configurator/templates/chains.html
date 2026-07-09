@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CHAINS — ACAB Configurator</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="/static/css/style.css" rel="stylesheet">
+  <style>
+    .nuclide-id-display {
+      font-family: monospace;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #0a58ca;
+      min-width: 90px;
+    }
+    .nuclide-name-display {
+      font-size: 0.9rem;
+      color: #198754;
+      font-weight: 500;
+    }
+    .mode-card {
+      cursor: pointer;
+      transition: border-color .15s, background-color .15s;
+    }
+    .mode-card:hover { border-color: #0d6efd; }
+    .mode-card.selected {
+      border-color: #0d6efd;
+      background-color: #f0f6ff;
+    }
+    .mode-card .mode-badge {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #0d6efd;
+    }
+    #card-initial { transition: opacity .2s; }
+    #card-initial.hidden-card { opacity: .35; pointer-events: none; }
+    #pcnt-group    { transition: opacity .2s; }
+    #pcnt-group.hidden-card { opacity: .35; pointer-events: none; }
+    .back-link { font-size: .85rem; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     BANNER DE NAVEGACIÓN DE LA SUITE ACAB
+     Fragmento común de la suite — mantener sincronizado en los 3 repos
+     (solo cambia qué app va resaltada como actual). JS: static/js/suite_banner.js
+     ═══════════════════════════════════════════════════════════════════════ -->
+<nav id="suite-banner" class="d-flex align-items-center gap-3 px-3 py-1 small"
+     style="background:#161a1f;border-bottom:1px solid #343a40;">
+  <span class="text-secondary text-uppercase fw-semibold"
+        style="font-size:.7rem;letter-spacing:.08em;">Suite ACAB</span>
+  <span class="fw-semibold text-warning">INP Configurator</span>
+  <a href="http://127.0.0.1:5001" class="link-light text-decoration-none" data-suite-port="5001">
+    <span class="suite-dot text-secondary">○</span> Fort Analyzer
+  </a>
+  <a href="http://127.0.0.1:5002" class="link-light text-decoration-none" data-suite-port="5002">
+    <span class="suite-dot text-secondary">○</span> COLLAPS
+  </a>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     NAVBAR
+     ═══════════════════════════════════════════════════════════════════════ -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark px-3 py-2">
+  <span class="navbar-brand fw-bold">
+    <i class="bi bi-radioactive text-warning me-1"></i>ACAB inp File Configurator
+  </span>
+
+  <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+          data-bs-target="#mainNav">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <div class="collapse navbar-collapse" id="mainNav">
+    <ul class="navbar-nav me-auto">
+
+      <!-- Archivo -->
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+          <i class="bi bi-folder2-open me-1"></i>Archivo
+        </a>
+        <ul class="dropdown-menu">
+          <li>
+            <a class="dropdown-item" href="#" id="btn-new">
+              <i class="bi bi-file-earmark-plus me-2"></i>Nuevo
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item" href="#" id="btn-load">
+              <i class="bi bi-folder-open me-2"></i>Cargar fichero CHAINS…
+            </a>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <a class="dropdown-item" href="#" id="btn-saveas">
+              <i class="bi bi-floppy me-2"></i>Guardar como…
+            </a>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <a class="dropdown-item" href="#" id="btn-preview">
+              <i class="bi bi-eye me-2"></i>Vista previa del fichero
+            </a>
+          </li>
+        </ul>
+      </li>
+
+      <!-- Herramientas (activo) -->
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle active" href="#" data-bs-toggle="dropdown">
+          <i class="bi bi-tools me-1"></i>Herramientas
+        </a>
+        <ul class="dropdown-menu">
+          <li>
+            <a class="dropdown-item active" href="/chains">
+              <i class="bi bi-diagram-3 me-2"></i>CHAINS — Análisis de caminos
+            </a>
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+    <!-- Back link -->
+    <a href="/" class="btn btn-outline-light btn-sm back-link me-3">
+      <i class="bi bi-arrow-left me-1"></i>Configurador inp.5
+    </a>
+
+    <!-- Status -->
+    <span class="navbar-text small" id="file-status">
+      <i class="bi bi-circle text-secondary me-1"></i>Sin fichero cargado
+    </span>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     PAGE HEADER
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="container-fluid px-3 pt-3 pb-2">
+  <div class="d-flex align-items-center gap-2 mb-1">
+    <i class="bi bi-diagram-3 fs-4 text-primary"></i>
+    <h5 class="mb-0 fw-bold">CHAINS — Análisis de Caminos de Transmutación</h5>
+  </div>
+  <p class="text-muted small mb-0">
+    Genera el fichero de entrada para la utilidad CHAINS de ACAB, que calcula y ordena los
+    caminos de transmutación posibles entre nucléidos.
+    Requiere UNIT 22 y UNIT 24 generados previamente por ACAB (IWP=1, IMTX=1 ó 2).
+  </p>
+</div>
+
+<div class="container-fluid px-3 pt-1" style="max-width:860px">
+
+  <!-- ════════════════════════════════════════
+       CARD: MODO DE OPERACIÓN (IFLAG)
+       ════════════════════════════════════════ -->
+  <div class="card mb-3 block-card">
+    <div class="card-header block-card-header">
+      <i class="bi bi-1-circle me-1"></i>Modo de operación — IFLAG
+    </div>
+    <div class="card-body">
+
+      <div class="mb-2">
+        <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+                data-bs-toggle="collapse" data-bs-target="#help-iflag">
+          <i class="bi bi-question-circle me-1"></i>Ayuda
+        </button>
+      </div>
+      <div class="collapse mb-3" id="help-iflag">
+        <div class="block-help-box">
+          <p class="mb-2 fw-semibold">CHAINS opera en tres modos:</p>
+          <table class="table table-sm table-bordered mb-0">
+            <thead><tr><th style="width:60px">IFLAG</th><th>Descripción</th></tr></thead>
+            <tbody>
+              <tr><td><code>1</code></td><td>Todos los caminos posibles que producen el nucléido IFINAL en ≤ NMAX pasos. No se especifica nucléido inicial.</td></tr>
+              <tr><td><code>2</code></td><td>Todos los caminos desde el nucléido INITIAL hasta IFINAL en ≤ NMAX pasos, ordenados por importancia relativa (pseudo-probabilidad). Solo se imprimen los que superen PCNT %.</td></tr>
+              <tr><td><code>3</code></td><td>Caminos cíclicos ("bucles") que pasan por IFINAL en ≤ NMAX pasos.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="row g-3">
+        <!-- Mode 1 -->
+        <div class="col-md-4">
+          <div class="card mode-card border-2 h-100 p-3" id="mode-card-1" data-mode="1">
+            <div class="mode-badge mb-1">1</div>
+            <div class="fw-semibold small">Todos los caminos a IFINAL</div>
+            <div class="text-muted" style="font-size:.75rem">
+              Sin nucléido inicial. Lista todos los caminos hasta NMAX pasos.
+            </div>
+          </div>
+        </div>
+        <!-- Mode 2 -->
+        <div class="col-md-4">
+          <div class="card mode-card border-2 h-100 p-3 selected" id="mode-card-2" data-mode="2">
+            <div class="mode-badge mb-1">2</div>
+            <div class="fw-semibold small">Caminos INITIAL → IFINAL</div>
+            <div class="text-muted" style="font-size:.75rem">
+              Ordenados por importancia relativa. Requiere INITIAL y PCNT.
+            </div>
+          </div>
+        </div>
+        <!-- Mode 3 -->
+        <div class="col-md-4">
+          <div class="card mode-card border-2 h-100 p-3" id="mode-card-3" data-mode="3">
+            <div class="mode-badge mb-1">3</div>
+            <div class="fw-semibold small">Caminos cíclicos</div>
+            <div class="text-muted" style="font-size:.75rem">
+              Bucles que incluyen a IFINAL en ≤ NMAX pasos.
+            </div>
+          </div>
+        </div>
+      </div>
+      <input type="hidden" id="f-iflag" value="2">
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       CARD: NUCLÉIDO INICIAL (solo IFLAG=2)
+       ════════════════════════════════════════ -->
+  <div class="card mb-3 block-card" id="card-initial">
+    <div class="card-header block-card-header d-flex align-items-center gap-2">
+      <i class="bi bi-2-circle me-1"></i>Nucléido inicial — INITIAL
+      <span class="badge bg-warning text-dark">Solo si IFLAG = 2</span>
+    </div>
+    <div class="card-body">
+      <p class="form-text mb-3">
+        Nucléido de partida. El identificador ACAB se calcula como
+        <code>Z × 10000 + A × 10 + IS</code> (IS = 0 estado fundamental, 1 estado metaestable).
+      </p>
+      <div class="row g-3 align-items-end">
+        <div class="col-auto">
+          <label class="form-label fw-semibold" for="f-initial-z">Z (número atómico)</label>
+          <input id="f-initial-z" type="number" class="form-control" min="1" max="103" step="1"
+                 style="width:90px" value="13">
+          <div class="form-text" id="f-initial-sym">Al</div>
+        </div>
+        <div class="col-auto">
+          <label class="form-label fw-semibold" for="f-initial-a">A (masa)</label>
+          <input id="f-initial-a" type="number" class="form-control" min="1" max="300" step="1"
+                 style="width:80px" value="27">
+        </div>
+        <div class="col-auto">
+          <label class="form-label fw-semibold d-block" for="f-initial-meta">Metaestable</label>
+          <div class="form-check form-switch mt-1">
+            <input class="form-check-input" type="checkbox" id="f-initial-meta">
+            <label class="form-check-label small" for="f-initial-meta">IS = 1</label>
+          </div>
+        </div>
+        <div class="col-auto">
+          <label class="form-label fw-semibold d-block">ID calculado</label>
+          <span class="nuclide-id-display" id="f-initial-id">130270</span>
+          <span class="nuclide-name-display ms-2" id="f-initial-name">Al-27</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       CARD: NUCLÉIDO FINAL (siempre)
+       ════════════════════════════════════════ -->
+  <div class="card mb-3 block-card">
+    <div class="card-header block-card-header">
+      <i class="bi bi-3-circle me-1"></i>Nucléido final — IFINAL
+    </div>
+    <div class="card-body">
+      <p class="form-text mb-3">
+        Nucléido objetivo del análisis de caminos.
+      </p>
+      <div class="row g-3 align-items-end">
+        <div class="col-auto">
+          <label class="form-label fw-semibold" for="f-ifinal-z">Z (número atómico)</label>
+          <input id="f-ifinal-z" type="number" class="form-control" min="1" max="103" step="1"
+                 style="width:90px" value="11">
+          <div class="form-text" id="f-ifinal-sym">Na</div>
+        </div>
+        <div class="col-auto">
+          <label class="form-label fw-semibold" for="f-ifinal-a">A (masa)</label>
+          <input id="f-ifinal-a" type="number" class="form-control" min="1" max="300" step="1"
+                 style="width:80px" value="24">
+        </div>
+        <div class="col-auto">
+          <label class="form-label fw-semibold d-block" for="f-ifinal-meta">Metaestable</label>
+          <div class="form-check form-switch mt-1">
+            <input class="form-check-input" type="checkbox" id="f-ifinal-meta">
+            <label class="form-check-label small" for="f-ifinal-meta">IS = 1</label>
+          </div>
+        </div>
+        <div class="col-auto">
+          <label class="form-label fw-semibold d-block">ID calculado</label>
+          <span class="nuclide-id-display" id="f-ifinal-id">110240</span>
+          <span class="nuclide-name-display ms-2" id="f-ifinal-name">Na-24</span>
+        </div>
+      </div>
+
+      <!-- Direct ID input (advanced) -->
+      <div class="mt-3 border-top pt-3">
+        <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+                data-bs-toggle="collapse" data-bs-target="#direct-id-panel">
+          <i class="bi bi-keyboard me-1"></i>Introducir ID directamente
+        </button>
+        <div class="collapse mt-2" id="direct-id-panel">
+          <div class="row g-2 align-items-end">
+            <div class="col-auto">
+              <label class="form-label small" for="f-initial-direct">INITIAL (ID directo)</label>
+              <input id="f-initial-direct" type="number" class="form-control form-control-sm font-monospace"
+                     style="width:110px" placeholder="130270">
+            </div>
+            <div class="col-auto">
+              <label class="form-label small" for="f-ifinal-direct">IFINAL (ID directo)</label>
+              <input id="f-ifinal-direct" type="number" class="form-control form-control-sm font-monospace"
+                     style="width:110px" placeholder="110240">
+            </div>
+            <div class="col-auto">
+              <button class="btn btn-sm btn-primary" id="btn-apply-direct">
+                <i class="bi bi-check2 me-1"></i>Aplicar
+              </button>
+            </div>
+          </div>
+          <div class="form-text mt-1">
+            Formato: Z×10000 + A×10 + IS.  Ej: Fe-54 → 260540, Fe-53m → 260531.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       CARD: PARÁMETROS (NMAX + PCNT)
+       ════════════════════════════════════════ -->
+  <div class="card mb-3 block-card">
+    <div class="card-header block-card-header">
+      <i class="bi bi-4-circle me-1"></i>Parámetros de búsqueda
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label fw-semibold" for="f-nmax">NMAX</label>
+          <input id="f-nmax" type="number" class="form-control" min="1" max="10" step="1" value="4">
+          <div class="form-text">Número máximo de pasos por cadena (1–10).</div>
+        </div>
+
+        <div class="col-md-4" id="pcnt-group">
+          <label class="form-label fw-semibold" for="f-pcnt">
+            PCNT
+            <span class="badge bg-warning text-dark ms-1">Solo si IFLAG = 2</span>
+          </label>
+          <div class="input-group">
+            <input id="f-pcnt" type="number" class="form-control font-monospace"
+                   min="0" max="100" step="0.01" value="0.1">
+            <span class="input-group-text">%</span>
+          </div>
+          <div class="form-text">
+            Solo se imprimen caminos que contribuyan al menos PCNT % a la pseudo-probabilidad total.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- Hidden file input -->
+<input type="file" id="file-input" accept=".txt,.inp,.chain,.*" style="display:none">
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODAL: Vista previa
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-file-text me-2"></i>Vista previa — fichero CHAINS
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <pre id="preview-content"
+             class="m-0 p-3 font-monospace bg-dark text-light"
+             style="font-size:.85rem; min-height:120px; white-space:pre; overflow-x:auto;">
+Pulsa 'Vista previa del fichero' en el menú Archivo para generar la vista previa…</pre>
+      </div>
+      <div class="modal-footer">
+        <span id="preview-lines" class="text-muted small me-auto"></span>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-copy-preview">
+          <i class="bi bi-clipboard me-1"></i>Copiar al portapapeles
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODAL: Guardar como
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="saveasModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-floppy me-2"></i>Guardar como…</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label for="saveas-filename" class="form-label">Nombre del fichero</label>
+        <input type="text" id="saveas-filename" class="form-control font-monospace"
+               value="input.chain.txt">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-saveas-confirm">
+          <i class="bi bi-floppy me-1"></i>Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:11000" id="toast-container"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     FOOTER
+     ═══════════════════════════════════════════════════════════════════════ -->
+<footer class="text-center text-muted small mt-5 pb-4">
+  <hr>
+  <p class="mb-0">Trabajo de Fin de Grado — Ingeniería de la Energía | 2026</p>
+  <p class="mb-0">Autor: Adrián Navarro Minaya — Tutor: Óscar Luis Cabellos de Francisco</p>
+  <p class="mb-0">Escuela Universitaria de Minas y Energía — Universidad Politécnica de Madrid</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/static/js/chains.js"></script>
+<script src="/static/js/suite_banner.js"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+{
+  "apps": [
+    {
+      "name": "inp-configurator",
+      "path": "../ACAB_inp_file_configurator",
+      "port": 5000,
+      "runner": {
+        "exe_name": "acab.exe",
+        "required_files": [
+          "acab.exe",
+          "inp.5",
+          "DECAY.dat",
+          "XSECTION.dat"
+        ],
+        "output_file": "fort.6",
+        "timeout_s": 60,
+        "default_workdir": "C:\\Users\\JANAVA~1.FUE\\AppData\\Local\\Temp\\acab_r3_verify"
+      }
+    },
+    {
+      "name": "fort-analyzer",
+      "path": "../ACAB_fort_file_analyzer",
+      "port": 5001
+    },
+    {
+      "name": "collaps",
+      "path": "../COLLAPS_inp_file_configurator",
+      "port": 5002
+    }
+  ],
+  "open_browser": "http://127.0.0.1:5000",
+  "python": "C:/venv/acab-venv/Scripts/python.exe"
+}

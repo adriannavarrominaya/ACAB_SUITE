@@ -1,0 +1,25 @@
+{
+  "_meta": {
+    "description": "Estructuras estándar de límites de grupos de energía gamma (EGRP, Bloque #2 Card #6). NOGG+1 fronteras en MeV en orden decreciente. Al aplicar un preset, la herramienta fija NOGG (Bloque #1, Card #3) automáticamente.",
+    "scope_note": "EGRP define únicamente el binning del término fuente gamma de salida (ILIB: fotones por desintegración; IPUN: tasas de emisión fotón/cm3·s). NO afecta al inventario de nucleidos ni a las actividades.",
+    "resolved_question": "CERRADA con el manual ACAB 2008 (Secciones III.2/IV, PHOTON.dat; Sección V, Bloques #1 y #2): la fuente gamma procede de PHOTON.dat, líneas DISCRETAS de energía (MeV) e intensidad (fotones/100 desintegraciones) por nucleido, extraídas por PROCDECAY de la librería de desintegración. ACAB solo agrupa esas líneas en los NOGG grupos que define el usuario: NO existe una librería gamma multigrupo interna que imponga límites superior/inferior de energía ni granularidad mínima a EGRP. Consideraciones prácticas: (1) fronteras por encima de la línea gamma más energética producen grupos vacíos, comportamiento inocuo verificado en el propio manual (ejemplo NIF con frontera superior de 20 MeV y grupos altos a cero, Tabla VI.6); (2) si se solicitan tasas de dosis (IDOSE=1), la librería de coeficientes de atenuación MACOEF.dat cubre 1 keV - 20 MeV, por lo que conviene mantener EGRP dentro de 0-20 MeV; (3) el único límite documentado relacionado es NOTTS < 150, no aplica a NOGG (los ejemplos del manual usan hasta 24 grupos sin restricción declarada)."
+  },
+  "presets": [
+    {
+      "id": "manual24",
+      "name_es": "24 grupos — ejemplo NIF del manual de ACAB (20.0 → 0.0 MeV)",
+      "name_en": "24 groups — ACAB manual NIF example (20.0 → 0.0 MeV)",
+      "nogg": 24,
+      "provenance": "Ejemplo VI.A del manual de ACAB 2008 (National Ignition Facility target chamber); estructura de uso habitual en cálculos de activación",
+      "boundaries": [20.0, 14.0, 12.0, 10.0, 8.0, 6.5, 5.0, 4.0, 3.0, 2.5, 2.0, 1.7, 1.4, 1.2, 1.0, 0.8, 0.6, 0.4, 0.3, 0.2, 0.1, 0.05, 0.02, 0.01, 0.0]
+    },
+    {
+      "id": "manual18",
+      "name_es": "18 grupos — ejemplo del manual de ACAB (11.0 → 0.0 MeV)",
+      "name_en": "18 groups — ACAB manual example (11.0 → 0.0 MeV)",
+      "nogg": 18,
+      "provenance": "Ejemplo #1 del Bloque #2 del manual de ACAB 2008 (docs/Block#2.md)",
+      "boundaries": [11.0, 8.0, 6.0, 4.0, 3.0, 2.5, 2.0, 1.5, 1.0, 0.7, 0.45, 0.3, 0.15, 0.1, 0.07, 0.045, 0.03, 0.02, 0.0]
+    }
+  ]
+}

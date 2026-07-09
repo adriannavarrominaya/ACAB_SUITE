@@ -1,0 +1,2511 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ACAB inp File Configurator</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="/static/css/style.css" rel="stylesheet">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     BANNER DE NAVEGACIÓN DE LA SUITE ACAB
+     Fragmento común de la suite — mantener sincronizado en los 3 repos
+     (solo cambia qué app va resaltada como actual). JS: static/js/suite_banner.js
+     ═══════════════════════════════════════════════════════════════════════ -->
+<nav id="suite-banner" class="d-flex align-items-center gap-3 px-3 py-1 small"
+     style="background:#161a1f;border-bottom:1px solid #343a40;">
+  <span class="text-secondary text-uppercase fw-semibold"
+        style="font-size:.7rem;letter-spacing:.08em;">Suite ACAB</span>
+  <span class="fw-semibold text-warning">INP Configurator</span>
+  <a href="http://127.0.0.1:5001" class="link-light text-decoration-none" data-suite-port="5001">
+    <span class="suite-dot text-secondary">○</span> Fort Analyzer
+  </a>
+  <a href="http://127.0.0.1:5002" class="link-light text-decoration-none" data-suite-port="5002">
+    <span class="suite-dot text-secondary">○</span> COLLAPS
+  </a>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     TOP NAVBAR
+     ═══════════════════════════════════════════════════════════════════════ -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark px-3 py-2">
+  <!-- Brand -->
+  <span class="navbar-brand fw-bold" data-i18n="nav.brand">
+    <i class="bi bi-radioactive text-warning me-1"></i>ACAB inp File Configurator
+  </span>
+
+  <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+          data-bs-target="#mainNav">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <div class="collapse navbar-collapse" id="mainNav">
+    <ul class="navbar-nav me-auto">
+
+      <!-- Archivo -->
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" data-i18n="nav.file">
+          <i class="bi bi-folder2-open me-1"></i>Archivo
+        </a>
+        <ul class="dropdown-menu">
+          <li>
+            <a class="dropdown-item" href="#" id="btn-new" data-i18n="nav.new">
+              <i class="bi bi-file-earmark-plus me-2"></i>Nuevo
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item" href="#" id="btn-load" data-i18n="nav.load">
+              <i class="bi bi-folder-open me-2"></i>Cargar inp.5…
+            </a>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <a class="dropdown-item" href="#" id="btn-saveas" data-i18n="nav.saveas">
+              <i class="bi bi-floppy me-2"></i>Guardar como…
+            </a>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <a class="dropdown-item" href="#" id="btn-validate" data-i18n="val.toolbar_btn">
+              <i class="bi bi-clipboard-check me-2"></i>Validar
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item" href="#" id="btn-preview" data-i18n="nav.preview">
+              <i class="bi bi-eye me-2"></i>Vista previa del fichero
+            </a>
+          </li>
+        </ul>
+      </li>
+
+      <!-- Herramientas -->
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" data-i18n="nav.tools">
+          <i class="bi bi-tools me-1"></i>Herramientas
+        </a>
+        <ul class="dropdown-menu">
+          <li>
+            <a class="dropdown-item" href="/chains" data-i18n="nav.tool_chains">
+              <i class="bi bi-diagram-3 me-2"></i>CHAINS — Análisis de caminos
+            </a>
+          </li>
+        </ul>
+      </li>
+
+      <!-- Secciones -->
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" data-i18n="nav.sections">
+          <i class="bi bi-layout-text-sidebar-reverse me-1"></i>Secciones
+        </a>
+        <ul class="dropdown-menu">
+          <li>
+            <a class="dropdown-item section-link" href="#"
+               data-section="sec-general" data-i18n="nav.sec_general">
+              <i class="bi bi-gear me-2"></i>Configuración General
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item section-link" href="#"
+               data-section="sec-geometry" data-i18n="nav.sec_geometry">
+              <i class="bi bi-grid-3x3 me-2"></i>Definición Geométrica y Espacial
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item section-link" href="#"
+               data-section="sec-materials" data-i18n="nav.sec_materials">
+              <i class="bi bi-layers me-2"></i>Materiales y Flujo
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item section-link" href="#"
+               data-section="sec-temporal" data-i18n="nav.sec_temporal">
+              <i class="bi bi-clock-history me-2"></i>Historial Temporal
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item section-link disabled" href="#"
+               id="nav-uncertainties-link"
+               data-section="sec-uncertainties"
+               title="Requiere IUNC = 1 (Block #1)" data-i18n="nav.sec_uncertainties" data-i18n-title="nav.sec_unc_tip">
+              <i class="bi bi-graph-up me-2"></i>Análisis de Incertidumbres
+            </a>
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+
+    <!-- Code search -->
+    <div class="d-flex align-items-center ms-2 me-1" id="code-search-container" style="position:relative;">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-dark border-secondary py-0">
+          <i class="bi bi-search text-secondary"></i>
+        </span>
+        <input type="text" id="code-search-input"
+               class="form-control bg-dark border-secondary text-white py-0"
+               autocomplete="off" spellcheck="false"
+               data-i18n-ph="search.placeholder"
+               placeholder="Buscar código…"
+               style="width:130px; font-size:.8rem;">
+      </div>
+      <div id="code-search-dropdown"
+           class="dropdown-menu p-0 shadow-lg"
+           style="display:none; position:absolute; top:calc(100% + 4px); left:0;
+                  min-width:290px; max-height:330px; overflow-y:auto; z-index:10000;">
+      </div>
+    </div>
+
+    <!-- Language selector -->
+    <div class="d-flex align-items-center ms-3 me-2">
+      <div class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle py-1 px-2 border border-secondary rounded d-flex align-items-center gap-2 text-white" href="#"
+           id="langDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+          <span id="lang-flag" class="lang-flag lang-flag-es"></span>
+          <span id="lang-name">Español</span>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item lang-item d-flex align-items-center gap-2" href="#" data-lang="es">
+            <span class="lang-flag lang-flag-es"></span> Español
+          </a></li>
+          <li><a class="dropdown-item lang-item d-flex align-items-center gap-2" href="#" data-lang="en">
+            <span class="lang-flag lang-flag-en"></span> English
+          </a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Run button -->
+    <button type="button" class="btn btn-outline-success btn-sm me-3" id="btn-run-open" data-i18n="nav.run">
+      <i class="bi bi-play-fill me-1"></i>Ejecutar
+    </button>
+
+    <!-- Status text -->
+    <span class="navbar-text small" id="file-status" data-i18n="status.no_file">
+      <i class="bi bi-circle text-secondary me-1"></i>Sin fichero cargado
+    </span>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     SECTION TABS  (top-level navigation)
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="container-fluid px-3 pt-3">
+  <ul class="nav nav-tabs" id="sectionTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="tab-general-btn"
+              data-bs-toggle="tab" data-bs-target="#sec-general"
+              type="button" role="tab" data-i18n="tabs.general">
+        <i class="bi bi-gear-fill me-1"></i>Configuración General
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-geometry-btn"
+              data-bs-toggle="tab" data-bs-target="#sec-geometry"
+              type="button" role="tab" data-i18n="tabs.geometry">
+        <i class="bi bi-grid-3x3 me-1"></i>Definición Geométrica y Espacial
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-materials-btn"
+              data-bs-toggle="tab" data-bs-target="#sec-materials"
+              type="button" role="tab" data-i18n="tabs.materials">
+        <i class="bi bi-layers me-1"></i>Materiales y Flujo
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-temporal-btn"
+              data-bs-toggle="tab" data-bs-target="#sec-temporal"
+              type="button" role="tab" data-i18n="tabs.temporal">
+        <i class="bi bi-clock-history me-1"></i>Historial Temporal
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link disabled" id="tab-uncertainties-btn"
+              data-bs-toggle="tab" data-bs-target="#sec-uncertainties"
+              type="button" role="tab"
+              title="Requiere IUNC = 1 (Block #1)" data-i18n="tabs.uncertainties" data-i18n-title="tabs.unc_tip">
+        <i class="bi bi-graph-up me-1"></i>Análisis de Incertidumbres
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-sweep-btn"
+              data-bs-toggle="tab" data-bs-target="#sec-sweep"
+              type="button" role="tab" data-i18n="tabs.sweep">
+        <i class="bi bi-collection me-1"></i>Barrido paramétrico
+      </button>
+    </li>
+  </ul>
+
+  <!-- ── SECTION CONTENT ─────────────────────────────────────────────── -->
+  <div class="tab-content" id="sectionContent">
+
+    <!-- ════════════════════════════════════════
+         SECCIÓN: CONFIGURACIÓN GENERAL
+         ════════════════════════════════════════ -->
+    <div class="tab-pane fade show active" id="sec-general"
+         role="tabpanel">
+
+      <div class="row mt-3">
+
+        <!-- Block pills (sidebar) -->
+        <div class="col-auto pe-0">
+          <div class="nav flex-column nav-pills gap-1" id="blockPills"
+               role="tablist" aria-orientation="vertical">
+            <button class="nav-link active text-start" id="pill-b1"
+                    data-bs-toggle="pill" data-bs-target="#tab-b1"
+                    type="button" role="tab">
+              <i class="bi bi-1-circle me-1"></i>Block&nbsp;#1
+              <div class="small text-muted lh-1" data-i18n="pill.b1_sub">Parámetros generales</div>
+            </button>
+            <button class="nav-link text-start" id="pill-b4"
+                    data-bs-toggle="pill" data-bs-target="#tab-b4"
+                    type="button" role="tab">
+              <i class="bi bi-4-circle me-1"></i>Block&nbsp;#4
+              <div class="small text-muted lh-1" data-i18n="pill.b4_sub">Reinicio</div>
+            </button>
+            <button class="nav-link text-start" id="pill-b9"
+                    data-bs-toggle="pill" data-bs-target="#tab-b9"
+                    type="button" role="tab">
+              <i class="bi bi-9-circle me-1"></i>Block&nbsp;#9
+              <div class="small text-muted lh-1" data-i18n="pill.b9_sub">Error y normalización</div>
+            </button>
+            <button class="nav-link text-start" id="pill-b10"
+                    data-bs-toggle="pill" data-bs-target="#tab-b10"
+                    type="button" role="tab">
+              <i class="bi bi-0-circle me-1"></i>Block&nbsp;#10
+              <div class="small text-muted lh-1" data-i18n="pill.b10_sub">Productos de fisión</div>
+            </button>
+          </div>
+        </div><!-- /col pills -->
+
+        <!-- Block forms -->
+        <div class="col">
+          <div class="tab-content ps-3" id="blockContent">
+
+            <!-- ════════════════════════════════
+                 BLOCK #1 — Parámetros generales
+                 ════════════════════════════════ -->
+            <div class="tab-pane fade show active" id="tab-b1" role="tabpanel">
+
+              <div class="block-comment-area mb-3">
+                <label class="form-label small text-secondary mb-1">
+                  <i class="bi bi-chat-left-quote me-1"></i><span data-i18n="cmt.prefix">Comentario para </span>Block #1
+                  <span class="fw-normal text-muted">(se escribe como <code>&lt;</code> texto en el fichero)</span>
+                </label>
+                <textarea id="cmt-block1" class="form-control form-control-sm font-monospace block-comment-input"
+                          rows="2" placeholder="Comentario opcional…"></textarea>
+              </div>
+
+              <div class="mb-2">
+                <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#help-b1" data-i18n="help.btn">
+                  <i class="bi bi-question-circle me-1"></i>Ayuda
+                </button>
+              </div>
+              <div class="collapse mb-3" id="help-b1">
+                <div class="block-help-box">
+                  <p class="mb-2 fw-semibold">Bloque de parámetros generales (3 tarjetas).</p>
+                  <p class="mb-2">Card #1: título del cálculo (hasta 80 caracteres). Card #2: modo de ejecución (IUNC). Card #3: 21 parámetros de librería, geometría y salida.</p>
+                  <table class="table table-sm table-bordered mb-0">
+                    <thead><tr><th style="width:130px">Parámetro</th><th>Descripción</th></tr></thead>
+                    <tbody>
+                      <tr><td><code>IUNC</code></td><td>0 = activación estándar · 1 = incertidumbre Monte Carlo (requiere Block #14)</td></tr>
+                      <tr><td><code>ITMAX / IZMAX</code></td><td>Nº de nucleidos en la librería de desintegración / elementos no nulos en la Matriz de Transición (~250 000 sin PF, ~800 000 con PF)</td></tr>
+                      <tr><td><code>INPT</code></td><td>Formato de composición inicial: 1 = elementos (átomos/barn·cm) · 2 = isótopos · 3 = elementos (g/cc)</td></tr>
+                      <tr><td><code>INFD</code></td><td>Alimentación continua: 0 = sin · 1 = elementos · 2 = isótopos (activa Block #6)</td></tr>
+                      <tr><td><code>NOGG / NGRP</code></td><td>Grupos de energía para gammas de desintegración / neutrones. Si IUNC=1 ó IGFP=1 → NGRP=1</td></tr>
+                      <tr><td><code>IGE</code></td><td>Geometría: 1 = plana, 2 = cilíndrica, 3 = esférica (1D); 4 = 3D Monte Carlo</td></tr>
+                      <tr><td><code>IZM / IM / JM</code></td><td>Nº de zonas de material / intervalos 1ª dimensión / intervalos 2ª dimensión (JM=0 para 1D/3D)</td></tr>
+                      <tr><td><code>IFLU</code></td><td>Flujo de entrada: 0 = ninguno · 1 = formato libre (activa Block #3) · 2 = cinta binaria</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Card 1: Título -->
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header">
+                  <span data-i18n="b1.card1_h"><span data-i18n="b1.card1_h">Card #1 &mdash; Título del experimento</span></span>
+                </div>
+                <div class="card-body">
+                  <label class="form-label" for="b1-title">
+                    Título <span class="text-muted">(máx. 80 caracteres)</span>
+                  </label>
+                  <input id="b1-title" type="text" class="form-control font-monospace"
+                         maxlength="80" placeholder="Descripción del experimento ACAB">
+                </div>
+              </div>
+
+              <!-- Card 2: IUNC -->
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header">
+                  <span data-i18n="b1.card2_h"><span data-i18n="b1.card2_h">Card #2 &mdash; Tipo de ejecución</span></span>
+                </div>
+                <div class="card-body">
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label" for="b1-IUNC">
+                        IUNC <span class="badge bg-secondary">entero</span>
+                      </label>
+                      <select id="b1-IUNC" class="form-select">
+                        <option value="0">0 — Activación estándar</option>
+                        <option value="1">1 — Incertidumbre Monte Carlo (requiere Block #14)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card 3: 21 integers, grouped -->
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header">
+                  <span data-i18n="b1.card3_h"><span data-i18n="b1.card3_h">Card #3 &mdash; Librería, geometría y salida (21 parámetros)</span></span>
+                </div>
+                <div class="card-body">
+
+                  <!-- Grupo: Librería -->
+                  <h6 class="group-heading">
+                    <i class="bi bi-database me-1"></i><span data-i18n="b1.grp_lib">Tamaños de librería</span>
+                  </h6>
+                  <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                      <label class="form-label" for="b1-ITMAX">ITMAX</label>
+                      <input id="b1-ITMAX" type="number" class="form-control" min="0" step="1">
+                      <div class="form-text" data-i18n="b1.itmax_hint">Nucleidos en la librería de desintegración</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label" for="b1-IZMAX">IZMAX</label>
+                      <input id="b1-IZMAX" type="number" class="form-control" min="0" step="1">
+                      <div class="form-text" data-i18n="b1.izmax_hint">Elementos no nulos en la Matriz de Transición</div>
+                    </div>
+                  </div>
+
+                  <!-- Grupo: Tablas de salida -->
+                  <h6 class="group-heading">
+                    <i class="bi bi-table me-1"></i><span data-i18n="b1.grp_tables">Tablas de salida</span>
+                  </h6>
+                  <div class="row g-3 mb-4">
+                    <div class="col-md-2">
+                      <label class="form-label" for="b1-MPCTAB">MPCTAB</label>
+                      <select id="b1-MPCTAB" class="form-select form-select-sm">
+                        <option value="0">0 — No</option>
+                        <option value="1">1 — Sí</option>
+                      </select>
+                      <div class="form-text" data-i18n="b1.mpctab_hint">Guías de concentración radiactiva</div>
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label" for="b1-IR">IR</label>
+                      <select id="b1-IR" class="form-select form-select-sm">
+                        <option value="0">0 — No</option>
+                        <option value="1">1 — Sí</option>
+                      </select>
+                      <div class="form-text" data-i18n="b1.ir_hint">Elementos de la Matriz de Transición</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label" for="b1-JTO">JTO</label>
+                      <select id="b1-JTO" class="form-select form-select-sm">
+                        <option value="0">0 — Todas las tablas</option>
+                        <option value="1">1 — Solo seleccionadas (NTO en Block #2)</option>
+                      </select>
+                      <div class="form-text" data-i18n="b1.jto_hint">Selección de tablas de salida</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label" for="b1-NTABLE">NTABLE</label>
+                      <select id="b1-NTABLE" class="form-select form-select-sm">
+                        <option value="0">0 — Todos los isótopos</option>
+                        <option value="1">1 — Solo los más importantes</option>
+                      </select>
+                      <div class="form-text" data-i18n="b1.ntable_hint">Filtro de isótopos en tablas</div>
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label" for="b1-MSTAR">MSTAR</label>
+                      <input id="b1-MSTAR" type="number" class="form-control form-control-sm" min="0" step="1">
+                      <div class="form-text" data-i18n="b1.mstar_hint">Índice de paso temporal para selección</div>
+                    </div>
+                  </div>
+
+                  <!-- Grupo: Composición -->
+                  <h6 class="group-heading">
+                    <i class="bi bi-boxes me-1"></i><span data-i18n="b1.grp_comp">Composición inicial y alimentación</span>
+                  </h6>
+                  <div class="row g-3 mb-4">
+                    <div class="col-md-5">
+                      <label class="form-label" for="b1-INPT">INPT</label>
+                      <select id="b1-INPT" class="form-select form-select-sm">
+                        <option value="1">1 — Elementos (átomos/barn·cm)</option>
+                        <option value="2">2 — Isótopos (átomos/barn·cm)</option>
+                        <option value="3">3 — Elementos (g/cc)</option>
+                      </select>
+                      <div class="form-text" data-i18n="b1.inpt_hint">Tipo de concentración inicial (Block #5)</div>
+                    </div>
+                    <div class="col-md-5">
+                      <label class="form-label" for="b1-INFD">INFD</label>
+                      <select id="b1-INFD" class="form-select form-select-sm">
+                        <option value="0">0 — Sin alimentación continua</option>
+                        <option value="1">1 — Elementos (activa Block #6)</option>
+                        <option value="2">2 — Isótopos (activa Block #6)</option>
+                      </select>
+                      <div class="form-text" data-i18n="b1.infd_hint">Tipo de alimentación continua</div>
+                    </div>
+                  </div>
+
+                  <!-- Grupo: Grupos de energía -->
+                  <h6 class="group-heading">
+                    <i class="bi bi-lightning me-1"></i><span data-i18n="b1.grp_energy">Grupos de energía</span>
+                  </h6>
+                  <div class="row g-3 mb-4">
+                    <div class="col-md-2">
+                      <label class="form-label" for="b1-NOGG">NOGG</label>
+                      <input id="b1-NOGG" type="number" class="form-control form-control-sm" min="0" step="1">
+                      <div class="form-text" data-i18n="b1.nogg_hint">Grupos de energía gamma</div>
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label" for="b1-NGRP">NGRP</label>
+                      <input id="b1-NGRP" type="number" class="form-control form-control-sm" min="0" step="1">
+                      <div class="form-text" data-i18n="b1.ngrp_hint">Grupos de energía neutrónica</div>
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label" for="b1-IGRP">IGRP</label>
+                      <input id="b1-IGRP" type="number" class="form-control form-control-sm" min="0" step="1">
+                      <div class="form-text" data-i18n="b1.igrp_hint">Grupos gamma del transporte</div>
+                    </div>
+                  </div>
+
+                  <!-- Grupo: Geometría -->
+                  <h6 class="group-heading">
+                    <i class="bi bi-bounding-box me-1"></i><span data-i18n="b1.grp_geom">Geometría</span>
+                  </h6>
+                  <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                      <label class="form-label" for="b1-IGE">IGE</label>
+                      <select id="b1-IGE" class="form-select form-select-sm">
+                        <option value="1">1 — 1D planar / 2D xy (si JM &gt; 0)</option>
+                        <option value="2">2 — 1D cilíndrica / 2D rz (si JM &gt; 0)</option>
+                        <option value="3">3 — 1D esférica / 2D rθ (si JM &gt; 0)</option>
+                        <option value="4">4 — 3D Monte Carlo</option>
+                      </select>
+                      <div class="form-text" data-i18n="b1.ige_hint">Tipo de geometría</div>
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label" for="b1-IZM">IZM</label>
+                      <input id="b1-IZM" type="number" class="form-control form-control-sm" min="1" step="1">
+                      <div class="form-text" data-i18n="b1.izm_hint">Nº de zonas de material</div>
+                      <div id="b1-izm-nuczo-feedback" class="small mt-1"></div>
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label" for="b1-IM">IM</label>
+                      <input id="b1-IM" type="number" class="form-control form-control-sm" min="1" step="1">
+                      <div class="form-text" data-i18n="b1.im_hint">Intervalos espaciales (1D) / 1ª dim. (2D)</div>
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label" for="b1-JM">JM</label>
+                      <input id="b1-JM" type="number" class="form-control form-control-sm" min="0" step="1">
+                      <div class="form-text" data-i18n="b1.jm_hint">2ª dimensión (2D); 0 para 1D/3D</div>
+                    </div>
+                  </div>
+
+                  <!-- Grupo: Flujo y salida adicional -->
+                  <h6 class="group-heading">
+                    <i class="bi bi-sliders me-1"></i><span data-i18n="b1.grp_flux">Flujo y opciones de salida adicionales</span>
+                  </h6>
+                  <div class="row g-3">
+                    <div class="col-md-3">
+                      <label class="form-label" for="b1-IFLU">IFLU</label>
+                      <select id="b1-IFLU" class="form-select form-select-sm">
+                        <option value="0">0 — Sin flujo externo</option>
+                        <option value="1">1 — Formato libre (Block #3)</option>
+                        <option value="2">2 — Cinta binaria</option>
+                      </select>
+                      <div class="form-text" data-i18n="b1.iflu_hint">Fuente del flujo neutrónico</div>
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label" for="b1-IPRT">IPRT</label>
+                      <select id="b1-IPRT" class="form-select form-select-sm">
+                        <option value="0">0 — No</option><option value="1">1 — Sí</option>
+                      </select>
+                      <div class="form-text" data-i18n="b1.iprt_hint">Imprimir flujos neutrónico</div>
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label" for="b1-ILIB">ILIB</label>
+                      <select id="b1-ILIB" class="form-select form-select-sm">
+                        <option value="0">0 — No</option><option value="1">1 — Sí</option>
+                      </select>
+                      <div class="form-text" data-i18n="b1.ilib_hint">Imprimir producción de fotones</div>
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label" for="b1-IRAD">IRAD</label>
+                      <select id="b1-IRAD" class="form-select form-select-sm">
+                        <option value="0">0 — No</option><option value="1">1 — Sí</option>
+                      </select>
+                      <div class="form-text" data-i18n="b1.irad_hint">Concentraciones durante irradiación</div>
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label" for="b1-IPUN">IPUN</label>
+                      <select id="b1-IPUN" class="form-select form-select-sm">
+                        <option value="0">0 — No</option><option value="1">1 — Sí</option>
+                      </select>
+                      <div class="form-text" data-i18n="b1.ipun_hint">Generar fichero de tasas de emisión gamma</div>
+                    </div>
+                  </div>
+
+                </div><!-- /card-body -->
+              </div><!-- /Card 3 -->
+
+            </div><!-- /tab-b1 -->
+
+            <!-- ════════════════════════════════
+                 BLOCK #4 — Reinicio
+                 ════════════════════════════════ -->
+            <div class="tab-pane fade" id="tab-b4" role="tabpanel">
+
+              <div class="block-comment-area mb-3">
+                <label class="form-label small text-secondary mb-1">
+                  <i class="bi bi-chat-left-quote me-1"></i><span data-i18n="cmt.prefix">Comentario para </span>Block #4
+                  <span class="fw-normal text-muted">(se escribe como <code>&lt;</code> texto en el fichero)</span>
+                </label>
+                <textarea id="cmt-block4" class="form-control form-control-sm font-monospace block-comment-input"
+                          rows="2" placeholder="Comentario opcional…"></textarea>
+              </div>
+
+              <div class="mb-2">
+                <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#help-b4" data-i18n="help.btn">
+                  <i class="bi bi-question-circle me-1"></i>Ayuda
+                </button>
+              </div>
+              <div class="collapse mb-3" id="help-b4">
+                <div class="block-help-box">
+                  <p class="mb-2 fw-semibold">Opción de reinicio (restart).</p>
+                  <p class="mb-2">Permite continuar un cálculo previo usando la composición final almacenada en UNIT 37 (generada automáticamente en cada ejecución). Especialmente útil para regímenes de irradiación pulsados (reactores IFE).</p>
+                  <table class="table table-sm table-bordered mb-0">
+                    <thead><tr><th style="width:90px">Parámetro</th><th>Descripción</th></tr></thead>
+                    <tbody>
+                      <tr><td><code>IREST</code></td><td>0 = ejecución normal — composición inicial desde Block #5<br>1 = leer composición inicial de UNIT 37 (Block #5 se omite del fichero de entrada)</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header">
+                  <span data-i18n="b4.card1_h"><span data-i18n="b4.card1_h">Card #1 &mdash; Opción de reinicio (IREST)</span></span>
+                </div>
+                <div class="card-body">
+                  <div class="row g-3">
+                    <div class="col-md-7">
+                      <label class="form-label" for="b4-IREST">IREST</label>
+                      <select id="b4-IREST" class="form-select">
+                        <option value="0">
+                          0 — Ejecución normal (composición inicial de Block #5)
+                        </option>
+                        <option value="1">
+                          1 — Leer composición inicial de UNIT 37 (omite Block #5)
+                        </option>
+                      </select>
+                      <div class="form-text mt-2">
+                        Cuando IREST = 1, el Block #5 no se incluye en el fichero de entrada.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div><!-- /tab-b4 -->
+
+            <!-- ════════════════════════════════
+                 BLOCK #9 — Error y normalización
+                 ════════════════════════════════ -->
+            <div class="tab-pane fade" id="tab-b9" role="tabpanel">
+
+              <div class="block-comment-area mb-3">
+                <label class="form-label small text-secondary mb-1">
+                  <i class="bi bi-chat-left-quote me-1"></i><span data-i18n="cmt.prefix">Comentario para </span>Block #9
+                  <span class="fw-normal text-muted">(se escribe como <code>&lt;</code> texto en el fichero)</span>
+                </label>
+                <textarea id="cmt-block9" class="form-control form-control-sm font-monospace block-comment-input"
+                          rows="2" placeholder="Comentario opcional…"></textarea>
+              </div>
+
+              <div class="mb-2">
+                <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#help-b9" data-i18n="help.btn">
+                  <i class="bi bi-question-circle me-1"></i>Ayuda
+                </button>
+              </div>
+              <div class="collapse mb-3" id="help-b9">
+                <div class="block-help-box">
+                  <p class="mb-2 fw-semibold">Error de truncamiento y normalización del flujo.</p>
+                  <table class="table table-sm table-bordered mb-0">
+                    <thead><tr><th style="width:90px">Parámetro</th><th>Descripción</th></tr></thead>
+                    <tbody>
+                      <tr><td><code>ERR</code></td><td>Error de truncamiento del método exponencial matricial. Valor recomendado: <code>1.0E-25</code>.</td></tr>
+                      <tr><td><code>XNORM</code></td><td>Factor de escala global del flujo (por defecto 1.0). Negativo → imprime tasas de transmutación inducida por neutrones (salida voluminosa).</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header">
+                  <span data-i18n="b9.card1_h"><span data-i18n="b9.card1_h">Card #1 &mdash; Error de truncamiento y normalización de flujo</span></span>
+                </div>
+                <div class="card-body">
+                  <div class="row g-3 align-items-start">
+                    <div class="col-md-4">
+                      <label class="form-label" for="b9-ERR">
+                        ERR <span class="badge bg-secondary">float</span>
+                      </label>
+                      <input id="b9-ERR" type="text" class="form-control font-monospace"
+                             placeholder="1.0E-25">
+                      <div class="form-text">
+                        Error de truncamiento. Valor recomendado: <code>1.0E-25</code>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label" for="b9-XNORM">
+                        XNORM <span class="badge bg-secondary">float</span>
+                      </label>
+                      <input id="b9-XNORM" type="text" class="form-control font-monospace"
+                             placeholder="1.0E+00">
+                      <div class="form-text">
+                        Factor de escala del flujo. Valor recomendado: <code>1.0</code>.
+                        Si es negativo, imprime tasas de transmutación.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div><!-- /tab-b9 -->
+
+            <!-- ════════════════════════════════
+                 BLOCK #10 — Productos de fisión
+                 ════════════════════════════════ -->
+            <div class="tab-pane fade" id="tab-b10" role="tabpanel">
+
+              <div class="block-comment-area mb-3">
+                <label class="form-label small text-secondary mb-1">
+                  <i class="bi bi-chat-left-quote me-1"></i><span data-i18n="cmt.prefix">Comentario para </span>Block #10
+                  <span class="fw-normal text-muted">(se escribe como <code>&lt;</code> texto en el fichero)</span>
+                </label>
+                <textarea id="cmt-block10" class="form-control form-control-sm font-monospace block-comment-input"
+                          rows="2" placeholder="Comentario opcional…"></textarea>
+              </div>
+
+              <div class="mb-2">
+                <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#help-b10" data-i18n="help.btn">
+                  <i class="bi bi-question-circle me-1"></i>Ayuda
+                </button>
+              </div>
+              <div class="collapse mb-3" id="help-b10">
+                <div class="block-help-box">
+                  <p class="mb-2 fw-semibold">Control del inventario de productos de fisión.</p>
+                  <p class="mb-2">Solo relevante si la composición inicial contiene actínidos. Si IUNC=0 e IGFP=1, NGRP debe ser 1.</p>
+                  <table class="table table-sm table-bordered mb-0">
+                    <thead><tr><th style="width:90px">Parámetro</th><th>Descripción</th></tr></thead>
+                    <tbody>
+                      <tr><td><code>IGFP</code></td><td>0 = sin productos de fisión · 1 = incluir PF en el inventario (requiere UNIT 96 — fichero FY.dat o FYXS.dat)</td></tr>
+                      <tr><td><code>IWFYD</code></td><td>Sin efecto si IGFP=0. 0 = secciones eficaces de rendimiento ponderadas para todos los fisionables de la librería base · 1 = efectivas para los de la librería de activación</td></tr>
+                      <tr><td><code>IFORT96</code></td><td>Formato de UNIT 96: 0 = rendimiento de fisión ⟨γ⟩ (FY.dat) · 1 = sección eficaz de rendimiento ⟨γσ⟩ (FYXS.dat)</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header">
+                  <span data-i18n="b10.card1_h"><span data-i18n="b10.card1_h">Card #1 &mdash; Inventario de productos de fisión</span></span>
+                </div>
+                <div class="card-body">
+                  <div class="row g-3">
+                    <div class="col-md-4">
+                      <label class="form-label" for="b10-IGFP">IGFP</label>
+                      <select id="b10-IGFP" class="form-select">
+                        <option value="0">0 — Sin productos de fisión</option>
+                        <option value="1">1 — Incluir (requiere UNIT 96)</option>
+                      </select>
+                      <div class="form-text" data-i18n="b10.igfp_hint">Activar inventario de productos de fisión</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label" for="b10-IWFYD">IWFYD</label>
+                      <select id="b10-IWFYD" class="form-select">
+                        <option value="0">0 — Rendimiento ponderado (todos los fisibles)</option>
+                        <option value="1">1 — Rendimiento efectivo (nucleidos de librería)</option>
+                      </select>
+                      <div class="form-text" data-i18n="b10.iwfyd_hint">Método de cálculo del rendimiento de fisión</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label" for="b10-IFORT96">IFORT96</label>
+                      <select id="b10-IFORT96" class="form-select">
+                        <option value="0">0 — Datos de rendimiento (FY.dat)</option>
+                        <option value="1">1 — Secciones eficaces FY (FYXS.dat)</option>
+                      </select>
+                      <div class="form-text" data-i18n="b10.ifort96_hint">Fichero fuente de rendimientos de fisión</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div><!-- /tab-b10 -->
+
+          </div><!-- /tab-content blocks -->
+        </div><!-- /col forms -->
+
+      </div><!-- /row -->
+    </div><!-- /sec-general -->
+
+    <!-- ════════════════════════════════════════
+         SECCIÓN: DEFINICIÓN GEOMÉTRICA Y ESPACIAL
+         ════════════════════════════════════════ -->
+    <div class="tab-pane fade" id="sec-geometry" role="tabpanel">
+
+      <div class="row mt-3">
+
+        <!-- Block pills (sidebar) -->
+        <div class="col-auto pe-0">
+          <div class="nav flex-column nav-pills gap-1" id="geomPills"
+               role="tablist" aria-orientation="vertical">
+            <button class="nav-link active text-start" id="pill-b2"
+                    data-bs-toggle="pill" data-bs-target="#tab-b2"
+                    type="button" role="tab">
+              <i class="bi bi-2-circle me-1"></i>Block&nbsp;#2
+              <div class="small text-muted lh-1" data-i18n="pill.b2_sub">Malla y salida</div>
+            </button>
+          </div>
+        </div><!-- /col pills -->
+
+        <!-- Block forms -->
+        <div class="col">
+          <div class="tab-content ps-3" id="geomBlockContent">
+
+            <!-- ════════════════════════════════
+                 BLOCK #2 — Malla espacial y salida
+                 ════════════════════════════════ -->
+            <div class="tab-pane fade show active" id="tab-b2" role="tabpanel">
+
+              <div class="block-comment-area mb-3">
+                <label class="form-label small text-secondary mb-1">
+                  <i class="bi bi-chat-left-quote me-1"></i><span data-i18n="cmt.prefix">Comentario para </span>Block #2
+                  <span class="fw-normal text-muted">(se escribe como <code>&lt;</code> texto en el fichero)</span>
+                </label>
+                <textarea id="cmt-block2" class="form-control form-control-sm font-monospace block-comment-input"
+                          rows="2" placeholder="Comentario opcional…"></textarea>
+              </div>
+
+              <div class="mb-2">
+                <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#help-b2" data-i18n="help.btn">
+                  <i class="bi bi-question-circle me-1"></i>Ayuda
+                </button>
+              </div>
+              <div class="collapse mb-3" id="help-b2">
+                <div class="block-help-box">
+                  <p class="mb-2 fw-semibold">Geometría espacial, malla y parámetros de salida (hasta 8 tarjetas).</p>
+                  <table class="table table-sm table-bordered mb-0">
+                    <thead><tr><th style="width:90px">Tarjeta</th><th>Descripción</th></tr></thead>
+                    <tbody>
+                      <tr><td><code>XRR</code></td><td>1D/2D: límites de intervalos en cm [IM+1]. 3D (IGE=4): volumen de cada zona en cm³ con un valor extra no nulo al final [IZM+1].</td></tr>
+                      <tr><td><code>YZT</code></td><td>Límites de intervalos en 2ª dimensión en cm [JM+1]. Solo si JM &gt; 0.</td></tr>
+                      <tr><td><code>MA</code></td><td>Identificador de zona de material de cada intervalo espacial [IM] ó [IM×JM].</td></tr>
+                      <tr><td><code>NUCZO</code></td><td>Nº de nucleidos/elementos por zona [IZM]. Negativo → flujo promediado de zona. 0 → omitir zona.</td></tr>
+                      <tr><td><code>ISOZO</code></td><td>Nº de nucleidos/elementos de alimentación continua por zona [IZM]. Solo si INFD &gt; 0.</td></tr>
+                      <tr><td><code>EGRP</code></td><td>Fronteras energéticas para gammas de activación, en orden decreciente de energía en MeV [NOGG+1].</td></tr>
+                      <tr><td><code>CUTOFF</code></td><td>Umbrales para las 6 tablas de salida. Isótopos por debajo del umbral en el paso MSTAR se omiten de las tablas [6]. Poner 0 si no se desea umbral.</td></tr>
+                      <tr><td><code>NTO</code></td><td>18 indicadores 0/1 para seleccionar las 18 tablas de salida. Solo si JTO=1. Tipos: 1=mol, 2=g, 3=Bq, 4=W, 5–6 inactivos. Tres tablas por tipo (todos los isótopos / por elemento / los más importantes).</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Card 1: XRR -->
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header">
+                  <span data-i18n="b2.card1_h"><span data-i18n="b2.card1_h">Card #1 &mdash; XRR &mdash; Límites de intervalos / Volúmenes de zona</span></span>
+                </div>
+                <div class="card-body">
+                  <div class="alert alert-info py-2 small mb-3">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <strong>3D Monte Carlo (IGE&nbsp;=&nbsp;4):</strong> IZM volúmenes de zona (cm³) + 1 valor final no nulo (terminador).&nbsp;
+                    <strong>Otros (IGE 1–3):</strong> IM+1 valores de límite de intervalo (cm).
+                  </div>
+                  <label class="form-label" for="b2-XRR">
+                    XRR <span class="badge bg-secondary">floats separados por espacio</span>
+                  </label>
+                  <textarea id="b2-XRR" class="form-control font-monospace array-textarea"
+                            rows="3" placeholder="1.3684E+5 1.0"></textarea>
+                </div>
+              </div>
+
+              <!-- Card 2: YZT -->
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header">
+                  <span data-i18n="b2.card2_h"><span data-i18n="b2.card2_h">Card #2 &mdash; YZT &mdash; Límites de 2ª dimensión</span></span>
+                  <span class="badge bg-warning text-dark ms-2">Solo geometría 2D (JM &gt; 0)</span>
+                </div>
+                <div class="card-body">
+                  <label class="form-label" for="b2-YZT">
+                    YZT <span class="badge bg-secondary">floats separados por espacio</span>
+                  </label>
+                  <textarea id="b2-YZT" class="form-control font-monospace array-textarea"
+                            rows="2" placeholder="Dejar vacío si no es geometría 2D"></textarea>
+                  <div class="form-text">JM+1 valores de límite en la 2ª dimensión (cm). Omitir si JM = 0 (1D o 3D).</div>
+                </div>
+              </div>
+
+              <!-- Card 3: MA -->
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header">
+                  <span data-i18n="b2.card3_h"><span data-i18n="b2.card3_h">Card #3 &mdash; MA &mdash; Identificación de zona por intervalo espacial</span></span>
+                </div>
+                <div class="card-body">
+                  <label class="form-label" for="b2-MA">
+                    MA <span class="badge bg-secondary">enteros separados por espacio</span>
+                  </label>
+                  <textarea id="b2-MA" class="form-control font-monospace array-textarea"
+                            rows="2" placeholder="1 1 2 2 3"></textarea>
+                  <div class="form-text">
+                    IM valores (1D) o IM×JM valores (2D). Número de zona asignado a cada intervalo espacial,
+                    de izquierda a derecha y de abajo a arriba.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card 4: NUCZO -->
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header">
+                  <span data-i18n="b2.card4_h"><span data-i18n="b2.card4_h">Card #4 &mdash; NUCZO &mdash; Número de especies iniciales por zona</span></span>
+                </div>
+                <div class="card-body">
+                  <div class="alert alert-info py-2 small mb-3">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <strong>Positivo:</strong> resolver ecuaciones por intervalo. &nbsp;
+                    <strong>Negativo:</strong> usar flujo promediado por zona. &nbsp;
+                    <strong>Cero:</strong> omitir esa zona.
+                  </div>
+                  <label class="form-label" for="b2-NUCZO">
+                    NUCZO <span class="badge bg-secondary">IZM enteros separados por espacio</span>
+                  </label>
+                  <textarea id="b2-NUCZO" class="form-control font-monospace array-textarea"
+                            rows="2" placeholder="3 0 -6"></textarea>
+                  <div class="form-text" data-i18n="b2.nuczo_hint">IZM valores (uno por zona de material).</div>
+                  <div id="b2-nuczo-izm-feedback" class="small mt-1"></div>
+                </div>
+              </div>
+
+              <!-- Card 5: ISOZO -->
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header">
+                  <span data-i18n="b2.card5_h"><span data-i18n="b2.card5_h">Card #5 &mdash; ISOZO &mdash; Número de especies de alimentación por zona</span></span>
+                  <span class="badge bg-warning text-dark ms-2">Solo si INFD &gt; 0</span>
+                </div>
+                <div class="card-body">
+                  <label class="form-label" for="b2-ISOZO">
+                    ISOZO <span class="badge bg-secondary">IZM enteros separados por espacio</span>
+                  </label>
+                  <textarea id="b2-ISOZO" class="form-control font-monospace array-textarea"
+                            rows="2" placeholder="Dejar vacío si INFD = 0"></textarea>
+                  <div class="form-text" data-i18n="b2.isozo_hint">Número de elementos o isótopos de alimentación continua por zona (Block #6). Omitir si INFD = 0.</div>
+                </div>
+              </div>
+
+              <!-- Card 6: EGRP -->
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header">
+                  <span data-i18n="b2.card6_h"><span data-i18n="b2.card6_h">Card #6 &mdash; EGRP &mdash; Límites de grupos de energía gamma (MeV)</span></span>
+                  <span class="badge bg-warning text-dark ms-2">Solo si NOGG &gt; 0</span>
+                </div>
+                <div class="card-body">
+                  <div class="row g-2 align-items-end mb-2">
+                    <div class="col-md-8">
+                      <label class="form-label" for="b2-egrp-preset" data-i18n="egrp.preset_lbl">Estructura estándar (librería de presets)</label>
+                      <select id="b2-egrp-preset" class="form-select form-select-sm"></select>
+                    </div>
+                    <div class="col-md-4">
+                      <button id="b2-egrp-apply" type="button" class="btn btn-sm btn-outline-primary w-100" data-i18n="egrp.apply_btn">
+                        Aplicar preset (fija NOGG)
+                      </button>
+                    </div>
+                  </div>
+                  <div id="b2-egrp-provenance" class="form-text mb-2 d-none"></div>
+                  <label class="form-label" for="b2-EGRP">
+                    EGRP <span class="badge bg-secondary">NOGG+1 floats en MeV, orden decreciente</span>
+                  </label>
+                  <textarea id="b2-EGRP" class="form-control font-monospace array-textarea"
+                            rows="3" placeholder="11.0 8.0 6.0 4.0 3.0 2.5 2.0 1.5 1.0 0.7 0.45 0.3 0.15 0.1 0.07 0.045 0.03 0.02 0.0"></textarea>
+                  <div id="b2-egrp-feedback" class="small mt-1"></div>
+                  <div class="form-text">
+                    NOGG+1 límites de grupos de energía gamma en MeV, en orden <strong>decreciente</strong>.
+                    Omitir si NOGG = 0.
+                  </div>
+                  <div class="alert alert-info py-2 small mt-2 mb-0">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <span data-i18n="egrp.scope_note">EGRP solo afecta al espectro gamma de salida (opciones ILIB/IPUN), no al inventario de nucleidos ni a las actividades.</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card 7: CUTOFF -->
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header">
+                  <span data-i18n="b2.card7_h"><span data-i18n="b2.card7_h">Card #7 &mdash; CUTOFF &mdash; Umbrales de truncamiento para tablas de salida</span></span>
+                </div>
+                <div class="card-body">
+                  <p class="form-text mb-3">
+                    Un valor umbral por tipo de tabla. Los isótopos cuyo valor en el paso temporal MSTAR sea inferior
+                    al umbral se omiten en las tablas de «isótopos más importantes». Poner <code>0</code> para no truncar.
+                    Solo los tipos 1–4 están activos en la versión actual de ACAB.
+                  </p>
+                  <div class="row g-3">
+                    <div class="col-md-2">
+                      <label class="form-label small" for="b2-cutoff-0">
+                        Tipo 1<br><span class="text-muted">gram-atoms</span>
+                      </label>
+                      <input id="b2-cutoff-0" type="text"
+                             class="form-control form-control-sm font-monospace"
+                             placeholder="1.0E+0">
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label small" for="b2-cutoff-1">
+                        Tipo 2<br><span class="text-muted">masa (g)</span>
+                      </label>
+                      <input id="b2-cutoff-1" type="text"
+                             class="form-control form-control-sm font-monospace"
+                             placeholder="1.0E-6">
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label small" for="b2-cutoff-2">
+                        Tipo 3<br><span class="text-muted">actividad (Bq)</span>
+                      </label>
+                      <input id="b2-cutoff-2" type="text"
+                             class="form-control form-control-sm font-monospace"
+                             placeholder="1.0E+0">
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label small" for="b2-cutoff-3">
+                        Tipo 4<br><span class="text-muted">calor residual (W)</span>
+                      </label>
+                      <input id="b2-cutoff-3" type="text"
+                             class="form-control form-control-sm font-monospace"
+                             placeholder="1.0E-3">
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label small text-muted" for="b2-cutoff-4">
+                        Tipo 5<br><span>(inactivo)</span>
+                      </label>
+                      <input id="b2-cutoff-4" type="text"
+                             class="form-control form-control-sm font-monospace text-muted"
+                             placeholder="1.0E+0">
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label small text-muted" for="b2-cutoff-5">
+                        Tipo 6<br><span>(inactivo)</span>
+                      </label>
+                      <input id="b2-cutoff-5" type="text"
+                             class="form-control form-control-sm font-monospace text-muted"
+                             placeholder="1.0E+0">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card 8: NTO -->
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header">
+                  <span data-i18n="b2.card8_h"><span data-i18n="b2.card8_h">Card #8 &mdash; NTO &mdash; Selección de tablas de salida (18 indicadores)</span></span>
+                  <span class="badge bg-warning text-dark ms-2">Solo si JTO = 1</span>
+                </div>
+                <div class="card-body">
+                  <p class="form-text mb-3">
+                    18 indicadores (0/1) para las 18 tablas de salida. Solo relevante cuando JTO = 1 (Block #1).
+                    Los tipos 5 y 6 están inactivos en la versión actual y deben mantenerse en 0.
+                  </p>
+                  <table class="table table-sm table-bordered nto-table">
+                    <thead class="table-dark">
+                      <tr>
+                        <th style="width:3rem">Tipo</th>
+                        <th>Magnitud</th>
+                        <th class="text-center" style="width:9rem">Todos los isótopos<br><small class="fw-normal opacity-75">(tablas 1/4/7/10…)</small></th>
+                        <th class="text-center" style="width:9rem">Todos los elementos<br><small class="fw-normal opacity-75">(tablas 2/5/8/11…)</small></th>
+                        <th class="text-center" style="width:9rem">Más importantes<br><small class="fw-normal opacity-75">(tablas 3/6/9/12…)</small></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td class="fw-bold text-center">1</td>
+                        <td>gram-atoms (mol)</td>
+                        <td class="text-center"><input type="checkbox" id="b2-nto-0"  class="form-check-input nto-check"></td>
+                        <td class="text-center"><input type="checkbox" id="b2-nto-1"  class="form-check-input nto-check"></td>
+                        <td class="text-center"><input type="checkbox" id="b2-nto-2"  class="form-check-input nto-check"></td>
+                      </tr>
+                      <tr>
+                        <td class="fw-bold text-center">2</td>
+                        <td>masa (g)</td>
+                        <td class="text-center"><input type="checkbox" id="b2-nto-3"  class="form-check-input nto-check"></td>
+                        <td class="text-center"><input type="checkbox" id="b2-nto-4"  class="form-check-input nto-check"></td>
+                        <td class="text-center"><input type="checkbox" id="b2-nto-5"  class="form-check-input nto-check"></td>
+                      </tr>
+                      <tr>
+                        <td class="fw-bold text-center">3</td>
+                        <td>actividad (Bq)</td>
+                        <td class="text-center"><input type="checkbox" id="b2-nto-6"  class="form-check-input nto-check"></td>
+                        <td class="text-center"><input type="checkbox" id="b2-nto-7"  class="form-check-input nto-check"></td>
+                        <td class="text-center"><input type="checkbox" id="b2-nto-8"  class="form-check-input nto-check"></td>
+                      </tr>
+                      <tr>
+                        <td class="fw-bold text-center">4</td>
+                        <td>calor residual (W)</td>
+                        <td class="text-center"><input type="checkbox" id="b2-nto-9"  class="form-check-input nto-check"></td>
+                        <td class="text-center"><input type="checkbox" id="b2-nto-10" class="form-check-input nto-check"></td>
+                        <td class="text-center"><input type="checkbox" id="b2-nto-11" class="form-check-input nto-check"></td>
+                      </tr>
+                      <tr class="table-secondary">
+                        <td class="fw-bold text-center text-muted">5</td>
+                        <td class="text-muted">inactivo</td>
+                        <td class="text-center"><input type="checkbox" id="b2-nto-12" class="form-check-input nto-check" disabled></td>
+                        <td class="text-center"><input type="checkbox" id="b2-nto-13" class="form-check-input nto-check" disabled></td>
+                        <td class="text-center"><input type="checkbox" id="b2-nto-14" class="form-check-input nto-check" disabled></td>
+                      </tr>
+                      <tr class="table-secondary">
+                        <td class="fw-bold text-center text-muted">6</td>
+                        <td class="text-muted">inactivo</td>
+                        <td class="text-center"><input type="checkbox" id="b2-nto-15" class="form-check-input nto-check" disabled></td>
+                        <td class="text-center"><input type="checkbox" id="b2-nto-16" class="form-check-input nto-check" disabled></td>
+                        <td class="text-center"><input type="checkbox" id="b2-nto-17" class="form-check-input nto-check" disabled></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div><!-- /tab-b2 -->
+
+          </div><!-- /tab-content geom blocks -->
+        </div><!-- /col forms -->
+
+      </div><!-- /row -->
+    </div><!-- /sec-geometry -->
+
+    <!-- ════════════════════════════════════════
+         SECCIÓN: MATERIALES Y FLUJO
+         ════════════════════════════════════════════ -->
+    <div class="tab-pane fade" id="sec-materials" role="tabpanel">
+
+      <div class="row mt-3">
+
+        <!-- Block pills (sidebar) -->
+        <div class="col-auto pe-0">
+          <div class="nav flex-column nav-pills gap-1" id="matPills"
+               role="tablist" aria-orientation="vertical">
+            <button class="nav-link active text-start" id="pill-b3"
+                    data-bs-toggle="pill" data-bs-target="#tab-b3"
+                    type="button" role="tab">
+              <i class="bi bi-3-circle me-1"></i>Block&nbsp;#3
+              <div class="small text-muted lh-1" data-i18n="pill.b3_sub">Flujo neutrónico</div>
+            </button>
+            <button class="nav-link text-start" id="pill-b5"
+                    data-bs-toggle="pill" data-bs-target="#tab-b5"
+                    type="button" role="tab">
+              <i class="bi bi-5-circle me-1"></i>Block&nbsp;#5
+              <div class="small text-muted lh-1" data-i18n="pill.b5_sub">Composición inicial</div>
+            </button>
+            <button class="nav-link text-start" id="pill-b6"
+                    data-bs-toggle="pill" data-bs-target="#tab-b6"
+                    type="button" role="tab">
+              <i class="bi bi-6-circle me-1"></i>Block&nbsp;#6
+              <div class="small text-muted lh-1" data-i18n="pill.b6_sub">Alimentación continua</div>
+            </button>
+          </div>
+        </div><!-- /col pills -->
+
+        <!-- Block forms -->
+        <div class="col">
+          <div class="tab-content ps-3" id="matBlockContent">
+
+            <!-- ════════════════════════════════
+                 BLOCK #3 — Flujo neutrónico
+                 ════════════════════════════════ -->
+            <div class="tab-pane fade show active" id="tab-b3" role="tabpanel">
+
+              <div class="block-comment-area mb-3">
+                <label class="form-label small text-secondary mb-1">
+                  <i class="bi bi-chat-left-quote me-1"></i><span data-i18n="cmt.prefix">Comentario para </span>Block #3
+                  <span class="fw-normal text-muted">(se escribe como <code>&lt;</code> texto en el fichero)</span>
+                </label>
+                <textarea id="cmt-block3" class="form-control form-control-sm font-monospace block-comment-input"
+                          rows="2" placeholder="Comentario opcional…"></textarea>
+              </div>
+
+              <div class="mb-2">
+                <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#help-b3" data-i18n="help.btn">
+                  <i class="bi bi-question-circle me-1"></i>Ayuda
+                </button>
+              </div>
+              <div class="collapse mb-3" id="help-b3">
+                <div class="block-help-box">
+                  <p class="mb-2 fw-semibold">Flujos neutrónico/protónico dependientes de energía y espacio.</p>
+                  <p class="mb-2"><strong>Solo se incluye si IFLU = 1</strong> (Block #1). Los grupos de mayor energía de cada zona/intervalo se dan primero. Unidades: n/cm²·s.</p>
+                  <table class="table table-sm table-bordered mb-0">
+                    <thead><tr><th style="width:90px">Parámetro</th><th>Descripción</th></tr></thead>
+                    <tbody>
+                      <tr><td><code>FLUX</code></td><td>Flujos multigrupo: [(NGRP+IGRP) × IM] para 1D/3D, o [(NGRP+IGRP) × IM × JM] para 2D. Los grupos más energéticos van primero para cada intervalo espacial.</td></tr>
+                    </tbody>
+                  </table>
+                  <p class="mt-2 mb-0 small text-muted">Si IUNC=1: proporcionar un único valor de flujo total integrado en energía por intervalo (NGRP=1).</p>
+                </div>
+              </div>
+
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header">
+                  <span data-i18n="b3.card1_h"><span data-i18n="b3.card1_h">Card #1 &mdash; FLUX &mdash; Flujos escalares multigrupo de neutrones y gammas</span></span>
+                  <span class="badge bg-warning text-dark ms-2">Solo si IFLU = 1</span>
+                </div>
+                <div class="card-body">
+                  <div id="b3-iflu-warning" class="alert alert-secondary py-2 small mb-3 d-none">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    <span data-i18n="b3.iflu_warn"><span data-i18n="b3.iflu_warn">IFLU ≠ 1 en Block #1 &mdash; este bloque no se escribirá en el fichero de salida.</span></span>
+                  </div>
+                  <div class="alert alert-info py-2 small mb-3">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <strong>JM = 0:</strong> (NGRP+IGRP)×IM valores &mdash; grupo a grupo, cada grupo cubre los IM intervalos.&nbsp;
+                    <strong>JM &gt; 0:</strong> (NGRP+IGRP)×IM×JM.&nbsp;
+                    <strong>IUNC = 1:</strong> solo IM valores integrados (uno por intervalo).
+                  </div>
+                  <label class="form-label" for="b3-FLUX">
+                    FLUX <span class="badge bg-secondary">floats separados por espacio (n/cm²·s)</span>
+                  </label>
+                  <textarea id="b3-FLUX" class="form-control font-monospace array-textarea"
+                            rows="6" placeholder="0.0 0.0 … valores de flujo …"></textarea>
+                </div>
+              </div>
+            </div><!-- /tab-b3 -->
+
+            <!-- ════════════════════════════════
+                 BLOCK #5 — Composición inicial
+                 ════════════════════════════════ -->
+            <div class="tab-pane fade" id="tab-b5" role="tabpanel">
+
+              <div class="block-comment-area mb-3">
+                <label class="form-label small text-secondary mb-1">
+                  <i class="bi bi-chat-left-quote me-1"></i><span data-i18n="cmt.prefix">Comentario para </span>Block #5
+                  <span class="fw-normal text-muted">(se escribe como <code>&lt;</code> texto en el fichero)</span>
+                </label>
+                <textarea id="cmt-block5" class="form-control form-control-sm font-monospace block-comment-input"
+                          rows="2" placeholder="Comentario opcional…"></textarea>
+              </div>
+
+              <div class="mb-2">
+                <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#help-b5" data-i18n="help.btn">
+                  <i class="bi bi-question-circle me-1"></i>Ayuda
+                </button>
+              </div>
+              <div class="collapse mb-3" id="help-b5">
+                <div class="block-help-box">
+                  <p class="mb-2 fw-semibold">Composición inicial del material (ejecución sin reinicio).</p>
+                  <p class="mb-2">Identificadores: <code>NUCLID = 10000×Z + 10×A + IS</code> (IS: 0 = estado base, 1 = 1er isómero, 2 = 2º isómero). <code>ELEMID = 10000×Z</code>.<br>Ejemplos: O (Z=8) → <code>80000</code> &nbsp;·&nbsp; Fe (Z=26) → <code>260000</code> &nbsp;·&nbsp; <sup>186</sup>W → <code>741860</code></p>
+                  <p class="mb-2">Se omite si IREST=1 (Block #4). Se repite para cada zona con NUCZO ≠ 0 (Block #2). Concentraciones en átomos/barn·cm, salvo INPT=3 (g/cc).</p>
+                  <table class="table table-sm table-bordered mb-0">
+                    <thead><tr><th style="width:90px">Parámetro</th><th>Descripción</th></tr></thead>
+                    <tbody>
+                      <tr><td><code>INUCL</code></td><td>Identificadores de elementos o isótopos [NUCZO].</td></tr>
+                      <tr><td><code>XCOMP</code></td><td>Concentraciones iniciales en átomos/barn·cm (o g/cc si INPT=3) [NUCZO].</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="alert alert-info py-2 small mb-3">
+                <i class="bi bi-calculator me-1"></i>
+                <strong>Identificadores:</strong>&nbsp;
+                <code>NUCLID = 10000·Z + 10·A + IS</code>
+                &nbsp;(IS: 0=estado base, 1=1er isóm., 2=2º isóm.)&nbsp;—&nbsp;
+                <code>ELEMID = 10000·Z</code>&nbsp;—&nbsp;
+                O(Z=8)→<code>80000</code>&nbsp;|&nbsp;
+                Fe(Z=26)→<code>260000</code>&nbsp;|&nbsp;
+                W-186(Z=74,A=186)→<code>741860</code>
+              </div>
+
+              <div class="alert alert-secondary py-2 small mb-3">
+                <i class="bi bi-arrow-repeat me-1"></i>
+                Las zonas se generan automáticamente desde <strong>NUCZO</strong> (Block #2).
+                Cambia los valores allí para añadir, quitar o redimensionar zonas.
+                Los datos ya introducidos se conservan al modificar el nº de especies.
+              </div>
+
+              <!-- Composición asistida (modo calculado a partir de la masa del blanco) -->
+              <div class="card mb-3 block-card" id="b5-calc-card">
+                <div class="card-header block-card-header">
+                  <i class="bi bi-magic me-1"></i>
+                  <span data-i18n="b5calc.header">Composición asistida — cálculo a partir de la masa del blanco</span>
+                </div>
+                <div class="card-body">
+                  <div class="btn-group btn-group-sm mb-3" role="group">
+                    <input type="radio" class="btn-check" name="b5-mode" id="b5-mode-manual" checked>
+                    <label class="btn btn-outline-secondary" for="b5-mode-manual" data-i18n="b5calc.mode_manual">Introducir concentraciones manualmente</label>
+                    <input type="radio" class="btn-check" name="b5-mode" id="b5-mode-calc">
+                    <label class="btn btn-outline-secondary" for="b5-mode-calc" data-i18n="b5calc.mode_calc">Calcular a partir de la masa del blanco</label>
+                  </div>
+                  <div id="b5calc-panel" class="d-none">
+                    <div class="row g-2 align-items-end">
+                      <div class="col-md-3">
+                        <label class="form-label small" for="b5calc-formula" data-i18n="b5calc.formula_lbl">Compuesto / estequiometría</label>
+                        <input id="b5calc-formula" list="b5calc-compounds"
+                               class="form-control form-control-sm font-monospace"
+                               placeholder="TeO2  ·  Te:1 O:2" value="TeO2">
+                        <datalist id="b5calc-compounds"></datalist>
+                      </div>
+                      <div class="col-md-2">
+                        <label class="form-label small" for="b5calc-mass" data-i18n="b5calc.mass_lbl">Masa del blanco [g]</label>
+                        <input id="b5calc-mass" type="number" min="0" step="any"
+                               class="form-control form-control-sm font-monospace" value="1.0">
+                      </div>
+                      <div class="col-md-2">
+                        <label class="form-label small" for="b5calc-vol" data-i18n="b5calc.vol_lbl">Volumen zona [cm³]</label>
+                        <input id="b5calc-vol" type="number" min="0" step="any"
+                               class="form-control form-control-sm font-monospace" value="1.0">
+                      </div>
+                      <div class="col-md-2">
+                        <label class="form-label small" for="b5calc-zone" data-i18n="b5calc.zone_lbl">Zona destino</label>
+                        <select id="b5calc-zone" class="form-select form-select-sm"></select>
+                      </div>
+                      <div class="col-md-3">
+                        <div class="btn-group btn-group-sm w-100">
+                          <button id="b5calc-vol-from-rho" type="button" class="btn btn-outline-secondary"
+                                  data-i18n-title="b5calc.vol_from_rho_tip" title="Calcular V = m/ρ con la densidad de la librería">V = m/ρ</button>
+                          <button id="b5calc-btn" type="button" class="btn btn-primary" data-i18n="b5calc.compute_btn">Calcular</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div id="b5calc-density-hint" class="form-text mt-1 d-none"></div>
+                    <div id="b5calc-msg" class="alert alert-danger py-1 small mt-2 mb-0 d-none"></div>
+                    <div id="b5calc-warn" class="alert alert-warning py-1 small mt-2 mb-0 d-none"></div>
+                    <div id="b5calc-result" class="mt-2 d-none">
+                      <table class="table table-sm table-bordered mb-2">
+                        <thead class="table-light">
+                          <tr>
+                            <th data-i18n="b5calc.col_el">Elemento</th><th>Z</th><th>ELEMID</th>
+                            <th data-i18n="b5calc.col_wfrac">Fracción másica w<sub>i</sub></th>
+                            <th data-i18n="b5calc.col_xcomp">XCOMP</th>
+                          </tr>
+                        </thead>
+                        <tbody id="b5calc-tbody"></tbody>
+                      </table>
+                      <button id="b5calc-apply" type="button" class="btn btn-sm btn-success" data-i18n="b5calc.apply_btn">
+                        Aplicar a la zona (ajusta NUCZO si es necesario)
+                      </button>
+                    </div>
+                    <div class="form-text mt-2" data-i18n-html="b5calc.note">
+                      Fórmula validada (INPT=1): <code>XCOMP<sub>i</sub> = (m·w<sub>i</sub>/M<sub>i</sub>)·N<sub>A</sub>/(10²⁴·V)</code> en átomos/barn·cm.
+                      Para INPT=3: <code>XCOMP<sub>i</sub> = m·w<sub>i</sub>/V</code> en g/cc. Con IGE=4 el volumen debe coincidir con la componente XRR de la zona (Block #2).
+                      Nota: ACAB expande los identificadores elementales con las abundancias isotópicas de <em>su</em> librería DECAY.dat, que pueden diferir de las abundancias modernas (CIAAW); si la composición isotópica es crítica, verifica las abundancias de la DECAY.dat en uso.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="b5-zones-container"></div>
+
+              <div id="b5-empty-msg" class="placeholder-section py-4">
+                <i class="bi bi-grid display-5 text-secondary"></i>
+                <p class="text-muted mt-2 mb-0">
+                  <span data-i18n="b5.empty_msg"><span data-i18n="b5.empty_msg">Define zonas en <strong>NUCZO</strong> (Block #2) para activar la edición de composiciones.</span></span>
+                </p>
+              </div>
+
+            </div><!-- /tab-b5 -->
+
+            <!-- ════════════════════════════════
+                 BLOCK #6 — Alimentación continua
+                 ════════════════════════════════ -->
+            <div class="tab-pane fade" id="tab-b6" role="tabpanel">
+
+              <div class="block-comment-area mb-3">
+                <label class="form-label small text-secondary mb-1">
+                  <i class="bi bi-chat-left-quote me-1"></i><span data-i18n="cmt.prefix">Comentario para </span>Block #6
+                  <span class="fw-normal text-muted">(se escribe como <code>&lt;</code> texto en el fichero)</span>
+                </label>
+                <textarea id="cmt-block6" class="form-control form-control-sm font-monospace block-comment-input"
+                          rows="2" placeholder="Comentario opcional…"></textarea>
+              </div>
+
+              <div class="mb-2">
+                <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#help-b6" data-i18n="help.btn">
+                  <i class="bi bi-question-circle me-1"></i>Ayuda
+                </button>
+              </div>
+              <div class="collapse mb-3" id="help-b6">
+                <div class="block-help-box">
+                  <p class="mb-2 fw-semibold">Alimentación continua de material.</p>
+                  <p class="mb-2"><strong>Solo si INFD &gt; 0</strong> (Block #1). Se repite para cada zona con ISOZO ≠ 0 (Block #2).</p>
+                  <table class="table table-sm table-bordered mb-0">
+                    <thead><tr><th style="width:90px">Parámetro</th><th>Descripción</th></tr></thead>
+                    <tbody>
+                      <tr><td><code>IDNUM</code></td><td>Identificadores de elementos o isótopos con alimentación continua [ISOZO].</td></tr>
+                      <tr><td><code>XFEED</code></td><td>Tasas de alimentación en g-átomo (moles) por segundo [ISOZO].</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="alert alert-warning py-2 small mb-3">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                Este bloque solo es necesario cuando <strong>INFD &gt; 0</strong> (Block #1).
+                Las tasas de alimentación se expresan en <strong>g-átomos (moles) por segundo</strong>.
+              </div>
+
+              <div class="alert alert-secondary py-2 small mb-3">
+                <i class="bi bi-arrow-repeat me-1"></i>
+                Las zonas se generan automáticamente desde <strong>ISOZO</strong> (Block #2).
+                Solo las zonas con ISOZO[i] ≠ 0 generan una sección de Block #6.
+              </div>
+
+              <div id="b6-zones-container"></div>
+
+              <div id="b6-empty-msg" class="placeholder-section py-4">
+                <i class="bi bi-droplet display-5 text-secondary"></i>
+                <p class="text-muted mt-2 mb-0">
+                  Establece <strong>INFD &gt; 0</strong> (Block #1) y define <strong>ISOZO</strong> (Block #2)
+                  para activar la alimentación continua.
+                </p>
+              </div>
+
+            </div><!-- /tab-b6 -->
+
+          </div><!-- /tab-content mat blocks -->
+        </div><!-- /col forms -->
+
+      </div><!-- /row -->
+    </div><!-- /sec-materials -->
+
+    <!-- ════════════════════════════════════════
+         SECCIÓN: HISTORIAL TEMPORAL
+         ════════════════════════════════════════ -->
+    <div class="tab-pane fade" id="sec-temporal" role="tabpanel">
+
+      <div class="row mt-3">
+
+        <!-- Block pills (sidebar) -->
+        <div class="col-auto pe-0">
+          <div class="nav flex-column nav-pills gap-1" id="tempPills"
+               role="tablist" aria-orientation="vertical">
+            <button class="nav-link active text-start" id="pill-b78"
+                    data-bs-toggle="pill" data-bs-target="#tab-b78"
+                    type="button" role="tab">
+              <i class="bi bi-clock me-1"></i>Blocks&nbsp;#7/#8
+              <div class="small text-muted lh-1" data-i18n="pill.b78_sub">Historial temporal</div>
+            </button>
+            <button class="nav-link text-start" id="pill-b11"
+                    data-bs-toggle="pill" data-bs-target="#tab-b11"
+                    type="button" role="tab">
+              <i class="bi bi-toggles me-1"></i>Block&nbsp;#11
+              <div class="small text-muted lh-1" data-i18n="pill.b11_sub">Control de ejecución</div>
+            </button>
+            <button class="nav-link text-start" id="pill-b13"
+                    data-bs-toggle="pill" data-bs-target="#tab-b13"
+                    type="button" role="tab">
+              <i class="bi bi-list-check me-1"></i>Block&nbsp;#13
+              <div class="small text-muted lh-1" data-i18n="pill.b13_sub">Control de salida</div>
+            </button>
+          </div>
+        </div><!-- /col pills -->
+
+        <!-- Block forms -->
+        <div class="col">
+          <div class="tab-content ps-3" id="tempBlockContent">
+
+            <!-- ════════════════════════════════
+                 BLOCKS #7/#8 — Historial temporal
+                 ════════════════════════════════ -->
+            <div class="tab-pane fade show active" id="tab-b78" role="tabpanel">
+
+              <div class="block-comment-area mb-3">
+                <label class="form-label small text-secondary mb-1">
+                  <i class="bi bi-chat-left-quote me-1"></i><span data-i18n="cmt.prefix">Comentario para </span>Blocks #7/#8
+                  <span class="fw-normal text-muted">(se escribe como <code>&lt;</code> texto en el fichero)</span>
+                </label>
+                <textarea id="cmt-blocks78" class="form-control form-control-sm font-monospace block-comment-input"
+                          rows="2" placeholder="Comentario opcional…"></textarea>
+              </div>
+
+              <div class="mb-2">
+                <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#help-b78" data-i18n="help.btn">
+                  <i class="bi bi-question-circle me-1"></i>Ayuda
+                </button>
+              </div>
+              <div class="collapse mb-3" id="help-b78">
+                <div class="block-help-box">
+                  <p class="mb-2 fw-semibold">Historial temporal de irradiación y enfriamiento (Blocks #7 y #8).</p>
+                  <p class="mb-2">Cada “set” = Block #7 (control, 8 parámetros) + Block #8 (hasta 10 tiempos finales). El reloj se reinicia a 0 al final de cada período de irradiación. Se recomienda escala ×2 en irradiación y ×3 en enfriamiento.</p>
+                  <table class="table table-sm table-bordered mb-2">
+                    <thead><tr><th style="width:90px">Block #7</th><th>Descripción</th></tr></thead>
+                    <tbody>
+                      <tr><td><code>MMN</code></td><td>Nº de pasos de irradiación en este set [≤10].</td></tr>
+                      <tr><td><code>MOUT</code></td><td>Nº total de pasos (irradiación + enfriamiento) en este set [≤10].</td></tr>
+                      <tr><td><code>NGO</code></td><td>0 = set final · 1 = continúa con más sets.</td></tr>
+                      <tr><td><code>MSUB</code></td><td>Paso del set anterior usado como punto de partida (relevante cuando NOPUL ≠ 0).</td></tr>
+                      <tr><td><code>IUNIT</code></td><td>Unidades de tiempo: 1=s, 2=min, 3=h, 4=días, 5=años, 7=10³ a, 8=10⁶ a, 9=10⁹ a.</td></tr>
+                      <tr><td><code>MFEED</code></td><td>0 = sin alimentación · 1 = alimentación continua activa en este set.</td></tr>
+                      <tr><td><code>IOUT</code></td><td>0 = sin efecto · 1 = imprimir tablas de activación por intervalo espacial.</td></tr>
+                      <tr><td><code>IPLOT</code></td><td>0 = sin efecto · 1 = generar UNIT 11 por intervalo · 2 = por zona.</td></tr>
+                    </tbody>
+                  </table>
+                  <p class="mb-0 small"><strong>Block #8 — TIMES:</strong> tiempos finales de cada paso [MOUT], en las unidades de IUNIT.</p>
+                </div>
+              </div>
+
+              <!-- Generator card (port of generador_acab.py) -->
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header">
+                  <i class="bi bi-sliders me-1"></i><span data-i18n="b78.card_gen_h"><span data-i18n="b78.card_gen_h">Generador de Historial Temporal</span></span>
+                </div>
+                <div class="card-body">
+
+                  <!-- IUNIT + output options -->
+                  <div class="row g-3 mb-4">
+                    <div class="col-md-5">
+                      <label class="form-label" for="b78-iunit" data-i18n="b78.iunit_lbl">IUNIT &mdash; Unidad de tiempo</label>
+                      <select id="b78-iunit" class="form-select form-select-sm">
+                        <option value="1">1 &mdash; Segundos</option>
+                        <option value="2">2 &mdash; Minutos</option>
+                        <option value="3" selected>3 &mdash; Horas</option>
+                        <option value="4">4 &mdash; Días</option>
+                        <option value="5">5 &mdash; Años</option>
+                        <option value="7">7 &mdash; 10³ años (ka)</option>
+                        <option value="8">8 &mdash; 10⁶ años (Ma)</option>
+                        <option value="9">9 &mdash; 10⁹ años (Ga)</option>
+                      </select>
+                      <div class="form-text" data-i18n="b78.iunit_hint">Aplica a todos los conjuntos del historial.</div>
+                    </div>
+                    <div class="col-md-5">
+                      <label class="form-label" data-i18n="b78.out_lbl">Opciones de salida por conjunto</label>
+                      <div class="d-flex gap-3 mt-1">
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" id="b78-iout" checked>
+                          <label class="form-check-label small" for="b78-iout" data-i18n="b78.iout_lbl">IOUT = 1 (por intervalo)</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" id="b78-iplot">
+                          <label class="form-check-label small" for="b78-iplot" data-i18n="b78.iplot_lbl">IPLOT = 1 (datos para gráfica)</label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Irradiation phase -->
+                  <h6 class="group-heading">
+                    <i class="bi bi-radioactive me-1 text-danger"></i><span data-i18n="b78.grp_irr">Fase de irradiación</span>
+                  </h6>
+                  <div class="alert alert-info py-2 small mb-2">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Cada tramo indica el <strong>tiempo final acumulado</strong> (en la unidad IUNIT) y los
+                    <strong>pasos</strong> (&le;10) distribuidos linealmente hasta ese tiempo.
+                    Los tiempos deben ser estrictamente crecientes.
+                  </div>
+                  <table class="table table-sm table-bordered zone-input-table mb-0">
+                    <thead class="table-danger">
+                      <tr>
+                        <th style="width:3rem">#</th>
+                        <th data-i18n="b78.irr_th_time">Tiempo final acumulado <span class="fw-normal text-muted" data-i18n="b78.irr_th_iunit">(unidad IUNIT)</span></th>
+                        <th style="width:10rem" data-i18n="b78.irr_th_steps">Pasos (1–10)</th>
+                        <th style="width:3rem"></th>
+                      </tr>
+                    </thead>
+                    <tbody id="b78-irr-tbody"></tbody>
+                  </table>
+                  <button id="btn-b78-add-irr" class="btn btn-sm btn-outline-danger mt-2 mb-4">
+                    <i class="bi bi-plus-lg me-1"></i><span data-i18n="b78.btn_add_irr">Añadir tramo de irradiación</span>
+                  </button>
+
+                  <!-- Cooling phase -->
+                  <h6 class="group-heading">
+                    <i class="bi bi-snow me-1 text-primary"></i><span data-i18n="b78.grp_cool">Fase de enfriamiento</span>
+                  </h6>
+                  <div class="alert alert-secondary py-2 small mb-2">
+                    <i class="bi bi-info-circle me-1"></i>
+                    El reloj se reinicia a cero al final de la irradiación.
+                    Los tiempos son <strong>relativos al fin de la irradiación</strong>.
+                  </div>
+                  <table class="table table-sm table-bordered zone-input-table mb-0">
+                    <thead class="table-primary">
+                      <tr>
+                        <th style="width:3rem">#</th>
+                        <th data-i18n="b78.irr_th_time">Tiempo final acumulado <span class="fw-normal text-muted" data-i18n="b78.cool_th_note">(desde fin de irradiación)</span></th>
+                        <th style="width:10rem" data-i18n="b78.irr_th_steps">Pasos (1–10)</th>
+                        <th style="width:3rem"></th>
+                      </tr>
+                    </thead>
+                    <tbody id="b78-cool-tbody"></tbody>
+                  </table>
+                  <button id="btn-b78-add-cool" class="btn btn-sm btn-outline-primary mt-2 mb-4">
+                    <i class="bi bi-plus-lg me-1"></i><span data-i18n="b78.btn_add_cool">Añadir tramo de enfriamiento</span>
+                  </button>
+
+                  <!-- Action row -->
+                  <div class="d-flex align-items-center gap-3">
+                    <button id="btn-b78-generar" class="btn btn-success btn-sm">
+                      <i class="bi bi-gear-fill me-1"></i><span data-i18n="b78.btn_gen">Generar y actualizar datos</span>
+                    </button>
+                    <span id="b78-val-msg" class="small text-danger d-none"></span>
+                    <span id="b78-ok-msg" class="small text-success d-none">
+                      <i class="bi bi-check-circle-fill me-1"></i><span data-i18n="b78.ok_msg">Historial generado y actualizado.</span>
+                    </span>
+                  </div>
+
+                </div>
+              </div><!-- /generator card -->
+
+              <!-- Code preview card -->
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header">
+                  <i class="bi bi-code-square me-1"></i><span data-i18n="b78.card_prev_h"><span data-i18n="b78.card_prev_h">Vista previa &mdash; Blocks #7/#8</span></span>
+                </div>
+                <div class="card-body">
+                  <textarea id="b78-code-preview" class="form-control font-monospace array-textarea"
+                            rows="10" readonly
+                            placeholder="Pulsa «Generar y actualizar datos» para ver el código…" data-i18n-ph="b78.preview_ph" data-i18n-ph="b78.preview_ph"></textarea>
+                </div>
+              </div>
+
+            </div><!-- /tab-b78 -->
+
+            <!-- ════════════════════════════════
+                 BLOCK #11 — Control de ejecución
+                 ════════════════════════════════ -->
+            <div class="tab-pane fade" id="tab-b11" role="tabpanel">
+
+              <div class="block-comment-area mb-3">
+                <label class="form-label small text-secondary mb-1">
+                  <i class="bi bi-chat-left-quote me-1"></i><span data-i18n="cmt.prefix">Comentario para </span>Block #11
+                  <span class="fw-normal text-muted">(se escribe como <code>&lt;</code> texto en el fichero)</span>
+                </label>
+                <textarea id="cmt-block11" class="form-control form-control-sm font-monospace block-comment-input"
+                          rows="2" placeholder="Comentario opcional…"></textarea>
+              </div>
+
+              <div class="mb-2">
+                <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#help-b11" data-i18n="help.btn">
+                  <i class="bi bi-question-circle me-1"></i>Ayuda
+                </button>
+              </div>
+              <div class="collapse mb-3" id="help-b11">
+                <div class="block-help-box">
+                  <p class="mb-2 fw-semibold">Tipo de cálculo, funciones de respuesta y escenario operacional.</p>
+                  <table class="table table-sm table-bordered mb-0">
+                    <thead><tr><th style="width:110px">Parámetro</th><th>Descripción</th></tr></thead>
+                    <tbody>
+                      <tr><td><code>IWP</code></td><td>1 = leer librerías y generar UNIT 31 · 2 = leer UNIT 31 (sin librerías) · 3 = solo análisis de rutas (UNIT 22)</td></tr>
+                      <tr><td><code>IMTX</code></td><td>0 = cálculo de inventario (sin UNIT 24) · 1 = generar UNIT 24 (solo rutas) · 2 = generar UNIT 24 + inventario</td></tr>
+                      <tr><td><code>IWDR</code></td><td>1 = índices de clasificación de residuos radiactivos (requiere WD.dat)</td></tr>
+                      <tr><td><code>IDOSE</code></td><td>1 = tasas de dosis de contacto (requiere MACOEF.dat, PHOTON.dat, EBEATA.dat)</td></tr>
+                      <tr><td><code>IPHCUT</code></td><td>Corte en energía de fotones (IDOSE=1): 0 = &gt;100 keV · 1 = rango completo</td></tr>
+                      <tr><td><code>IDHEAT</code></td><td>1 = calor de desintegración total y por tipo α/β/γ (requiere DHEAT.dat)</td></tr>
+                      <tr><td><code>IOFFSD</code></td><td>N &gt; 0 = dosis externas a N distancias del punto de descarga (requiere OFFSIDO.dat)</td></tr>
+                      <tr><td><code>ICEDE</code></td><td>1 = dosis efectiva comprometida (requiere EAF_HAZ.dat)</td></tr>
+                      <tr><td><code>INEMISS</code></td><td>1 = emisión de neutrones por (α,n) y fisión espontánea</td></tr>
+                      <tr><td><code>IDAMAGE</code></td><td>1 = tasas de DPA (requiere DAMAGE.dat)</td></tr>
+                      <tr><td><code>NOPUL</code></td><td>Nº de repeticiones de la “unidad” temporal (0 = sin repetición)</td></tr>
+                      <tr><td><code>NTSEQ</code></td><td>Nº de sets por unidad (debe ser 0 si NOPUL=0)</td></tr>
+                      <tr><td><code>NOTTS</code></td><td>Nº total de sets (&lt;150). La serie final contiene NOTTS − NTSEQ sets.</td></tr>
+                      <tr><td><code>NVFL</code></td><td>0 = sin escala de flujo por set · 1 = factores individuales FVAR [NOTTS]</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Card 1 -->
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header"><span data-i18n="b11.card1_h"><span data-i18n="b11.card1_h">Card #1 &mdash; Tipo de cálculo y funciones de respuesta</span></span></div>
+                <div class="card-body">
+                  <div class="row g-3 mb-4">
+                    <div class="col-md-5">
+                      <label class="form-label" for="b11-IWP" data-i18n="b11.iwp_lbl">IWP &mdash; Tipo de ejecución</label>
+                      <select id="b11-IWP" class="form-select form-select-sm">
+                        <option value="1">1 &mdash; Leer librerías; generar UNIT 31</option>
+                        <option value="2">2 &mdash; Leer UNIT 31 (sin librerías)</option>
+                        <option value="3">3 &mdash; Solo análisis de rutas (UNIT 22)</option>
+                      </select>
+                    </div>
+                    <div class="col-md-5">
+                      <label class="form-label" for="b11-IMTX" data-i18n="b11.imtx_lbl">IMTX &mdash; Matriz de transición</label>
+                      <select id="b11-IMTX" class="form-select form-select-sm">
+                        <option value="0">0 &mdash; Cálculo de inventario (sin UNIT 24)</option>
+                        <option value="1">1 &mdash; Genera UNIT 24 (solo rutas)</option>
+                        <option value="2">2 &mdash; Genera UNIT 24 e inventario</option>
+                      </select>
+                    </div>
+                  </div>
+                  <h6 class="group-heading"><i class="bi bi-toggles me-1"></i>Funciones de respuesta adicionales</h6>
+                  <div class="row g-3">
+                    <div class="col-md-3">
+                      <label class="form-label" for="b11-IWDR" data-i18n="b11.iwdr_lbl">IWDR &mdash; Residuos</label>
+                      <select id="b11-IWDR" class="form-select form-select-sm">
+                        <option value="0">0 &mdash; No</option>
+                        <option value="1">1 &mdash; Sí (WD.dat)</option>
+                      </select>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label" for="b11-IDOSE" data-i18n="b11.idose_lbl">IDOSE &mdash; Tasa de dosis</label>
+                      <select id="b11-IDOSE" class="form-select form-select-sm">
+                        <option value="0">0 &mdash; No</option>
+                        <option value="1">1 &mdash; Sí (activa Card #2)</option>
+                      </select>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label" for="b11-IPHCUT">IPHCUT</label>
+                      <select id="b11-IPHCUT" class="form-select form-select-sm">
+                        <option value="0">0 &mdash; Solo &gt;100 keV</option>
+                        <option value="1">1 &mdash; Rango completo</option>
+                      </select>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label" for="b11-IDHEAT" data-i18n="b11.idheat_lbl">IDHEAT &mdash; Calor desint.</label>
+                      <select id="b11-IDHEAT" class="form-select form-select-sm">
+                        <option value="0">0 &mdash; No</option>
+                        <option value="1">1 &mdash; Sí (DHEAT.dat)</option>
+                      </select>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label" for="b11-IOFFSD">IOFFSD <span class="badge bg-secondary ms-1">entero</span></label>
+                      <input id="b11-IOFFSD" type="number" class="form-control form-control-sm" min="0" step="1" value="0">
+                      <div class="form-text" data-i18n="b11.ioffsd_hint">0=no, N=nº distancias (OFFSIDO.dat)</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label" for="b11-ICEDE" data-i18n="b11.icede_lbl">ICEDE &mdash; CEDE</label>
+                      <select id="b11-ICEDE" class="form-select form-select-sm">
+                        <option value="0">0 &mdash; No</option>
+                        <option value="1">1 &mdash; Sí (EAF_HAZ.dat)</option>
+                      </select>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label" for="b11-INEMISS" data-i18n="b11.inemiss_lbl">INEMISS &mdash; Emisiones n</label>
+                      <select id="b11-INEMISS" class="form-select form-select-sm">
+                        <option value="0">0 &mdash; No</option>
+                        <option value="1">1 &mdash; Sí</option>
+                      </select>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label" for="b11-IDAMAGE" data-i18n="b11.idamage_lbl">IDAMAGE &mdash; DPA</label>
+                      <select id="b11-IDAMAGE" class="form-select form-select-sm">
+                        <option value="0">0 &mdash; No</option>
+                        <option value="1">1 &mdash; Sí (DAMAGE.dat)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card 2: Dose (hidden by default) -->
+              <div class="card mb-3 block-card d-none" id="b11-card2">
+                <div class="card-header block-card-header">
+                  <span data-i18n="b11.card2_h"><span data-i18n="b11.card2_h">Card #2 &mdash; Tasas de dosis a calcular</span></span>
+                  <span class="badge bg-warning text-dark ms-2">Solo si IDOSE = 1</span>
+                </div>
+                <div class="card-body">
+                  <div class="row g-3">
+                    <div class="col-md-3">
+                      <label class="form-label" for="b11-dose-PH" data-i18n="b11.ph_lbl">PH &mdash; Fotónica (Sv/h)</label>
+                      <select id="b11-dose-PH" class="form-select form-select-sm">
+                        <option value="0">0 &mdash; No</option><option value="1">1 &mdash; Sí</option>
+                      </select>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label" for="b11-dose-BREM" data-i18n="b11.brem_lbl">BREM &mdash; Bremsstrahlung</label>
+                      <select id="b11-dose-BREM" class="form-select form-select-sm">
+                        <option value="0">0 &mdash; No</option><option value="1">1 &mdash; Sí</option>
+                      </select>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label" for="b11-dose-TOT" data-i18n="b11.tot_lbl">TOT &mdash; Fotón+Brem.</label>
+                      <select id="b11-dose-TOT" class="form-select form-select-sm">
+                        <option value="0">0 &mdash; No</option><option value="1">1 &mdash; Sí</option>
+                      </select>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label" for="b11-dose-RHOR" data-i18n="b11.rhor_lbl">RHOR &mdash; Capa delgada</label>
+                      <select id="b11-dose-RHOR" class="form-select form-select-sm">
+                        <option value="0">0 &mdash; No</option><option value="1">1 &mdash; Sí</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card 6: Temporal structure -->
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header"><span data-i18n="b11.card6_h"><span data-i18n="b11.card6_h">Card #6 &mdash; Estructura temporal (ciclos y conjuntos)</span></span></div>
+                <div class="card-body">
+                  <div class="row g-3">
+                    <div class="col-md-3">
+                      <label class="form-label" for="b11-NOPUL">NOPUL</label>
+                      <input id="b11-NOPUL" type="number" class="form-control form-control-sm" min="0" step="1" value="0">
+                      <div class="form-text" data-i18n="b11.nopul_hint">Repeticiones de la unidad. 0 = sin repetición.</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label" for="b11-NTSEQ">NTSEQ</label>
+                      <input id="b11-NTSEQ" type="number" class="form-control form-control-sm" min="0" step="1" value="0">
+                      <div class="form-text" data-i18n="b11.ntseq_hint">Conjuntos por unidad. Si NOPUL=0 → 0.</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label" for="b11-NOTTS">NOTTS</label>
+                      <input id="b11-NOTTS" type="number" class="form-control form-control-sm" min="1" step="1" value="1">
+                      <div class="form-text">Total de conjuntos (&lt;150).</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label" for="b11-NVFL">NVFL</label>
+                      <select id="b11-NVFL" class="form-select form-select-sm">
+                        <option value="0">0 &mdash; Sin factores de escala</option>
+                        <option value="1">1 &mdash; Usar FVAR (Card #7)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card 7: FVAR (hidden by default) -->
+              <div class="card mb-3 block-card d-none" id="b11-card7">
+                <div class="card-header block-card-header">
+                  <span data-i18n="b11.card7_h"><span data-i18n="b11.card7_h">Card #7 &mdash; FVAR &mdash; Factores de escala de flujo</span></span>
+                  <span class="badge bg-warning text-dark ms-2">Solo si NVFL = 1</span>
+                </div>
+                <div class="card-body">
+                  <label class="form-label" for="b11-FVAR">FVAR <span class="badge bg-secondary">NOTTS floats separados por espacio</span></label>
+                  <textarea id="b11-FVAR" class="form-control font-monospace array-textarea" rows="3"
+                            placeholder="1.0 1.0 50.0 200.0 …"></textarea>
+                </div>
+              </div>
+
+              <!-- Card 8: NMULT (hidden by default) -->
+              <div class="card mb-3 block-card d-none" id="b11-card8">
+                <div class="card-header block-card-header">
+                  <span data-i18n="b11.card8_h"><span data-i18n="b11.card8_h">Card #8 &mdash; NMULT &mdash; Escritura periódica de ciclos</span></span>
+                  <span class="badge bg-warning text-dark ms-2">Solo si NOPUL &ne; 0</span>
+                </div>
+                <div class="card-body">
+                  <div class="row g-3">
+                    <div class="col-md-4">
+                      <label class="form-label" for="b11-NMULT">NMULT</label>
+                      <input id="b11-NMULT" type="number" class="form-control form-control-sm" min="0" step="1" value="0">
+                      <div class="form-text" data-i18n="b11.nmult_hint">Escribe inventario en UNIT 48 cada NMULT ciclos. 0 = no generar.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div><!-- /tab-b11 -->
+
+            <!-- ════════════════════════════════
+                 BLOCK #13 — Control de salida
+                 ════════════════════════════════ -->
+            <div class="tab-pane fade" id="tab-b13" role="tabpanel">
+
+              <div class="block-comment-area mb-3">
+                <label class="form-label small text-secondary mb-1">
+                  <i class="bi bi-chat-left-quote me-1"></i><span data-i18n="cmt.prefix">Comentario para </span>Block #13
+                  <span class="fw-normal text-muted">(se escribe como <code>&lt;</code> texto en el fichero)</span>
+                </label>
+                <textarea id="cmt-block13" class="form-control form-control-sm font-monospace block-comment-input"
+                          rows="2" placeholder="Comentario opcional…"></textarea>
+              </div>
+
+              <div class="mb-2">
+                <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#help-b13" data-i18n="help.btn">
+                  <i class="bi bi-question-circle me-1"></i>Ayuda
+                </button>
+              </div>
+              <div class="collapse mb-3" id="help-b13">
+                <div class="block-help-box">
+                  <p class="mb-2 fw-semibold">Control de salida (solo cuando IUNC = 0).</p>
+                  <p class="mb-2">Selecciona los ciclos y sets temporales para los que se genera salida de inventario. Útil cuando hay muchos sets (e.g. plantas IFE). La salida por intervalo se activa mediante IOUT en Block #7.</p>
+                  <table class="table table-sm table-bordered mb-0">
+                    <thead><tr><th style="width:90px">Parámetro</th><th>Descripción</th></tr></thead>
+                    <tbody>
+                      <tr><td><code>NCYO</code></td><td>Nº de ciclos con salida deseada [≤ NOPUL+1]. 0 si NOPUL=0.</td></tr>
+                      <tr><td><code>IFSO</code></td><td>0 = sin efecto · 1 = generar salida para algunos sets de la serie final.</td></tr>
+                      <tr><td><code>ICYO</code></td><td>Números ordinales de los ciclos seleccionados [NCYO]. Solo si NCYO ≠ 0.</td></tr>
+                      <tr><td><code>ITSO</code></td><td>Array de longitud NOTTS: 0 = sin salida · 1 = imprimir respuestas de activación por zona para este set.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header"><span data-i18n="b13.card1_h"><span data-i18n="b13.card1_h">Card #1 &mdash; Control de ciclos y series finales</span></span></div>
+                <div class="card-body">
+                  <div class="row g-3">
+                    <div class="col-md-3">
+                      <label class="form-label" for="b13-NCYO">NCYO</label>
+                      <input id="b13-NCYO" type="number" class="form-control form-control-sm" min="0" step="1" value="0">
+                      <div class="form-text" data-i18n="b13.ncyo_hint">Ciclos con salida (0 si NOPUL=0).</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label" for="b13-IFSO">IFSO</label>
+                      <select id="b13-IFSO" class="form-select form-select-sm">
+                        <option value="0">0 &mdash; Sin salida en la serie final</option>
+                        <option value="1">1 &mdash; Salida en la serie final</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card 2 (hidden by default) -->
+              <div class="card mb-3 block-card d-none" id="b13-card2">
+                <div class="card-header block-card-header">
+                  <span data-i18n="b13.card2_h"><span data-i18n="b13.card2_h">Card #2 &mdash; ICYO &mdash; Ciclos seleccionados</span></span>
+                  <span class="badge bg-warning text-dark ms-2">Solo si NCYO &ne; 0</span>
+                </div>
+                <div class="card-body">
+                  <label class="form-label" for="b13-ICYO">ICYO <span class="badge bg-secondary">NCYO enteros separados por espacio</span></label>
+                  <input id="b13-ICYO" type="text" class="form-control font-monospace" placeholder="p.ej. 2 5">
+                </div>
+              </div>
+
+              <div class="card mb-3 block-card">
+                <div class="card-header block-card-header"><span data-i18n="b13.card3_h"><span data-i18n="b13.card3_h">Card #3 &mdash; ITSO &mdash; Selección de conjuntos para salida</span></span></div>
+                <div class="card-body">
+                  <div class="alert alert-info py-2 small mb-3">
+                    <i class="bi bi-info-circle me-1"></i>
+                    NOTTS valores (0 ó 1) &mdash; uno por conjunto temporal.
+                    <strong>1</strong> = imprimir resultados por zona.
+                    NOTTS se define en Block #11, Card #6.
+                  </div>
+                  <label class="form-label" for="b13-ITSO">ITSO <span class="badge bg-secondary">NOTTS enteros (0/1) separados por espacio</span></label>
+                  <textarea id="b13-ITSO" class="form-control font-monospace array-textarea" rows="3"
+                            placeholder="1 0 1 0 …"></textarea>
+                </div>
+              </div>
+
+            </div><!-- /tab-b13 -->
+
+          </div><!-- /tab-content temporal -->
+        </div><!-- /col forms -->
+
+      </div><!-- /row -->
+    </div><!-- /sec-temporal -->
+
+    <!-- ════════════════════════════════════════
+         SECCIÓN: ANÁLISIS DE INCERTIDUMBRES (IUNC = 1)
+         ════════════════════════════════════════ -->
+    <div class="tab-pane fade" id="sec-uncertainties" role="tabpanel">
+
+      <div class="alert alert-warning d-flex align-items-center gap-2 mt-3 mb-4 py-2">
+        <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+        <span>
+          <span data-i18n="b14.iunc_warn"><span data-i18n="b14.iunc_warn">Este bloque solo se activa cuando <strong>IUNC = 1</strong> en Block #1.
+          Si IUNC cambia a un valor distinto de 1, esta sección quedará deshabilitada.</span></span>
+        </span>
+      </div>
+
+      <div class="block-comment-area mb-3">
+        <label class="form-label small text-secondary mb-1">
+          <i class="bi bi-chat-left-quote me-1"></i><span data-i18n="cmt.prefix">Comentario para </span>Block #14
+          <span class="fw-normal text-muted">(se escribe como <code>&lt;</code> texto en el fichero)</span>
+        </label>
+        <textarea id="cmt-block14" class="form-control form-control-sm font-monospace block-comment-input"
+                  rows="2" placeholder="Comentario opcional…"></textarea>
+      </div>
+
+      <div class="mb-2">
+        <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+                data-bs-toggle="collapse" data-bs-target="#help-b14" data-i18n="help.btn">
+          <i class="bi bi-question-circle me-1"></i>Ayuda
+        </button>
+      </div>
+      <div class="collapse mb-3" id="help-b14">
+        <div class="block-help-box">
+          <p class="mb-2 fw-semibold">Cálculo de incertidumbres Monte Carlo en secciones eficaces de activación (solo IUNC = 1).</p>
+          <p class="mb-2">Calcula la incertidumbre en la concentración de nucleidos específicos y en magnitudes integradas (actividad total, calor de desintegración…) mediante un método Monte Carlo sobre las secciones eficaces. La librería colapsada XSUNC.dat es requerida.</p>
+          <table class="table table-sm table-bordered mb-0">
+            <thead><tr><th style="width:90px">Parámetro</th><th>Descripción</th></tr></thead>
+            <tbody>
+              <tr><td><code>NMOHI</code></td><td>Nº de historias Monte Carlo para el cálculo de incertidumbres.</td></tr>
+              <tr><td><code>NTIMES</code></td><td>Nº total de instantes de interés para el análisis.</td></tr>
+              <tr><td><code>NCYU</code></td><td>Nº de ciclos que contienen instantes de interés (0 si NOPUL=0) [≤ NOPUL+1].</td></tr>
+              <tr><td><code>IFSU</code></td><td>0 = sin efecto · 1 = hay instantes de interés en la serie final de sets.</td></tr>
+              <tr><td><code>NNUCU</code></td><td>Nº de nucleidos para los que se calcula incertidumbre en concentración de átomos.</td></tr>
+              <tr><td><code>ICYU</code></td><td>Números ordinales de los ciclos con instantes de interés [NCYU]. Solo si NCYU ≠ 0.</td></tr>
+              <tr><td><code>ITSU</code></td><td>Array [NOTTS]: nº de instantes de interés dentro de cada set.</td></tr>
+              <tr><td><code>INUCU</code></td><td>Identificadores de nucleidos (formato de Block #5) [NNUCU].</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Block #14 -->
+      <div class="card mb-3 block-card">
+        <div class="card-header block-card-header">
+          <i class="bi bi-graph-up me-1"></i><span data-i18n="b14.card_h"><span data-i18n="b14.card_h">Block #14 &mdash; Cálculo de incertidumbres (Monte Carlo)</span></span>
+        </div>
+        <div class="card-body">
+
+          <!-- Card 1 -->
+          <h6 class="group-heading" data-i18n="b14.card1_h">Card #1 &mdash; Parámetros generales</h6>
+          <div class="row g-3 mb-4">
+            <div class="col-md-3">
+              <label class="form-label" for="b14-NMOHI">NMOHI</label>
+              <input id="b14-NMOHI" type="number" class="form-control form-control-sm" min="1" step="1" value="1000">
+              <div class="form-text" data-i18n="b14.nmohi_hint">Nº de historias Monte Carlo.</div>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label" for="b14-NTIMES">NTIMES</label>
+              <input id="b14-NTIMES" type="number" class="form-control form-control-sm" min="1" step="1" value="1">
+              <div class="form-text" data-i18n="b14.ntimes_hint">Nº de tiempos de interés.</div>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label" for="b14-NCYU">NCYU</label>
+              <input id="b14-NCYU" type="number" class="form-control form-control-sm" min="0" step="1" value="0">
+              <div class="form-text" data-i18n="b14.ncyu_hint">Ciclos con tiempos de interés. 0 si NOPUL = 0.</div>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label" for="b14-IFSU">IFSU</label>
+              <select id="b14-IFSU" class="form-select form-select-sm">
+                <option value="0">0 &mdash; Sin tiempos en la serie final</option>
+                <option value="1">1 &mdash; Tiempos en la serie final</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label" for="b14-NNUCU">NNUCU</label>
+              <input id="b14-NNUCU" type="number" class="form-control form-control-sm" min="1" step="1" value="1">
+              <div class="form-text" data-i18n="b14.nnucu_hint">Nº de nucléidos con incertidumbre en concentración.</div>
+            </div>
+          </div>
+
+          <!-- Card 2 (hidden when NCYU = 0) -->
+          <div class="card mb-4 border-warning d-none" id="b14-card2">
+            <div class="card-header bg-warning-subtle">
+              Card #2 &mdash; ICYU &mdash; Ciclos seleccionados
+              <span class="badge bg-warning text-dark ms-2">Solo si NCYU &ne; 0</span>
+            </div>
+            <div class="card-body">
+              <label class="form-label" for="b14-ICYU">ICYU <span class="badge bg-secondary">NCYU enteros separados por espacio</span></label>
+              <input id="b14-ICYU" type="text" class="form-control font-monospace"
+                     placeholder="p.ej. 2 3 9 11">
+            </div>
+          </div>
+
+          <!-- Card 3 -->
+          <h6 class="group-heading" data-i18n="b14.card3_h">Card #3 &mdash; ITSU &mdash; Tiempos de interés por conjunto</h6>
+          <div class="alert alert-info py-2 small mb-2">
+            <i class="bi bi-info-circle me-1"></i>
+            NOTTS valores enteros &mdash; uno por conjunto (Block #11 NOTTS).
+            Indica cuántos tiempos de interés contiene cada conjunto. 0 = ninguno.
+          </div>
+          <label class="form-label" for="b14-ITSU">ITSU <span class="badge bg-secondary">NOTTS enteros separados por espacio</span></label>
+          <textarea id="b14-ITSU" class="form-control font-monospace array-textarea" rows="2"
+                    placeholder="p.ej. 1 0 1 0 2 2 3"></textarea>
+
+          <!-- Card 4 -->
+          <h6 class="group-heading mt-3" data-i18n="b14.card4_h">Card #4 &mdash; ITIMEU &mdash; Índices de pasos temporales</h6>
+          <div class="alert alert-info py-2 small mb-2">
+            <i class="bi bi-info-circle me-1"></i>
+            Una línea por cada entrada <strong>no nula</strong> de ITSU.
+            Cada línea contiene los índices ordinales de los pasos temporales de interés.
+          </div>
+          <label class="form-label" for="b14-ITIMEU">ITIMEU <span class="badge bg-secondary">una línea por conjunto no nulo en ITSU</span></label>
+          <textarea id="b14-ITIMEU" class="form-control font-monospace array-textarea" rows="5"
+                    placeholder="1&#10;10&#10;9 10&#10;9 10&#10;8 9 10"></textarea>
+
+          <!-- Card 5 -->
+          <h6 class="group-heading mt-3" data-i18n="b14.card5_h">Card #5 &mdash; INUCU &mdash; Identificadores de nucléidos</h6>
+          <div class="alert alert-info py-2 small mb-2">
+            <i class="bi bi-info-circle me-1"></i>
+            NNUCU identificadores en el mismo formato que Block #5
+            (p.ej. <code>60140</code> para <sup>14</sup>C, <code>260540</code> para <sup>54</sup>Fe).
+          </div>
+          <label class="form-label" for="b14-INUCU">INUCU <span class="badge bg-secondary">NNUCU enteros separados por espacio</span></label>
+          <textarea id="b14-INUCU" class="form-control font-monospace array-textarea" rows="3"
+                    placeholder="p.ej. 60140 130260 260540 551370"></textarea>
+
+        </div>
+      </div><!-- /block-14 card -->
+
+    </div><!-- /sec-uncertainties -->
+
+    <!-- ════════════════════════════════════════
+         SECCIÓN: BARRIDO PARAMÉTRICO
+         ════════════════════════════════════════ -->
+    <div class="tab-pane fade" id="sec-sweep" role="tabpanel">
+      <div class="p-3">
+
+        <h4 class="mb-1"><i class="bi bi-collection me-2"></i><span data-i18n="sweep.title">Barrido paramétrico</span></h4>
+        <p class="text-muted small" data-i18n="sweep.intro">
+          Genera N carpetas de simulación variando UN parámetro (flujo, masa o historial temporal)
+          y dejando fijo el resto del fichero base actual. Cada carpeta incluye su inp.5 y una copia
+          del contenido de la carpeta base (librerías y ficheros auxiliares).
+        </p>
+
+        <!-- Estado de validación del fichero base -->
+        <div id="sweep-validation-banner" class="alert alert-secondary py-2 small mb-3">
+          <span data-i18n="sweep.val_checking">Comprobando la validez del fichero base…</span>
+        </div>
+
+        <!-- Configuración común -->
+        <div class="card mb-3 block-card">
+          <div class="card-header block-card-header" data-i18n="sweep.common_h">Configuración común</div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" for="sweep-root" data-i18n="sweep.root_lbl">Carpeta raíz de salida</label>
+                <div class="input-group">
+                  <input id="sweep-root" type="text" class="form-control font-monospace"
+                         placeholder="C:\TFG\barridos\flujo_1">
+                  <button class="btn btn-outline-secondary sweep-browse-btn" type="button"
+                          data-target="sweep-root" data-i18n-title="sweep.browse" title="Examinar…">
+                    <i class="bi bi-folder2-open"></i>
+                  </button>
+                </div>
+                <div class="form-text" data-i18n="sweep.root_hint">Se crearán aquí las subcarpetas de cada simulación.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="sweep-base" data-i18n="sweep.base_lbl">Carpeta base a copiar</label>
+                <div class="input-group">
+                  <input id="sweep-base" type="text" class="form-control font-monospace"
+                         placeholder="C:\TFG\acab_base">
+                  <button class="btn btn-outline-secondary sweep-browse-btn" type="button"
+                          data-target="sweep-base" data-i18n-title="sweep.browse" title="Examinar…">
+                    <i class="bi bi-folder2-open"></i>
+                  </button>
+                </div>
+                <div class="form-text" data-i18n="sweep.base_hint">Su contenido se copia íntegro a cada subcarpeta.</div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="sweep-prefix" data-i18n="sweep.prefix_lbl">Prefijo</label>
+                <input id="sweep-prefix" type="text" class="form-control font-monospace" placeholder="TeO2_">
+              </div>
+              <div class="col-md-8">
+                <label class="form-label" for="sweep-desc" data-i18n="sweep.desc_lbl">Descripción del barrido (obligatoria)</label>
+                <input id="sweep-desc" type="text" class="form-control"
+                       data-i18n-ph="sweep.desc_ph" placeholder="p. ej. barrido de flujo para TeO2, T_irr = 24 h">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Selector de tipo -->
+        <div class="card mb-3 block-card">
+          <div class="card-header block-card-header" data-i18n="sweep.type_h">Tipo de barrido</div>
+          <div class="card-body">
+            <div class="row g-2 mb-3">
+              <div class="col-md-4">
+                <div class="form-check card p-2 h-100">
+                  <input class="form-check-input ms-1" type="radio" name="sweep-type" id="sweep-type-flux" value="flux" checked>
+                  <label class="form-check-label ms-3" for="sweep-type-flux">
+                    <strong data-i18n="sweep.type_flux">Flujo (XNORM)</strong>
+                  </label>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-check card p-2 h-100">
+                  <input class="form-check-input ms-1" type="radio" name="sweep-type" id="sweep-type-mass" value="mass">
+                  <label class="form-check-label ms-3" for="sweep-type-mass">
+                    <strong data-i18n="sweep.type_mass">Masa del blanco</strong>
+                  </label>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-check card p-2 h-100">
+                  <input class="form-check-input ms-1" type="radio" name="sweep-type" id="sweep-type-time" value="time">
+                  <label class="form-check-label ms-3" for="sweep-type-time">
+                    <strong data-i18n="sweep.type_time">Historial temporal</strong>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Panel: Flujo -->
+            <div id="sweep-panel-flux" class="sweep-panel">
+              <div class="alert alert-info py-2 small" data-i18n="sweep.flux_expl">
+                XNORM multiplica todos los flujos manteniendo la FORMA del espectro; el resto del
+                fichero (composición, geometría, historial temporal) queda congelado. Solo válido si
+                el escenario real no cambia la forma del espectro.
+              </div>
+              <p class="small mb-2">
+                <span data-i18n="sweep.flux_phibase">Flujo total base (Σ Bloque #3 × XNORM):</span>
+                <span id="sweep-flux-phibase" class="font-monospace fw-bold">—</span>
+              </p>
+              <div class="mb-2">
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="sweep-flux-mode" id="sweep-flux-mode-xnorm" value="xnorm" checked>
+                  <label class="form-check-label" for="sweep-flux-mode-xnorm" data-i18n="sweep.flux_mode_xnorm">Valores de XNORM (factores)</label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="sweep-flux-mode" id="sweep-flux-mode-phi" value="phi">
+                  <label class="form-check-label" for="sweep-flux-mode-phi" data-i18n="sweep.flux_mode_phi">Flujo total objetivo</label>
+                </div>
+              </div>
+              <label class="form-label" for="sweep-flux-values" data-i18n="sweep.values_lbl">Valores (separados por comas)</label>
+              <input id="sweep-flux-values" type="text" class="form-control font-monospace" placeholder="0.5, 0.75, 1.0, 1.5">
+            </div>
+
+            <!-- Panel: Masa -->
+            <div id="sweep-panel-mass" class="sweep-panel d-none">
+              <div class="alert alert-info py-2 small" data-i18n="sweep.mass_expl">
+                El volumen y el compuesto quedan fijos, así que varía la densidad de empaquetado del
+                blanco. La estructura de zonas (INUCL) se conserva; solo cambia XCOMP de la zona
+                objetivo. No disponible con INPT = 2 (isótopos).
+              </div>
+              <div id="sweep-mass-inpt2" class="alert alert-warning py-2 small d-none" data-i18n="sweep.mass_inpt2">
+                El fichero base usa INPT = 2 (isótopos); el barrido de masa no está disponible.
+              </div>
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label" for="sweep-mass-zone" data-i18n="sweep.mass_zone_lbl">Zona objetivo</label>
+                  <select id="sweep-mass-zone" class="form-select"></select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label" for="sweep-mass-formula" data-i18n="sweep.mass_formula_lbl">Compuesto (fórmula)</label>
+                  <input id="sweep-mass-formula" type="text" class="form-control font-monospace" placeholder="TeO2">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label" for="sweep-mass-vol" data-i18n="sweep.mass_vol_lbl">Volumen de zona [cm³]</label>
+                  <input id="sweep-mass-vol" type="number" step="any" min="0" class="form-control font-monospace" placeholder="1.0">
+                </div>
+                <div class="col-12">
+                  <label class="form-label" for="sweep-mass-values" data-i18n="sweep.mass_values_lbl">Masas [g] (separadas por comas)</label>
+                  <input id="sweep-mass-values" type="text" class="form-control font-monospace" placeholder="0.10, 0.1231, 0.15">
+                </div>
+              </div>
+            </div>
+
+            <!-- Panel: Temporal -->
+            <div id="sweep-panel-time" class="sweep-panel d-none">
+              <div class="alert alert-info py-2 small" data-i18n="sweep.time_expl">
+                Cada fila define una simulación con sus fases de irradiación y/o enfriamiento. Los
+                campos vacíos conservan la fase del fichero base. NOTTS (Bloque #11) se sincroniza
+                automáticamente por simulación.
+              </div>
+              <div class="table-responsive">
+                <table class="table table-sm table-bordered align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="width:2.5rem">#</th>
+                      <th data-i18n="sweep.time_tirr">t_irr fin</th>
+                      <th data-i18n="sweep.time_pirr">pasos irr</th>
+                      <th data-i18n="sweep.time_tcool">t_cool fin</th>
+                      <th data-i18n="sweep.time_pcool">pasos cool</th>
+                      <th style="width:3rem"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="sweep-time-tbody"></tbody>
+                </table>
+              </div>
+              <button class="btn btn-sm btn-outline-secondary" id="sweep-time-add">
+                <i class="bi bi-plus-lg me-1"></i><span data-i18n="sweep.time_add">Añadir fila</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="d-flex gap-2 mb-3">
+          <button class="btn btn-outline-primary" id="sweep-preview-btn" disabled>
+            <i class="bi bi-list-check me-1"></i><span data-i18n="sweep.preview_btn">Previsualizar</span>
+          </button>
+          <button class="btn btn-primary" id="sweep-generate-btn" disabled>
+            <i class="bi bi-play-fill me-1"></i><span data-i18n="sweep.generate_btn">Generar barrido</span>
+          </button>
+          <span id="sweep-spinner" class="align-self-center d-none">
+            <span class="spinner-border spinner-border-sm me-1"></span><span data-i18n="sweep.generating">Generando…</span>
+          </span>
+        </div>
+
+        <div id="sweep-msg" class="alert d-none py-2 small"></div>
+
+        <!-- Previsualización -->
+        <div id="sweep-preview" class="card mb-3 block-card d-none">
+          <div class="card-header block-card-header" data-i18n="sweep.preview_h">Previsualización</div>
+          <div class="card-body">
+            <p class="mb-2 small">
+              <span data-i18n="sweep.preview_count">Simulaciones:</span>
+              <span id="sweep-preview-n" class="fw-bold">0</span> &nbsp;·&nbsp;
+              <span data-i18n="sweep.preview_pattern">Patrón:</span>
+              <code id="sweep-preview-pattern">&lt;prefijo&gt;&lt;sufijo&gt;</code> &nbsp;·&nbsp;
+              <span data-i18n="sweep.preview_disk">Coste en disco estimado:</span>
+              <span id="sweep-preview-disk" class="fw-bold">—</span>
+            </p>
+            <div id="sweep-preview-warn" class="alert alert-warning py-2 small d-none"></div>
+            <div class="table-responsive">
+              <table class="table table-sm table-bordered align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th data-i18n="sweep.col_values">Valores</th>
+                    <th data-i18n="sweep.col_suffix">Sufijo (editable)</th>
+                    <th data-i18n="sweep.col_folder">Carpeta resultante</th>
+                  </tr>
+                </thead>
+                <tbody id="sweep-preview-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ejecución del barrido (Fase R4) -->
+        <div id="sweep-run-panel" class="card mb-3 block-card d-none">
+          <div class="card-header block-card-header" data-i18n="sweep.run_h">Ejecución del barrido</div>
+          <div class="card-body">
+            <p class="small mb-2">
+              <span data-i18n="sweep.run_root_lbl">Carpeta raíz:</span>
+              <code id="sweep-run-root" class="font-monospace"></code>
+            </p>
+            <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+              <button type="button" class="btn btn-success btn-sm" id="btn-sweep-run-start">
+                <i class="bi bi-play-fill me-1"></i><span data-i18n="sweep.run_start_btn">Ejecutar barrido</span>
+              </button>
+              <button type="button" class="btn btn-outline-danger btn-sm" id="btn-sweep-run-cancel" disabled>
+                <i class="bi bi-stop-fill me-1"></i><span data-i18n="run.cancel_btn">Cancelar</span>
+              </button>
+              <span id="sweep-run-progress" class="font-monospace small text-muted"></span>
+              <span id="sweep-run-badge" class="badge bg-secondary ms-auto"></span>
+              <a href="#" id="btn-sweep-run-open-analyzer" class="btn btn-outline-primary btn-sm d-none"
+                 target="_blank" rel="noopener">
+                <i class="bi bi-box-arrow-up-right me-1"></i><span data-i18n="run.open_analyzer_btn">Abrir en Fort Analyzer</span>
+              </a>
+            </div>
+            <div class="table-responsive mb-2">
+              <table class="table table-sm table-bordered align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th data-i18n="sweep.run_col_folder">Carpeta</th>
+                    <th data-i18n="sweep.run_col_state">Estado</th>
+                    <th data-i18n="sweep.run_col_duration">Duración</th>
+                  </tr>
+                </thead>
+                <tbody id="sweep-run-tbody"></tbody>
+              </table>
+            </div>
+            <pre id="sweep-run-log"
+                 class="m-0 p-2 font-monospace bg-dark text-light rounded"
+                 style="font-size:.78rem; height:200px; overflow-y:auto; white-space:pre-wrap; word-break:break-all;"></pre>
+          </div>
+        </div>
+
+        <!-- Ejecutar un barrido existente (Fase R4) -->
+        <div class="card mb-3 block-card">
+          <div class="card-header block-card-header" data-i18n="sweep.run_existing_h">Ejecutar un barrido existente</div>
+          <div class="card-body">
+            <label class="form-label small" for="sweep-run-existing-root" data-i18n="sweep.run_existing_hint">
+              Selecciona la carpeta raíz de un barrido ya generado (con su sweep_manifest.json) para ejecutarlo.
+            </label>
+            <div class="input-group input-group-sm" style="max-width:36rem">
+              <input id="sweep-run-existing-root" type="text" class="form-control font-monospace"
+                     placeholder="C:\TFG\barridos\flujo_1">
+              <button class="btn btn-outline-secondary sweep-browse-btn" type="button"
+                      data-target="sweep-run-existing-root" data-i18n-title="sweep.browse" title="Examinar…">
+                <i class="bi bi-folder2-open"></i>
+              </button>
+              <button class="btn btn-primary" type="button" id="btn-sweep-run-existing">
+                <i class="bi bi-play-fill me-1"></i><span data-i18n="sweep.run_existing_btn">Ejecutar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /sec-sweep -->
+
+  </div><!-- /sectionContent -->
+</div><!-- /container-fluid -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODAL: Vista previa del fichero
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="previewModal" tabindex="-1"
+     aria-labelledby="previewModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="previewModalLabel">
+          <i class="bi bi-eye me-1"></i><span data-i18n="modal.preview_title">Vista previa &mdash; fichero inp.5</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="preview-loading" class="d-none justify-content-center align-items-center py-5">
+          <div class="spinner-border text-secondary" role="status"></div>
+          <span class="ms-2 text-muted" data-i18n="modal.preview_gen">Generando…</span>
+        </div>
+        <textarea id="preview-content"
+                  class="form-control font-monospace border-0 rounded-0"
+                  style="min-height:65vh; font-size:0.8rem; line-height:1.5"
+                  readonly spellcheck="false"
+                  placeholder="Pulsa 'Vista previa del fichero' en el menú Archivo para generar la vista previa…" data-i18n-ph="modal.preview_ph" data-i18n-ph="modal.preview_ph"></textarea>
+      </div>
+      <div class="modal-footer">
+        <span id="preview-lines" class="text-muted small me-auto"></span>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-preview-copy">
+          <i class="bi bi-clipboard me-1"></i><span data-i18n="modal.preview_copy">Copiar al portapapeles</span>
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm"
+                data-bs-dismiss="modal" data-i18n="modal.preview_close">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODAL: Guardar como…
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="saveAsModal" tabindex="-1"
+     aria-labelledby="saveAsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="saveAsModalLabel">
+          <i class="bi bi-floppy me-1"></i><span data-i18n="modal.saveas_title">Guardar como…</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label" for="save-filename" data-i18n="modal.saveas_lbl">Nombre del fichero</label>
+        <input id="save-filename" type="text" class="form-control font-monospace"
+               value="output.5">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm"
+                data-bs-dismiss="modal" data-i18n="modal.saveas_cancel">Cancelar</button>
+        <button type="button" class="btn btn-primary btn-sm"
+                id="btn-save-confirm">
+          <i class="bi bi-floppy me-1"></i><span data-i18n="modal.saveas_save">Guardar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODAL: Ejecución de ACAB (Fase R3)
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="runModal" tabindex="-1"
+     aria-labelledby="runModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="runModalLabel" data-i18n="run.modal_title">
+          <i class="bi bi-play-circle me-2"></i>Ejecución de ACAB
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 mb-2">
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold" for="run-workdir" data-i18n="run.workdir_lbl">
+              Directorio de trabajo
+            </label>
+            <input type="text" id="run-workdir" class="form-control form-control-sm font-monospace"
+                   placeholder="C:\ruta\a\la\simulación">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold" for="run-exe" data-i18n="run.exe_lbl">Ejecutable</label>
+            <input type="text" id="run-exe" class="form-control form-control-sm font-monospace" value="acab.exe">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold" for="run-timeout" data-i18n="run.timeout_lbl">Timeout (s)</label>
+            <input type="number" id="run-timeout" class="form-control form-control-sm" value="60" min="1" step="1">
+          </div>
+        </div>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="run-save-current" checked>
+          <label class="form-check-label small" for="run-save-current" data-i18n="run.save_current_lbl">
+            Guardar el fichero actual (inp.5) en el directorio de trabajo antes de ejecutar
+          </label>
+        </div>
+        <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+          <button type="button" class="btn btn-success btn-sm" id="btn-run-start">
+            <i class="bi bi-play-fill me-1"></i><span data-i18n="run.start_btn">Ejecutar</span>
+          </button>
+          <button type="button" class="btn btn-outline-danger btn-sm" id="btn-run-cancel" disabled>
+            <i class="bi bi-stop-fill me-1"></i><span data-i18n="run.cancel_btn">Cancelar</span>
+          </button>
+          <span id="run-elapsed" class="font-monospace small text-muted"></span>
+          <span id="run-status-badge" class="badge bg-secondary ms-auto"></span>
+          <a href="#" id="btn-run-open-analyzer" class="btn btn-outline-primary btn-sm d-none"
+             target="_blank" rel="noopener">
+            <i class="bi bi-box-arrow-up-right me-1"></i><span data-i18n="run.open_analyzer_btn">Abrir en Fort Analyzer</span>
+          </a>
+        </div>
+        <pre id="run-log"
+             class="m-0 p-2 font-monospace bg-dark text-light rounded"
+             style="font-size:.78rem; height:280px; overflow-y:auto; white-space:pre-wrap; word-break:break-all;"></pre>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" data-i18n="run.close">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     TOAST notifications
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+  <div id="appToast" class="toast align-items-center border-0" role="alert"
+       aria-live="assertive" data-bs-autohide="true" data-bs-delay="3500">
+    <div class="d-flex">
+      <div class="toast-body" id="toast-body">Mensaje</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto"
+              data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden file input for loading -->
+<input type="file" id="fileInput" accept=".5,*" hidden>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     FOOTER
+     ═══════════════════════════════════════════════════════════════════════ -->
+<footer class="border-top mt-4 py-3 bg-light text-center text-muted small">
+  <span data-i18n="footer.tfg">Trabajo de Fin de Grado &mdash; Ingeniería de la Energía &nbsp;|&nbsp; 2026</span><br>
+  <span>Autor: <strong>Adrián Navarro Minaya</strong> &nbsp;&mdash;&nbsp;
+        Tutor: <strong>Óscar Luis Cabellos de Francisco</strong></span><br>
+  <span class="text-secondary" data-i18n="footer.center">Escuela Universitaria de Minas y Energía &mdash; Universidad Politécnica de Madrid</span>
+</footer>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     SCRIPTS
+     ═══════════════════════════════════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/static/js/calc_utils.js"></script>
+<script src="/static/js/sweep_utils.js"></script>
+<script src="/static/js/app.js"></script>
+<script src="/static/js/sweep.js"></script>
+<script src="/static/js/suite_banner.js"></script>
+<!-- ═══════════════════════════════════════════════════════════════════════
+     VALIDATION MODAL
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="validationModal" tabindex="-1"
+     aria-labelledby="validationModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="validationModalLabel">
+          <i class="bi bi-clipboard-check me-2"></i>
+          <span data-i18n="val.modal_title">Resultado de la Validación</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="validation-modal-body">
+        <!-- Populated by JS -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
+                data-i18n="val.close">Cerrar</button>
+        <button type="button" class="btn btn-warning d-none" id="validation-proceed-btn"
+                data-i18n="val.proceed">Continuar de todos modos</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,129 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   COLLAPS Configurator  —  Custom styles
+   Built on top of Bootstrap 5.3.3; keep overrides minimal.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ── Navbar brand ─────────────────────────────────────────────────────── */
+.navbar-brand {
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+}
+
+/* ── Section tabs ─────────────────────────────────────────────────────── */
+#sectionTabs .nav-link {
+  font-weight: 500;
+}
+
+/* ── Block cards ──────────────────────────────────────────────────────── */
+.block-card {
+  border: 1px solid #dee2e6;
+  border-radius: 0.5rem;
+}
+
+.block-card-header {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  font-size: 0.88rem;
+  letter-spacing: 0.01em;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+/* ── Group headings inside cards ──────────────────────────────────────── */
+.group-heading {
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6c757d;
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+/* ── Monospace inputs for sci notation ────────────────────────────────── */
+.font-monospace.form-control {
+  font-size: 0.9rem;
+}
+
+/* ── form-text helper ─────────────────────────────────────────────────── */
+.form-text {
+  font-size: 0.73rem;
+}
+
+/* ── General spacing ─────────────────────────────────────────────────── */
+body {
+  background-color: #f5f6f8;
+}
+
+.tab-content > .tab-pane {
+  padding-top: 0.25rem;
+}
+
+/* ── Array textareas (FT, CX…) ────────────────────────────────────────── */
+.array-textarea {
+  font-size: 0.85rem;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+/* ── Block help panels (collapsible documentation) ────────────────────── */
+.block-help-box {
+  background-color: #f0f6ff;
+  border: 1px solid #bdd4f5;
+  border-left: 4px solid #4e8ef7;
+  border-radius: 0.375rem;
+  padding: 0.85rem 1rem;
+  font-size: 0.82rem;
+}
+
+.block-help-box p {
+  font-size: 0.82rem;
+}
+
+.block-help-box .table {
+  font-size: 0.79rem;
+  margin-bottom: 0;
+}
+
+.block-help-box .table th {
+  background-color: #ddeaff;
+  font-weight: 600;
+}
+
+.block-help-box .table td code {
+  font-size: 0.78rem;
+  color: #0a58ca;
+}
+
+/* ── Language selector mini-flags ─────────────────────────────────────── */
+.lang-flag {
+  display: inline-block;
+  width: 22px;
+  height: 15px;
+  border-radius: 2px;
+  vertical-align: middle;
+  flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,.15);
+}
+
+/* España: franja roja-amarilla-roja */
+.lang-flag-es {
+  background: linear-gradient(to bottom,
+    #c60b1e 0% 28%,
+    #ffc400 28% 72%,
+    #c60b1e 72% 100%);
+}
+
+/* Reino Unido: Union Jack via SVG data URI */
+.lang-flag-en {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 40'%3E%3Crect width='60' height='40' fill='%23012169'/%3E%3Cline x1='0' y1='0' x2='60' y2='40' stroke='%23fff' stroke-width='10'/%3E%3Cline x1='60' y1='0' x2='0' y2='40' stroke='%23fff' stroke-width='10'/%3E%3Cline x1='0' y1='0' x2='60' y2='40' stroke='%23C8102E' stroke-width='5'/%3E%3Cline x1='60' y1='0' x2='0' y2='40' stroke='%23C8102E' stroke-width='5'/%3E%3Crect x='0' y='13' width='60' height='14' fill='%23fff'/%3E%3Crect x='23' y='0' width='14' height='40' fill='%23fff'/%3E%3Crect x='0' y='16' width='60' height='8' fill='%23C8102E'/%3E%3Crect x='26' y='0' width='8' height='40' fill='%23C8102E'/%3E%3C/svg%3E");
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-color: #012169;
+}
+
+/* ── Flux array helper ────────────────────────────────────────────────── */
+#ft-count-badge {
+  font-size: 0.72rem;
+}

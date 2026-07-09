@@ -1,0 +1,146 @@
+IFMIF - High Flux Test Module - Element Fe          
+<Block #1, card #2
+ 0  IUNC
+<Block #1, card #3
+ 2232 950000 0 0 1 0 0 3 0 24 1 0 4 1 1 0 1 0 0 1 0                              
+<Block #2, card #1  XRR
+ 1000.000  1.000000    
+<Block #2, card #3  MA
+ 1                                                                               
+<Block #2, card #4  NUCZO
+ 1
+<Block #2, card #6  EGRP
+ 2.0E+01 1.4E+01 1.2E+01 1.0E+01 8.0E+00 6.5E+00                                 
+ 5.0E+00 4.0E+00 3.0E+00 2.5E+00 2.0E+00 1.66E+0                                 
+ 1.44E+0 1.22E+0 1.0E+00 8.0E-01 6.0E-01 4.0E-01                                 
+ 3.0E-01 2.0E-01 1.0E-01 5.0E-02 2.0E-02 1.0E-02                                 
+ 0.0E+00                                                                         
+<Block #2, card #7  CUTOFF                                                                           
+ 0.0 0.0 0.0 0.0 0.0 0.0 
+<Block #2, card #9  NTO                                                                              
+ 1 0 0   0 0 0   1 0 0   0 0 0   0 0 0   0 0 0                                  
+<Block #3   FLUX                                                                              
+ 7.300000E+14                                                                
+<Block #4   Restart option                                                      
+ 0   IREST                                                                        
+<Block #5, card #1 Initial material composition, INUCL
+ 260000
+<Block #5, card #2 Initial material composition, XCOMP
+ 1.00000E+00
+<Blocks #7,#8  Irradiation and cooling temporal history
+    1  1   1 0   1 0   0 0                                                       
+    1.00000E+00                                                                 
+<continue
+    1  1   1  1  1 0  0 0                                                       
+    2.00000E+00                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    4.00000E+00                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    8.00000E+00                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    1.60000E+01                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    3.20000E+01                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    6.40000E+01                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    1.28000E+02                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    2.56000E+02                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    5.12000E+02                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    1.02400E+03                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    2.04800E+03                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    4.09600E+03                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    8.19200E+03                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    1.63840E+04                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    3.27680E+04                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    6.55360E+04                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    1.31072E+05                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    2.62144E+05                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    5.24288E+05                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    1.04858E+06                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    2.09715E+06                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    4.19430E+06                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    8.38861E+06                                                                 
+<continue                                                                 
+    1  1   1  1  1 0  0 0                                                       
+    1.67772E+07                                                                 
+<continue, 1 year                                                         
+    1  1   1  1  1 0  0 0                                                       
+    3.1536E+07                                                                  
+<continue, 3 years                                                        
+    1  1   1  1  1 0  0 0                                                       
+    9.4608E+07                                                                  
+<continue, 5 years                                                        
+    1  1   1  1  1 0  0 0                                                       
+    1.5768E+08                                                                  
+<continue, 10 years                                                       
+    1  1   1  1  1 0  0 0                                                       
+    3.1536E+08                                                                  
+<continue, 20 years                                                       
+    1  1   1  1  1 0  0 0                                                       
+    6.3072E+08                                                                  
+<continue, 30 years                                                       
+    1  1   0  1 1 0   0 0                                                       
+    9.46080E+08                                                                 
+<Block #9 ERR XNORM
+ 1.0E-25 1.0E+00                                                                
+<Block #10 Fission product inventory
+ 0 0 0                                                                           
+<Block #11 Type of run
+ 3 0 0 0 0 0 0 0 0 0 IWP IMTX IWDR IDOSE IPHCUT IDHEAT IOFFSD ICEDE INEMIS IDAMAGE 
+ 0 0 1 0             PH BREM TOT RHOR                                                                  
+ 0 31 31 1           NOPUL NTSEQ NOTTS NVFL                                        
+ 1.00000E+00  1.00000E+00  1.00000E+00  1.00000E+00  1.00000E+00  1.00000E+00   
+ 1.00000E+00  1.00000E+00  1.00000E+00  1.00000E+00  1.00000E+00  1.00000E+00   
+ 1.00000E+00  1.00000E+00  1.00000E+00  1.00000E+00  1.00000E+00  1.00000E+00   
+ 1.00000E+00  1.00000E+00  1.00000E+00  1.00000E+00  1.00000E+00  1.00000E+00   
+ 1.00000E+00  1.00000E+00  1.00000E+00  1.00000E+00  1.00000E+00  1.00000E+00   
+ 1.00000E+00                                                                    
+<Block #12 Instantaneous feed of material
+ 0     IIFD                                                                       
+<Block #13 Output control
+ 0  1  NCYO IFSO 
+ 1    1    1    1    1    1                                                  
+ 1    1    1    1    1    1                                                  
+ 1    1    1    1    1    1                                                  
+ 1    1    1    1    1    1                                                  
+ 1    1    1    1    1    1                                                  
+ 1                                                                           

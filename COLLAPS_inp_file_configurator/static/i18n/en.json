@@ -1,0 +1,196 @@
+{
+  "_comment": "English",
+
+  "suite": {
+    "offline": "Not running — use suite_launcher.py"
+  },
+
+  "nav": {
+    "brand"    : "COLLAPS inp File Configurator",
+    "file"     : "File",
+    "new"      : "New",
+    "load"     : "Load COLL.inp…",
+    "saveas"   : "Save as…",
+    "validate" : "Validate",
+    "preview"  : "File preview",
+    "run"      : "Run",
+    "sections" : "Sections",
+    "sec_bib"  : "Library",
+    "sec_fis"  : "Fission",
+    "sec_flu"  : "Neutron Flux",
+    "sec_opt"  : "Options",
+    "lang_label": "Language"
+  },
+
+  "status": {
+    "no_file"  : "No file loaded",
+    "loading"  : "Loading…",
+    "modified" : "modified"
+  },
+
+  "tabs": {
+    "bib" : "Library",
+    "fis" : "Fission",
+    "flu" : "Neutron Flux",
+    "opt" : "Options"
+  },
+
+  "help": {
+    "btn": "Help"
+  },
+
+  "c1": {
+    "h"         : "Card #1 — Group structure (ILIB / IESF)",
+    "ilib_lbl"  : "ILIB — Cross-section library to collapse",
+    "iesf_lbl"  : "IESF — Output energy structure",
+    "opt1"      : "1 — GAM-II (100 groups)",
+    "opt2"      : "2 — Vitamin-J (175 groups)",
+    "opt3"      : "3 — TART-175 (175 groups)",
+    "opt4"      : "4 — TART-566 (566 groups)",
+    "opt5"      : "5 — Other (defined in Card #6)",
+    "opt12"     : "12 — Vitamin-J+ (211 groups)"
+  },
+
+  "c2": {
+    "h"          : "Card #2 — Library header lines (IHEAD)",
+    "ihead_lbl"  : "IHEAD",
+    "ihead_hint" : "Number of header lines in the cross-section library file."
+  },
+
+  "c3": {
+    "h"          : "Card #3 — Fission mode and collapse options",
+    "isfis_lbl"  : "ISFIS",
+    "isfis_0"    : "0 — No fission yield processing",
+    "isfis_1"    : "1 — Activate fission mode (activates Card #4)",
+    "igen_lbl"   : "IGEN",
+    "igen_0"     : "0 — Standard mode (generate collapsed yield library)",
+    "igen_1"     : "1 — Extended EFY libraries only (stops execution)",
+    "isoca_lbl"  : "ISOCA",
+    "isoca_0"    : "0 — Read extended EFY library (Unit 18 / EFYBL.dat)",
+    "isoca_1"    : "1 — Process basic yield library (Unit 17 / FYBL.dat)",
+    "ibest_lbl"  : "IBEST",
+    "ibest_0"    : "0 — Fissionable nuclides from JEF-2.2/JEFF3.1",
+    "ibest_1"    : "1 — All fissionable nuclides in the activation library"
+  },
+
+  "c4": {
+    "h"       : "Card #4 — Fission energy boundaries (EB1 / EB2)",
+    "badge"   : "Only if ISFIS ≠ 0",
+    "eb1_lbl" : "EB1 — Upper fast fission energy boundary (eV)",
+    "eb1_ph"  : "5.000E+06",
+    "eb1_hint": "Upper energy for fast fission contribution. Suggested: 5×10⁶ eV.",
+    "eb2_lbl" : "EB2 — Upper epithermal fission energy boundary (eV)",
+    "eb2_ph"  : "2.000E+05",
+    "eb2_hint": "Upper energy for epithermal fission contribution. Suggested: 2×10⁵ eV."
+  },
+
+  "c5": {
+    "h"          : "Card #5 — Flux spectrum groups (NGROUP / FF)",
+    "ngroup_lbl" : "NGROUP",
+    "ngroup_hint": "Number of flux spectrum groups. Negative → decreasing energy order (typical); positive → increasing.",
+    "ff_lbl"     : "FF — Flux units",
+    "ff_0"       : "0 — Total flux (n/cm²·s)",
+    "ff_1"       : "1 — Flux density (n/cm²·s·MeV)"
+  },
+
+  "c6": {
+    "h"       : "Card #6 — Custom energy boundaries (CX)",
+    "badge"   : "Only if IESF = 5",
+    "cx_lbl"  : "CX — ABS(NGROUP)+1 energy boundaries in eV",
+    "cx_hint" : "One value per energy boundary. Total: |NGROUP|+1 values. FORTRAN 6E12.5 format."
+  },
+
+  "c7": {
+    "h"       : "Card #7 — Neutron flux spectrum (FT)",
+    "ft_lbl"  : "FT — ABS(NGROUP) flux values",
+    "ft_hint" : "One flux value per energy group. Total: |NGROUP| values. FORTRAN 6E12.5 format.",
+    "count"   : "values"
+  },
+
+  "c8": {
+    "h"           : "Card #8 — 3-group uncertainty (IUNC3G)",
+    "iunc3g_lbl"  : "IUNC3G",
+    "iunc3g_0"    : "0 — No uncertainty calculation",
+    "iunc3g_1"    : "1 — Calculate uncertainty in 3-group structure"
+  },
+
+  "c9": {
+    "h"        : "Card #9 — Run mode (ISTOP)",
+    "istop_lbl": "ISTOP",
+    "istop_0"  : "0 — Full run (cross-section collapsing)",
+    "istop_1"  : "1 — Flux information only (no collapsing)"
+  },
+
+  "modal": {
+    "preview_title" : "File preview — COLL.inp",
+    "preview_ph"    : "Click 'File preview' in the File menu to generate the preview…",
+    "preview_copy"  : "Copy to clipboard",
+    "preview_close" : "Close",
+    "preview_gen"   : "Generating…",
+    "saveas_title"  : "Save as…",
+    "saveas_lbl"    : "Filename",
+    "saveas_cancel" : "Cancel",
+    "saveas_save"   : "Save"
+  },
+
+  "toast": {
+    "copied"      : "Copied to clipboard.",
+    "copy_err"    : "Could not copy.",
+    "new_ok"      : "New file created.",
+    "file_loaded" : "File \"{name}\" loaded successfully.",
+    "file_saved"  : "File \"{name}\" saved.",
+    "session_restored" : "Previous session restored.",
+    "lines"       : "{n} lines",
+    "run_ok"          : "Run completed successfully.",
+    "run_timeout"     : "The run exceeded the maximum time and was stopped.",
+    "run_cancelled"   : "Run cancelled.",
+    "run_error"       : "The run finished with error code {code}.",
+    "run_no_workdir"  : "Specify the working directory before running."
+  },
+
+  "run": {
+    "modal_title"      : "COLLAPS Run",
+    "workdir_lbl"      : "Working directory",
+    "exe_lbl"          : "Executable",
+    "timeout_lbl"      : "Timeout (s)",
+    "save_current_lbl" : "Save the current file (COLL.inp) to the working directory before running",
+    "start_btn"        : "Run",
+    "cancel_btn"       : "Cancel",
+    "close"            : "Close",
+    "elapsed"          : "{s} s",
+    "badge_running"    : "Running…",
+    "badge_ok"         : "OK",
+    "badge_timeout"    : "Timeout",
+    "badge_cancelled"  : "Cancelled",
+    "badge_error"      : "Error (code {code})"
+  },
+
+  "val": {
+    "toolbar_btn"   : "Validate",
+    "modal_title"   : "Validation Result",
+    "close"         : "Close",
+    "proceed"       : "Proceed anyway",
+    "ok_title"      : "Validation passed.",
+    "ok_msg"        : "No errors or warnings found.",
+    "errors_title"  : "Blocking errors",
+    "warnings_title": "Warnings",
+    "v01": "NGROUP cannot be 0. It must specify the number of flux spectrum groups.",
+    "v02": "IHEAD must be a positive integer (≥ 1). Current value: {ihead}.",
+    "v03": "Card #7 (FT) must contain {exp} values (|NGROUP| = {exp}), but contains {got}.",
+    "v04": "Card #6 (CX) must contain {exp} values (|NGROUP|+1 with IESF=5), but contains {got}.",
+    "v05": "For IESF={iesf} ({name}), {exp} groups are expected; |NGROUP| indicates {got}.",
+    "v06": "Card #4 — EB1 and EB2 must be positive (EB1={eb1}, EB2={eb2}). Recommended: 5×10⁶ and 2×10⁵ eV.",
+    "v07": "Card #4 — EB1 must be greater than EB2 (EB1={eb1} > EB2={eb2} is false).",
+    "v08": "All FT flux values are zero. Without a neutron flux COLLAPS cannot compute effective cross sections.",
+    "v09": "Negative values found in FT. Neutron flux values must be non-negative.",
+    "v10": "With ISFIS=1 and IGEN=1, COLLAPS will only generate the extended EFY libraries and stop. No collapsed cross-section library will be produced.",
+    "v11": "With ISFIS=1 and ISOCA=0, COLLAPS will read the extended EFY library (Unit 18 / EFYBL.dat). Make sure this file exists in the run directory.",
+    "v12": "ILIB={ilib} ({lib}) and IESF={iesf} ({esf}) use different group structures. COLLAPS will internally convert the spectrum before collapsing."
+  },
+
+  "footer": {
+    "tfg"    : "Bachelor's Thesis — Energy Engineering | 2026",
+    "author" : "Author: Adrián Navarro Minaya — Tutor: Óscar Luis Cabellos de Francisco",
+    "center" : "School of Mining and Energy Engineering — Universidad Politécnica de Madrid"
+  }
+}

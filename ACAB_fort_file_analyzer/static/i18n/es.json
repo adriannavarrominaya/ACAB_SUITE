@@ -1,0 +1,349 @@
+{
+  "_comment": "Español — idioma por defecto",
+
+  "suite": {
+    "offline": "No arrancada — usa suite_launcher.py"
+  },
+
+  "common": {
+    "close": "Cerrar"
+  },
+
+  "units": {
+    "card": "Unidades",
+    "select_label": "Unidad de actividad",
+    "volume_label": "Volumen simulado [cm³]",
+    "volume_hint": "Debe ser el volumen de la zona simulada.",
+    "bqcm3": "Bq/cm³",
+    "mbqg": "MBq/g",
+    "mbq_total": "Actividad total (MBq)",
+    "mci_total": "Actividad total (mCi)",
+    "u_bqcm3": "Bq/cm³",
+    "u_mbqg": "MBq/g",
+    "u_mbq_total": "MBq",
+    "u_mci_total": "mCi",
+    "mbqg_disabled": "MBq/g no disponible: el fort.6 no incluye la sección CONCENTRATIONS(GRAM).",
+    "density": "Densidad",
+    "density_na": "sin densidad",
+    "density_val": "ρ = {d} g/cm³",
+    "no_density_series": "{sim}: sin densidad, omitida en MBq/g."
+  },
+
+  "export": {
+    "csv": "Exportar CSV",
+    "csv_format": "Formato CSV",
+    "csv_es": "Español (Excel: ; ,)",
+    "csv_intl": "Internacional (, .)",
+    "meta_folder": "Carpeta",
+    "meta_iso": "Isótopo",
+    "meta_unit": "Unidad",
+    "meta_date": "Fecha"
+  },
+
+  "nav": {
+    "brand": "ACAB Fort File Analyzer",
+    "status_none": "Sin análisis",
+    "lang_label": "Idioma"
+  },
+
+  "sidebar": {
+    "folder_card": "Carpeta de Simulaciones",
+    "folder_label": "Carpeta de simulaciones",
+    "folder_ph": "C:\\ruta\\a\\simulaciones\\",
+    "browse": "Examinar…",
+    "folder_hint": "Subcarpetas de simulaciones, cada una con <code>fort.6</code>.",
+    "param_source": "Parámetros de simulación",
+    "src_inp5": "Leer de <code>inp.5</code> (automático)",
+    "src_manual": "Introducir manualmente (override)",
+    "t_irr": "T<sub>irr</sub> [h]",
+    "t_cool": "T<sub>cool</sub> [h]",
+    "phi": "φ total [n/cm²/s]",
+    "analyze": "Analizar",
+    "yaml_none": "Sin YAML en carpeta — usando configuración por defecto.",
+    "simlist": "Simulaciones cargadas",
+    "iso_summary": "Resumen del Isótopo",
+    "iso_peak": "Pico de {label}"
+  },
+
+  "welcome": {
+    "title": "ACAB Fort File Analyzer",
+    "lead": "Herramienta de análisis de isótopos para simulaciones ACAB.<br>Carga los ficheros <code>fort.6</code> e <code>inp.5</code> de múltiples simulaciones<br>y visualiza la actividad, tablas comparativas e informe detallado del isótopo seleccionado.",
+    "howto_title": "Cómo usar:",
+    "howto": "<li>Introduce la ruta de la carpeta que contiene las subcarpetas de simulaciones.</li><li>Cada subcarpeta debe contener al menos un fichero <code>fort.6</code>.</li><li>Para leer T<sub>irr</sub>, T<sub>cool</sub> y flujo automáticamente, incluye <code>inp.5</code> en cada subcarpeta.</li><li>Opcionalmente, sube un fichero YAML de configuración de semividas y figuras.</li><li>Haz clic en <strong>Analizar</strong>.</li>",
+    "structure_title": "Estructura esperada:",
+    "structure": "carpeta_padre/<br>&nbsp;&nbsp;simulacion_A/fort.6 &nbsp;[inp.5]<br>&nbsp;&nbsp;simulacion_B/fort.6 &nbsp;[inp.5]<br>&nbsp;&nbsp;…<br>&nbsp;&nbsp;[figuras - multiples simulaciones.yaml]"
+  },
+
+  "errors": {
+    "title": "Errores en algunas simulaciones:"
+  },
+
+  "tabs": {
+    "overview": "Simulaciones",
+    "charts": "Actividad por Isótopo",
+    "report": "Informe Isótopo",
+    "tables": "Tablas Comparativas",
+    "optim": "Optimización"
+  },
+
+  "overview": {
+    "title": "Resumen de Simulaciones",
+    "th_sim": "Simulación",
+    "th_tirr": "T<sub>irr</sub> [h]",
+    "th_tcool": "T<sub>cool</sub> [h]",
+    "th_phi": "φ [n/cm²/s]",
+    "th_dens": "ρ [g/cm³]",
+    "th_ngrp": "NGRP",
+    "th_iso": "Isótopos",
+    "th_iso_sub": "(irr/cool)",
+    "th_i131": "¹³¹I",
+    "th_inp5": "inp.5",
+    "th_fecha": "Fecha fort.6",
+    "flux_detail": "{name} — Flujos por grupo de energía",
+    "th_group": "Grupo",
+    "th_flux": "Flujo",
+    "group_fast": "Rápido",
+    "group_thermal": "Térmico",
+    "group_epi": "Epitérmico g{n}",
+    "group_row": "Grupo {n} ({label})",
+    "groups_count": "{n} grupos",
+    "detected": "Isótopos detectados en fort.6",
+    "click_hint": "Haz clic en un isótopo para generar su informe completo:",
+    "desactualizada_badge": "Desactualizado",
+    "desactualizada_tooltip": "El inp.5 fue modificado después de generar el fort.6: los resultados pueden no corresponder a la configuración actual.",
+    "desactualizada_warning": "Una o más simulaciones tienen un fort.6 desactualizado respecto a su inp.5. Los resultados pueden no corresponder a la configuración actual."
+  },
+
+  "charts": {
+    "title": "Evolución de Actividad por Isótopo",
+    "show_irr": "Mostrar fase de irradiación",
+    "filter_all": "Todas las figuras",
+    "filter_te": "Teluro (Te)",
+    "filter_xe": "Xenón (Xe)",
+    "filter_i": "Yodo (I)",
+    "edit": "Editar figuras",
+    "edit_title": "Editar configuración de figuras",
+    "no_figs": "No hay figuras configuradas para el filtro seleccionado.",
+    "fig": "Figura {n}",
+    "irr_suffix": "irr.",
+    "cool_suffix": "enf.",
+    "ax_time": "Tiempo [h]",
+    "ax_time_cool": "Tiempo de enfriamiento [h]",
+    "ax_activity": "Actividad [{unit}]",
+    "no_data": "Sin datos de actividad para este isótopo.",
+    "end_irr": "Fin irr. ({t} h)"
+  },
+
+  "report": {
+    "placeholder": "Selecciona un isótopo en la pestaña <strong>Simulaciones</strong> para generar su informe completo.",
+    "generating": "Generando informe de {label}…",
+    "s1": "1. Propiedades Nucleares de {label}",
+    "symbol": "Símbolo",
+    "za": "Z / A",
+    "halflife": "Semivida T½",
+    "lambda": "Constante λ",
+    "spec_act": "Actividad específica",
+    "spec_act_sub": "({label} puro)",
+    "decay_mode": "Modo de decay",
+    "decay_val": "β⁻ → ¹³¹Xe (estable) &nbsp; E<sub>β,max</sub> ≈ 606 keV",
+    "gamma_diag": "Pico gamma diagnóstico",
+    "gamma_diag_val": "364.5 keV &nbsp; (81.5 %/desint.)",
+    "s2": "2. Pico de Actividad por Simulación",
+    "th_sim": "Simulación",
+    "th_apico": "A<sub>pico</sub> [{unit}]",
+    "th_tpico": "t<sub>pico</sub> [h]",
+    "th_fase": "Fase",
+    "s3": "3. Evolución de Actividad de {label}",
+    "s3_sub": "(irradiación + enfriamiento)",
+    "s4": "{n}. Espectro Gamma de {label}",
+    "s4_sub": "(ENSDF / NNDC)",
+    "gamma_lines": "Líneas Gamma (ENSDF/NNDC)",
+    "th_energy": "Energía [keV]",
+    "th_intensity": "Intensidad [%]",
+    "badge_main": "Principal",
+    "badge_strong": "Fuerte",
+    "s5": "{n}. Datos de Actividad de {label} en fort.6 por Simulación",
+    "irr": "Irradiación",
+    "irr_src": "— <code>NUMBER OF ATOMS</code> → A = λ·N [Bq/cm³]",
+    "th_tirr_a": "A({label}) [{unit}]",
+    "cool": "Enfriamiento",
+    "cool_src": "— <code>NUCLIDE RADIOACTIVITY</code> [Bq/cm³]",
+    "not_in_cool": "{label} no presente en la sección de enfriamiento del fort.6.",
+    "no_data": "Sin datos de {label}.",
+    "ax_activity": "Actividad {label} [{unit}]",
+    "gamma_ax_energy": "Energía [keV]",
+    "gamma_ax_intensity": "Intensidad [%/desint.]",
+    "per_decay": "%/desint.",
+    "goto_tables": "Ve a la pestaña <strong>Tablas Comparativas</strong> para ver los datos de {label}.",
+    "sim_flux_meta": "— T<sub>irr</sub> {tirr} h | φ = {phi} n/cm²/s"
+  },
+
+  "tables": {
+    "placeholder": "Selecciona un isótopo en la pestaña <strong>Simulaciones</strong> para ver las tablas comparativas.",
+    "t1_title": "Tabla 1 — Actividad de todos los isótopos en el instante del pico de {label}",
+    "t1_desc": "Para cada simulación se determina el instante de máxima actividad de {label} y se lista la actividad del resto de isótopos en ese mismo instante.",
+    "peak_badge": "Pico {label}: {a} {unit}",
+    "t_badge": "t = {t} h",
+    "th_iso": "Isótopo",
+    "th_a_tpico": "A en t<sub>pico</sub> [{unit}]",
+    "th_ratio": "A / A({label})",
+    "t2_title": "Tabla 2 — Pico de actividad de cada isótopo",
+    "t2_desc": "Para cada isótopo se determina su propio instante de pico de actividad y se indica cuál era la actividad de {label} en ese mismo momento.",
+    "th_peak_a": "Pico A [{unit}]",
+    "th_tpico": "t<sub>pico</sub> [h]",
+    "th_a_ref": "A({label}) en t<sub>pico</sub> [{unit}]"
+  },
+
+  "figeditor": {
+    "title": "Editor de Figuras",
+    "reset": "Restaurar defecto",
+    "cancel": "Cancelar",
+    "apply": "Aplicar",
+    "add_fig": "Añadir figura",
+    "fig": "Figura {n}",
+    "add_series": "Añadir serie",
+    "label_ph": "Etiqueta (opc.)",
+    "remove_series": "Quitar serie",
+    "remove_fig": "Eliminar figura",
+    "title_label": "Título",
+    "series_label": "Series"
+  },
+
+  "toast": {
+    "no_folder_selected": "No se seleccionó ninguna carpeta.",
+    "browse_err": "No se pudo abrir el selector de carpeta.",
+    "enter_folder": "Introduce una ruta de carpeta.",
+    "unknown_err": "Error desconocido.",
+    "errors_count": "{n} simulación(es) con errores. Ver panel de resultados.",
+    "net_err": "Error de red: {msg}",
+    "analyze_first": "Ejecuta primero un análisis para editar las figuras.",
+    "figs_updated": "Figuras actualizadas.",
+    "figs_reset": "Figuras restauradas a los valores por defecto.",
+    "figs_reset_err": "Error al cargar figuras por defecto."
+  },
+
+  "status": {
+    "analyzing": "Analizando…",
+    "error": "Error",
+    "net_error": "Error de red",
+    "sims_count": "{n} simulación(es)"
+  },
+
+  "loading": {
+    "default": "Analizando simulaciones…",
+    "spinner": "Cargando…"
+  },
+
+  "yaml": {
+    "loaded": "Config YAML cargada ({src})",
+    "src_upload": "fichero subido",
+    "src_auto": "encontrado en carpeta"
+  },
+
+  "phase": {
+    "irr": "irradiación",
+    "cool": "enfriamiento",
+    "na": "n/a"
+  },
+
+  "refdata": {
+    "load_btn": "Cargar datos experimentales",
+    "modal_title": "Importar datos de referencia",
+    "modal_lead": "CSV según <code>docs/SPEC_csv_datos_referencia.md</code>: columnas t;A[;A_err], metadatos opcionales en líneas <code>#</code>.",
+    "preview_title": "Vista previa (primeras 5 filas)",
+    "col_label": "Columna {n}",
+    "col_role_t": "t (tiempo)",
+    "col_role_a": "A (actividad)",
+    "col_role_aerr": "A_err (incertidumbre)",
+    "col_role_ignore": "Ignorar",
+    "field_tipo": "Tipo de serie",
+    "tipo_experimental": "Experimental (huecos — entra en las métricas de desviación)",
+    "tipo_computacional": "Computacional de referencia (rellenos — solo se dibuja)",
+    "field_fase": "Fase",
+    "field_fase_ph": "— selecciona —",
+    "field_isotopo": "Isótopo",
+    "field_unidad_t": "Unidad de tiempo",
+    "field_unidad_a": "Unidad de actividad",
+    "field_etiqueta": "Etiqueta (leyenda)",
+    "field_fuente": "Fuente (opcional)",
+    "field_refsim": "Simulación de referencia",
+    "field_refsim_hint": "Se usa para convertir la unidad de actividad y para las métricas de desviación.",
+    "btn_choose_file": "Elegir fichero…",
+    "btn_import": "Importar",
+    "btn_cancel": "Cancelar",
+    "err_parse": "No se pudo leer el fichero: {msg}",
+    "err_no_rows": "El fichero no contiene filas de datos válidas.",
+    "err_col_mapping": "Asigna una columna a t y otra a A antes de importar.",
+    "err_missing_fields": "Completa fase, unidad de tiempo, unidad de actividad e isótopo antes de importar.",
+    "err_no_density": "Esta serie usa MBq/g pero la simulación de referencia no tiene densidad (sección CONCENTRATIONS(GRAM) no encontrada en su fort.6).",
+    "err_no_volume": "Esta serie usa actividad total pero no hay un volumen válido configurado en la tarjeta Unidades.",
+    "toast_imported": "Serie «{label}» importada ({n} puntos).",
+    "list_title": "Series de referencia cargadas",
+    "list_empty": "Ninguna.",
+    "remove": "Quitar",
+    "remove_title": "Quitar esta serie",
+    "badge_experimental": "experimental",
+    "badge_computacional": "comp. ref.",
+    "metrics_title": "Desviación de {label} vs. {sim}",
+    "metrics_mean": "Sesgo medio: {v} %",
+    "metrics_max": "Desviación máxima: {v} %",
+    "metrics_th_t": "t [h]",
+    "metrics_th_aexp": "A exp. [{unit}]",
+    "metrics_th_ainterp": "A ACAB interp. [{unit}]",
+    "metrics_th_dev": "Desv. [%]",
+    "metrics_export": "Exportar CSV"
+  },
+
+  "metrics": {
+    "title": "{n}. Métricas de Optimización de Producción de {label}",
+    "sat_trace": "saturación teórica",
+    "sat_title": "Curva de Saturación Teórica",
+    "sat_desc": "A<sub>teo</sub>(t) = A<sub>sat</sub>·(1−e<sup>−λt</sup>) durante la irradiación, anclada al valor ACAB al final de T<sub>irr</sub>. Tiempos para alcanzar el 50/75/90/95 % de la saturación y si caben dentro de la irradiación actual.",
+    "sat_na": "no aplicable (semivida desconocida o T<sub>irr</sub> = 0).",
+    "sat_th_pct": "% saturación",
+    "sat_th_tx": "t<sub>x</sub> [h]",
+    "sat_th_ok": "¿Cabe en T<sub>irr</sub>?",
+    "rend_title": "Rendimiento de Producción",
+    "rend_desc": "Actividad media producida por hora de irradiación (A<sub>pico</sub>/T<sub>irr</sub>) frente al ritmo del último 10 % del tramo de irradiación — responde a si compensa seguir irradiando.",
+    "rend_th_medio": "Rendimiento medio [{unit}/h]",
+    "rend_th_afin": "A(t<sub>fin</sub>) [{unit}]",
+    "rend_th_marginal": "Ganancia marginal últ. 10 % [{unit}/h]",
+    "rend_th_compensa": "¿Compensa seguir irradiando?",
+    "rend_si": "Sí",
+    "rend_no": "No",
+    "rend_na": "sin T_irr > 0.",
+    "pureza_title": "Pureza Radionucleídica en el Pico",
+    "pureza_desc": "P = A(isótopo objetivo) / Σ A(isótopos considerados) en el instante del pico, expresada en %. Por defecto se consideran los isótopos del mismo elemento presentes en el fort.6 (tras la separación radioquímica el producto contiene solo ese elemento).",
+    "pureza_tooltip": "Criterio por defecto: mismos isótopos del elemento objetivo (p. ej. para I131: I130, I132, I133… los presentes en el fort.6). Editable con la lista de casillas.",
+    "pureza_na": "sin t<sub>pico</sub> o actividad total nula.",
+    "pureza_badge": "P = {v} %",
+    "pureza_th_iso": "Isótopo",
+    "pureza_th_a": "A [{unit}]",
+    "pureza_th_pct": "Contribución",
+    "pureza_recalc": "Recalcular pureza"
+  },
+
+  "optim": {
+    "placeholder": "Selecciona un isótopo en la pestaña <strong>Simulaciones</strong> para ver la optimización del barrido.",
+    "goto": "Ve a la pestaña <strong>Optimización</strong> para ver el barrido de {label}.",
+    "no_manifest": "Esta carpeta no contiene un barrido paramétrico (no se encontró <code>sweep_manifest.json</code> en la raíz analizada). Esta pestaña solo se activa con carpetas generadas por el barrido del INP File Configurator.",
+    "no_rows": "Ninguna de las simulaciones analizadas tiene una entrada en el manifest del barrido.",
+    "no_numeric_params": "El manifest del barrido no tiene parámetros numéricos con los que graficar.",
+    "title": "Barrido paramétrico — {label}",
+    "desc": "Combina los parámetros del barrido con el pico, la pureza y el rendimiento ya calculados en el Informe Isótopo (sin recalcular ninguna fórmula).",
+    "param_label": "Parámetro (eje X)",
+    "yvar_label": "Variable (eje Y)",
+    "yvar_apico": "A pico",
+    "yvar_tpico": "t pico",
+    "yvar_pureza": "Pureza radionucleídica en t pico",
+    "yvar_rendimiento": "Rendimiento (A pico / T_irr)",
+    "series_default": "serie",
+    "th_apico": "A<sub>pico</sub> [{unit}]",
+    "th_tpico": "t<sub>pico</sub> [h]",
+    "th_pureza": "Pureza [%]",
+    "th_rendimiento": "Rendimiento [{unit}/h]",
+    "type_flux": "barrido de flujo",
+    "type_mass": "barrido de masa",
+    "type_time": "barrido temporal"
+  }
+}

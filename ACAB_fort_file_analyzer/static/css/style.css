@@ -1,0 +1,287 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   ACAB Fort File Analyzer — Custom styles
+   Built on top of Bootstrap 5.3.3; overrides kept minimal.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ── Base ─────────────────────────────────────────────────────────────── */
+body {
+  background-color: #f5f6f8;
+  font-size: 0.9rem;
+}
+
+/* ── Navbar brand ─────────────────────────────────────────────────────── */
+.navbar-brand {
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+}
+
+/* ── Card headers ─────────────────────────────────────────────────────── */
+.card-header {
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.5rem 0.9rem;
+  letter-spacing: 0.01em;
+}
+
+/* ── Sidebar sim list ─────────────────────────────────────────────────── */
+.sim-item {
+  font-size: 0.82rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 0;
+  border-left: 3px solid transparent;
+  transition: border-left-color 0.15s, background-color 0.15s;
+}
+.sim-item:hover {
+  background-color: #f0f4ff;
+}
+.sim-item.active {
+  background-color: #e7f3ff;
+  border-left-color: #0d6efd;
+  color: #0d6efd;
+  font-weight: 600;
+}
+
+/* ── Monospace inputs ─────────────────────────────────────────────────── */
+.font-monospace.form-control,
+.font-monospace {
+  font-size: 0.85rem;
+}
+
+/* ── Form text ────────────────────────────────────────────────────────── */
+.form-text {
+  font-size: 0.72rem;
+}
+
+/* ── Tab content ──────────────────────────────────────────────────────── */
+.tab-content {
+  min-height: 500px;
+}
+.tab-content > .tab-pane {
+  padding-top: 0.25rem;
+}
+
+/* ── Nav tabs ─────────────────────────────────────────────────────────── */
+.nav-tabs .nav-link {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+.nav-tabs .nav-link.active {
+  font-weight: 700;
+}
+
+/* ── Loading overlay ──────────────────────────────────────────────────── */
+#loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.40);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.loading-box {
+  background: #fff;
+  border-radius: 0.75rem;
+  padding: 2.5rem 3rem;
+  text-align: center;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+}
+
+/* ── Chart cards ──────────────────────────────────────────────────────── */
+.chart-card {
+  border: 1px solid #dee2e6;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.chart-card .card-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  font-size: 0.84rem;
+}
+
+/* ── Section headings ─────────────────────────────────────────────────── */
+.section-heading {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6c757d;
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 0.3rem;
+  margin-bottom: 0.75rem;
+}
+
+/* ── Tables ───────────────────────────────────────────────────────────── */
+.table th {
+  font-size: 0.78rem;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.table td {
+  vertical-align: middle;
+}
+.table-sm td,
+.table-sm th {
+  padding: 0.25rem 0.5rem;
+}
+
+/* ── I131 report – nuclear properties table ───────────────────────────── */
+.prop-table th {
+  width: 40%;
+  color: #495057;
+}
+
+/* ── Gamma spectrum table – highlight main peak ───────────────────────── */
+.gamma-main {
+  background-color: #fff3cd !important;
+  font-weight: 700;
+}
+.gamma-strong {
+  background-color: #e7f3ff;
+}
+
+/* ── Activity data tables inside I131 report ─────────────────────────── */
+.activity-table-wrapper {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid #dee2e6;
+  border-radius: 0.375rem;
+}
+
+/* ── Sticky table header ──────────────────────────────────────────────── */
+.activity-table-wrapper thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: #343a40;
+  color: #fff;
+}
+
+/* ── Comparison tables ────────────────────────────────────────────────── */
+.comparison-table-wrapper {
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid #dee2e6;
+  border-radius: 0.375rem;
+}
+.comparison-table-wrapper thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: #343a40;
+  color: #fff;
+}
+
+/* ── Overview table ───────────────────────────────────────────────────── */
+.overview-table td,
+.overview-table th {
+  font-size: 0.82rem;
+}
+
+/* ── Color dot badges for simulations ────────────────────────────────── */
+.sim-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── I131 info cards ──────────────────────────────────────────────────── */
+.i131-stat-card {
+  border-left: 4px solid #ffc107;
+  background-color: #fffdf0;
+  border-radius: 0.375rem;
+  padding: 0.7rem 1rem;
+}
+.i131-stat-card .stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-family: monospace;
+  color: #212529;
+}
+.i131-stat-card .stat-label {
+  font-size: 0.72rem;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Phase badges ─────────────────────────────────────────────────────── */
+.badge-phase-irr {
+  background-color: #0d6efd;
+  color: #fff;
+}
+.badge-phase-cool {
+  background-color: #fd7e14;
+  color: #fff;
+}
+
+/* ── Responsive chart containers ─────────────────────────────────────── */
+.plotly-chart {
+  min-height: 340px;
+}
+.plotly-chart-lg {
+  min-height: 420px;
+}
+.plotly-chart-sm {
+  min-height: 280px;
+}
+
+/* ── Welcome panel icon ───────────────────────────────────────────────── */
+#welcome-panel .display-1 {
+  font-size: 3.5rem;
+  animation: pulse-warn 2.5s ease-in-out infinite;
+}
+@keyframes pulse-warn {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* ── Scrollable gamma table ───────────────────────────────────────────── */
+.gamma-table-wrapper {
+  max-height: 380px;
+  overflow-y: auto;
+  border: 1px solid #dee2e6;
+  border-radius: 0.375rem;
+}
+.gamma-table-wrapper thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: #198754;
+  color: #fff;
+}
+
+/* ── Tooltip helper text ──────────────────────────────────────────────── */
+[data-bs-toggle="tooltip"] {
+  cursor: help;
+}
+
+/* ── Language selector mini-flags ─────────────────────────────────────── */
+.lang-flag {
+  display: inline-block;
+  width: 22px;
+  height: 15px;
+  border-radius: 2px;
+  vertical-align: middle;
+  flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,.15);
+}
+
+/* España: franja roja-amarilla-roja */
+.lang-flag-es {
+  background: linear-gradient(to bottom,
+    #c60b1e 0% 28%,
+    #ffc400 28% 72%,
+    #c60b1e 72% 100%);
+}
+
+/* Reino Unido: Union Jack via SVG data URI */
+.lang-flag-en {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 40'%3E%3Crect width='60' height='40' fill='%23012169'/%3E%3Cline x1='0' y1='0' x2='60' y2='40' stroke='%23fff' stroke-width='10'/%3E%3Cline x1='60' y1='0' x2='0' y2='40' stroke='%23fff' stroke-width='10'/%3E%3Cline x1='0' y1='0' x2='60' y2='40' stroke='%23C8102E' stroke-width='5'/%3E%3Cline x1='60' y1='0' x2='0' y2='40' stroke='%23C8102E' stroke-width='5'/%3E%3Crect x='25' width='10' height='40' fill='%23fff'/%3E%3Crect y='15' width='60' height='10' fill='%23fff'/%3E%3Crect x='27' width='6' height='40' fill='%23C8102E'/%3E%3Crect y='17' width='60' height='6' fill='%23C8102E'/%3E%3C/svg%3E");
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-color: #012169;
+}
+

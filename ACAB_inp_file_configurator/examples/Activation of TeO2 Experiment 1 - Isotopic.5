@@ -1,0 +1,75 @@
+Activation of TeO2 - Experiment 1 - Cinetica de activacion a corto plazo (composicion isotopica natural de Te)
+<Block #1, card #2
+ 0  IUNC
+<Block #1, card #3
+< ITMAX  IZMAX  MPCTAB IR   JTO NTABLE MSTAR INPT   INFD NOGG NGRP IGRP   IGE IZM IM JM   IFLU IPRT ILIB IRAD   IPUN
+ 2232 250000 1 0   1 0 1 2   0 24 2 0   4 1 1 0   1 0 0 1   0
+<Block #2, card #1  XRR
+< Volumen de la muestra de TeO2 = 0.1231 g / 5.672 g/cm3 = 2.171E-02 cm3 (terminado con valor no nulo para geometria 3D)
+ 2.171E-02  1.0
+<Block #2, card #3  MA
+ 1
+<Block #2, card #4  NUCZO
+< 9 nuclidos iniciales: 8 isotopos naturales de Te + O-16
+ 9
+<Block #2, card #6  EGRP
+< 25 limites para 24 grupos de gammas de decaimiento (en MeV, energia decreciente)
+ 2.0E+01 1.4E+01 1.2E+01 1.0E+01 8.0E+00 6.5E+00 5.0E+00 4.0E+00
+ 3.0E+00 2.5E+00 2.0E+00 1.7E+00 1.4E+00 1.2E+00 1.0E+00 8.0E-01
+ 6.0E-01 4.0E-01 3.0E-01 2.0E-01 1.0E-01 5.0E-02 2.0E-02 1.0E-02
+ 0.0E+00
+<Block #2, card #7  CUTOFF
+ 0.0 0.0 0.0 0.0 0.0 0.0 
+<Block #2, card #9  NTO
+< Tabla 7 activa: actividad (Bq) de todos los isotopos (permite ver ^131I en cada paso)
+ 0 0 0   0 0 0   1 0 0   0 0 0   0 0 0   0 0 0
+<Block #3  FLUX
+< 2 grupos de neutrones: flujo epitermico (grupo 1) y flujo termico (grupo 2), en n/cm2/s
+< phi_epi = 1.7e12, phi_th = 6.5e13
+ 1.7E+12 6.5E+13
+<Block #4  Restart option
+ 0  IREST
+<Block #5  Initial material composition
+< Composicion isotopica natural del Telurio (abundancias IUPAC 2016) + O-16
+< Densidades en atomos/barn-cm (= atomos/cm3 * 1e-24)
+< n_Te_total = 2.139394737E-02 atoms/barn-cm (de masa 0.0984 g Te en 2.171E-02 cm3)
+< n_O_total  = 4.278789474E-02 atoms/barn-cm (= 2 * n_Te, estequiometria TeO2)
+<
+< Identificadores de isotopos: NUCLID = 10000*Z + 10*A + IS
+<   521200 = Te-120 (Z=52, A=120, IS=0)  abundancia: 0.09%
+<   521220 = Te-122 (Z=52, A=122, IS=0)  abundancia: 2.55%
+<   521230 = Te-123 (Z=52, A=123, IS=0)  abundancia: 0.89%
+<   521240 = Te-124 (Z=52, A=124, IS=0)  abundancia: 4.74%
+<   521250 = Te-125 (Z=52, A=125, IS=0)  abundancia: 7.07%
+<   521260 = Te-126 (Z=52, A=126, IS=0)  abundancia: 18.84%
+<   521280 = Te-128 (Z=52, A=128, IS=0)  abundancia: 31.74%
+<   521300 = Te-130 (Z=52, A=130, IS=0)  abundancia: 34.08%  [CLAVE: produce ^131Te -> ^131I]
+<    80160 = O-16   (Z=8,  A=16,  IS=0)  (representativo del oxigeno natural, 99.76%)
+ 521200 521220 521230 521240 521250 521260 521280 521300 80160
+ 1.925E-05 5.455E-04 1.904E-04 1.014E-03 1.513E-03 4.031E-03 6.790E-03 7.291E-03 4.279E-02
+<Blocks #7,#8  Historial temporal: irradiacion y enfriamiento
+< Set 1: 1 paso de irradiacion (10 s = 2.778E-3 h) + 9 pasos de enfriamiento (cada 15 min)
+< MMN MOUT NGO MSUB  IUNIT MFEED IOUT IPLOT
+  1 10   1  0  3 0   1 0   
+< Tiempos finales en horas (reloj = 0 al inicio; se resetea a 0 al fin de irradiacion)
+< Irradiacion: 10 s = 2.778E-3 h
+< Enfriamiento: 15 min, 30 min, ..., 135 min (9 pasos de 15 min)
+ 2.778E-3 2.500E-1 5.000E-1 7.500E-1 1.000E+0
+ 1.250E+0 1.500E+0 1.750E+0 2.000E+0 2.250E+0
+<continue - Set 2: 3 pasos de enfriamiento adicionales (150, 165, 180 min = 3 h total)
+< MMN MOUT NGO MSUB  IUNIT MFEED IOUT IPLOT
+  0  3   0 10  3 0   1 0   
+< Tiempos finales en horas (reloj todavia desde fin de irradiacion)
+ 2.500E+0 2.750E+0 3.000E+0
+<Block #9 ERR XNORM
+ 1.0E-25 1.0E+00
+<Block #10 Fission product inventory
+ 0   0   0
+<Block #11 Type of run
+ 1 0 0 0 0 0 0 0 0 0 IWP IMTX IWDR IDOSE IPHCUT IDHEAT IOFFSD ICEDE INEMISS IDAMAGE
+ 0 0 2 0             NOPUL NTSEQ NOTTS NVFL
+<Block #12 Instantaneous feed of material
+ 0                   IIFD
+<Block #13 Output control
+ 0   1              NCYO IFSO
+ 1   1   
