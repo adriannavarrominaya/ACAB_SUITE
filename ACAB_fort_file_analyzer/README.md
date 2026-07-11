@@ -108,6 +108,7 @@ La herramienta es completamente genérica y permite analizar **cualquier isótop
 | **Bootstrap** | 5.3.3 | Layout responsivo, componentes UI (cards, pestañas, toasts) |
 | **Bootstrap Icons** | 1.11.3 | Iconografía (CDN) |
 | **Plotly.js** | 2.32.0 | Gráficas interactivas de actividad (CDN) |
+| **js-yaml** | 4.1.0 | Serialización YAML del editor de figuras (guardar/descargar, CDN) |
 | **JavaScript** (Vanilla ES6+) | — | Lógica de la UI: `app.js` |
 
 ---
@@ -139,7 +140,7 @@ ACAB_fort_file_analyzer/
 │   │   └── DECAY.dat       # Biblioteca nuclear de semividas (opcional)
 │   ├── Simulacion v.2/
 │   │   └── …
-│   └── figuras - multiples simulaciones.yaml   # Config YAML (opcional)
+│   └── figuras.yaml         # Config YAML (opcional; nombres legacy también soportados)
 │
 └── compare_simulaciones.py # [LEGACY] Comparación standalone (sustituido por el
                             #  selector de unidades + la Fase 4 del runbook)
@@ -242,7 +243,7 @@ carpeta_padre/
 │   └── DECAY.dat     ← Biblioteca de semividas (opcional)
 ├── simulacion_B/
 │   └── …
-└── figuras - multiples simulaciones.yaml   ← Configuración figuras (opcional)
+└── figuras.yaml                            ← Configuración figuras (opcional)
 ```
 
 También se acepta el modo de **simulación única**: si `fort.6` está directamente en la carpeta indicada (sin subcarpetas), se analiza como simulación individual.
@@ -476,9 +477,7 @@ CSV (botón propio por bloque):
   con la lista elegida (`impurezas` en `/api/isotopo_report`).
 
   > **Aviso:** el criterio por defecto (mismo elemento) es el único soportado
-  > como default y está pendiente de validación explícita con el tutor del
-  > TFG (¿debe incluir algún precursor además de los isótopos del propio
-  > elemento?) — ver `acab_suite/RUNBOOK_fort_analyzer_mejoras.md`. Mientras
+  > como default — ver `acab_suite/RUNBOOK_fort_analyzer_mejoras.md`. Mientras
   > siga pendiente, no cambiar el default sin esa validación; el criterio es
   > configurable por simulación desde la UI si se necesita otro mientras tanto.
 
@@ -525,10 +524,21 @@ ninguna fórmula física:
 
 ## 7. Configuración YAML
 
-El fichero YAML es **opcional**. Si está presente en la carpeta de simulaciones o en su directorio padre (con el nombre `figuras - multiples simulaciones.yaml` o `config.yaml`), se carga automáticamente.
+El fichero YAML es **opcional**. Si está presente en la carpeta de simulaciones
+o en su directorio padre, se carga automáticamente. Nombre canónico:
+`figuras.yaml`; también se buscan (compatibilidad con carpetas antiguas, en
+este orden) `figuras - multiples simulaciones.yaml` y `config.yaml`.
+
+**Sin YAML, la pestaña "Actividad por Isótopo" no dibuja nada**: no hay
+figuras por defecto. Se muestra un estado vacío con dos acciones — cargar un
+YAML de figuras por selector, o crear figuras desde cero con el editor. Un
+YAML de ejemplo real (16 figuras del caso de estudio Te/Xe/I del TFG) está en
+[`figuras.yaml`](figuras.yaml) (raíz del repo); una plantilla equivalente más
+simple (15 figuras) está en
+[`docs/ejemplo_figuras_TeO2.yaml`](docs/ejemplo_figuras_TeO2.yaml).
 
 ```yaml
-# figuras - multiples simulaciones.yaml
+# figuras.yaml
 
 figuras:
   - num: 1
@@ -561,7 +571,25 @@ semividas:                 # Sobreescritura o ampliación de semividas (opcional
 | `figuras[].series[].label` | Etiqueta en notación Unicode para la leyenda de la gráfica |
 | `semividas` | Diccionario `{iso: valor}` con sobreescrituras de T½; solo los isótopos listados sobreescriben al DECAY.dat |
 
-Si no hay YAML, se aplica la configuración por defecto de `fort_analyzer.py` (`DEFAULT_FIGURAS`, 15 figuras de los isótopos del sistema Te/Xe/I).
+### Cargar, editar y guardar figuras desde la interfaz
+
+En la pestaña "Actividad por Isótopo":
+
+- **Selector "Cargar YAML"** — lee un `.yaml`/`.yml` del disco (sin subirlo al
+  servidor más que para relanzar el análisis) y vuelve a llamar a
+  `/api/analyze` con su contenido (`yaml_content`); necesario porque la
+  sección `semividas` afecta al cálculo en el servidor. Un badge junto al
+  selector indica el origen: **carpeta** (auto-descubierto), **cargado a
+  mano** (por selector) o **sin figuras** (ninguno de los dos).
+- **Editor de figuras** — añade/edita/elimina figuras y series a mano. Botón
+  "Restaurar YAML cargado" revierte a la copia tomada al analizar (deshabilitado
+  si no había YAML de partida — no hay ya una configuración "por defecto").
+- **"Guardar en carpeta analizada"** — escribe `<carpeta>/figuras.yaml` vía
+  `POST /api/figuras/save`; conserva cualquier sección ajena a `figuras`
+  (p. ej. `semividas`) del YAML que estuviera cargado (round-trip). Pide
+  confirmación si ya existe un `figuras.yaml` en la carpeta.
+- **"Descargar YAML"** — genera el fichero en el navegador (sin servidor); el
+  resultado es recargable directamente por el selector.
 
 ---
 
@@ -577,7 +605,7 @@ El servidor Flask expone los siguientes endpoints JSON:
 | `POST` | `/api/browse-folder` | Abre el selector de carpeta nativo del SO (tkinter en subprocess) y devuelve la ruta seleccionada |
 | `GET` | `/api/gamma-spectrum` | Devuelve el espectro gamma del ¹³¹I (datos ENSDF/NNDC) |
 | `POST` | `/api/isotopo_report` | Genera el informe completo para el isótopo indicado, reutilizando el caché del último `/api/analyze` |
-| `GET` | `/api/defaults` | Devuelve la configuración por defecto: semividas, figuras y etiquetas |
+| `POST` | `/api/figuras/save` | Escribe `<folder>/figuras.yaml` con el YAML editado (round-trip de secciones ajenas a `figuras`); requiere que `folder` ya esté en caché de un `/api/analyze` previo |
 
 ### Formato de `/api/analyze`
 
@@ -606,9 +634,17 @@ El servidor Flask expone los siguientes endpoints JSON:
   "all_isotopes":   ["I127", "I131", "TE130", …],
   "semividas_keys": ["I127", "I131", "TE130", …],
   "figuras":        [ … ],
+  "yaml_config":    { "figuras": [ … ], "semividas": { … } },
   "sweep_manifest": null
 }
 ```
+
+`figuras` es `[]` si no hay YAML (auto-descubierto ni subido) — no existe una
+configuración de figuras por defecto (ver sección 7). `yaml_config` es el
+dict YAML completo tal como se cargó (`{}` si no había YAML); el frontend lo
+usa solo para el round-trip al guardar/descargar un `figuras.yaml` editado
+(conservar secciones ajenas a `figuras`, p. ej. `semividas`), no forma parte
+del cálculo.
 
 `sweep_manifest` (Fase 5 opcional, `RUNBOOK_barrido_parametrico_v2.md`) — si
 la carpeta analizada contiene un `sweep_manifest.json` en su raíz (escrito
@@ -617,6 +653,28 @@ cual: `{timestamp, sweep_type, description, fixed_params, n, simulations:
 [{folder, params}, …]}`. `null` para carpetas sin barrido — no afecta al
 resto de la respuesta ni al análisis. Alimenta la pestaña "Optimización"
 (sección 6).
+
+### Formato de `/api/figuras/save`
+
+**Request body (JSON):**
+```json
+{
+  "folder":    "C:/ruta/a/simulaciones",
+  "yaml_text": "figuras:\n  - num: 1\n    …\n",
+  "overwrite": false
+}
+```
+
+`folder` debe corresponder a una carpeta ya analizada (presente en la caché
+de `/api/analyze`); `yaml_text` debe parsear como YAML con una clave
+`figuras` de tipo lista. Escribe `<folder>/figuras.yaml` en UTF-8.
+
+**Respuestas:**
+
+- `200 {"ok": true, "path": "C:/ruta/a/simulaciones/figuras.yaml"}` — guardado.
+- `404` — `folder` no está en la caché de análisis (ejecutar `/api/analyze` primero).
+- `409 {"error": "…", "exists": true}` — ya existe un `figuras.yaml` y `overwrite` no es `true`; el frontend pide confirmación y reintenta con `overwrite: true`.
+- `422` — `yaml_text` no parsea o no tiene una clave `figuras` de tipo lista.
 
 ### Formato de `/api/isotopo_report`
 
@@ -746,8 +804,9 @@ defecto de `isotopos_mismo_elemento`.
 |---------|-------------|
 | `compare_simulaciones.py` | **[LEGACY]** Comparación standalone Bq/cm³→MBq/g con densidad y datos experimentales embebidos a mano. Reemplazado por el selector de unidades (densidad leída automáticamente) y, para la superposición experimental, por la Fase 4 del runbook |
 | `figuras.yaml` | Fichero de configuración de ejemplo con las 16 figuras del análisis del TFG (isótopos de Te, Xe e I) |
+| `docs/ejemplo_figuras_TeO2.yaml` | Plantilla YAML de ejemplo (15 figuras) — NO se carga automáticamente; punto de partida para copiar como `figuras.yaml` o cargar por selector |
 | `tools/test_fort_analyzer.py` | Tests oro del motor de análisis (parsers y cálculos) contra la simulación de referencia |
-| `tools/test_api.py` | Tests de la API REST (flujo `/api/analyze` → `/api/isotopo_report` y errores controlados) |
+| `tools/test_api.py` | Tests de la API REST (flujo `/api/analyze` → `/api/isotopo_report`, `/api/figuras/save` — guardado, discovery, 409/422 — y errores controlados) |
 | `tools/test_metricas.py` | Tests oro de las métricas de optimización (Fase 5: saturación, rendimiento, pureza) con curvas sintéticas de solución analítica conocida |
 | `tools/test_units.js` | Tests (node) de la conversión pura de unidades `static/js/units.js`. El oráculo numérico equivalente está además en `test_fort_analyzer.py` para el harness Python |
 | `tools/test_export.js` | Tests (node) de la generación CSV pura `static/js/export_utils.js` (delimitadores, decimal, entrecomillado, slug) |

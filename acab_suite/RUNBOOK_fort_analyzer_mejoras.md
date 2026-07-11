@@ -256,6 +256,4 @@ PHOTON.dat todo funciona como hoy; suite en verde.
   con la usada históricamente (0.12317 si es la misma del script legacy).
 - Revisar `docs/PHOTON_format.md` antes de implementar el parser (Fase 6).
 - Criterio físico de la pureza radionucleídica (¿solo isótopos del mismo elemento?
-  ¿incluir algún precursor?): validar con el tutor del TFG antes de la Fase 5 si
-  hay dudas — la definición es configurable, pero el default debe estar justificado
-  en la memoria.
+  ¿incluir algún precursor?) — la definición es configurable.

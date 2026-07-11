@@ -114,6 +114,8 @@ const _state = {
   optimRendered:   false,  // Tab 5 rendered for current selectedIsotopo (Fase 5 opcional, barrido)
   optimYVar:       'a_pico', // variable Y elegida: 'a_pico' | 't_pico' | 'pureza' | 'rendimiento'
   optimXParam:     null,     // clave de parámetro elegida para el eje X (null = por defecto)
+  figurasOriginal: null,   // copia profunda de data.figuras tal como se cargó (yaml/auto/upload); null si no hay YAML de partida
+  yamlConfigLoaded: null,  // dict YAML completo tal como se cargó (para el round-trip al guardar/descargar, RUNBOOK_figuras_yaml.md)
 };
 
 // Simulation colour palette (up to 10 simulations)
@@ -525,8 +527,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Figure editor (E1–E7) ─────────────────────────────────────────────────
   document.getElementById('btn-edit-figuras').addEventListener('click', openFigurasEditor);
-  document.getElementById('btn-figuras-reset').addEventListener('click', resetFigurasToDefault);
+  document.getElementById('btn-figuras-reset').addEventListener('click', resetFigurasToLoaded);
   document.getElementById('btn-figuras-apply').addEventListener('click', applyFigurasChanges);
+  document.getElementById('btn-figuras-download').addEventListener('click', downloadFigurasYaml);
+  document.getElementById('btn-figuras-save').addEventListener('click', saveFigurasToFolder);
+
+  // ── Selector de fichero YAML de figuras (decisión 4 del runbook) ──────────
+  document.getElementById('btn-load-figuras-yaml')
+    .addEventListener('click', () => document.getElementById('figuras-yaml-file-input').click());
+  document.getElementById('figuras-yaml-file-input').addEventListener('change', async e => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ''; // permite volver a elegir el mismo fichero más tarde
+    if (!file) return;
+    try {
+      const text = await file.text();
+      await doAnalyze({ yamlContentOverride: text });
+    } catch (err) {
+      showToast(t('toast.net_err', { msg: err.message }), 'danger');
+    }
+  });
 
   // Single persistent event delegation on the modal body — handles dynamic content
   document.getElementById('figuras-editor-body').addEventListener('click', e => {
@@ -598,7 +617,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Analysis workflow
 // ─────────────────────────────────────────────────────────────────────────────
-async function doAnalyze() {
+async function doAnalyze(opts = {}) {
   const folder = document.getElementById('folder-input').value.trim();
   if (!folder) {
     showToast(t('toast.enter_folder'), 'warning');
@@ -640,6 +659,7 @@ async function doAnalyze() {
         t_irr_override:  tIrrOv,
         t_cool_override: tCoolOv,
         phi_override:    phiOv,
+        yaml_content:    opts.yamlContentOverride || null,
       }),
     });
 
@@ -650,8 +670,13 @@ async function doAnalyze() {
       return;
     }
 
-    _state.analysisData = json;
-    _state.folder       = folder;
+    _state.analysisData    = json;
+    _state.folder          = folder;
+    // Snapshot of the figuras/yaml as loaded (yaml_used auto|upload) or empty
+    // (none) — feeds the editor's "restore to loaded YAML" reset button and
+    // the save/download round-trip (decisiones 6 y 7 del runbook de figuras).
+    _state.figurasOriginal  = JSON.parse(JSON.stringify(json.figuras || []));
+    _state.yamlConfigLoaded = JSON.parse(JSON.stringify(json.yaml_config || {}));
     const simNames = Object.keys(json.simulations);
 
     // Enable/disable MBq/g and reconcile the active unit with the new data
@@ -663,8 +688,9 @@ async function doAnalyze() {
     document.getElementById('results-panel').classList.remove('d-none');
     setStatus(t('status.sims_count', { n: simNames.length }), 'success');
 
-    // YAML badge
+    // YAML badges (sidebar general status + figuras-tab origin badge)
     showYamlStatus(json.yaml_used);
+    updateFigurasBadge(json.yaml_used);
 
     // Render errors + sidebar sim list
     renderErrors(json.errors || {});
@@ -1008,8 +1034,14 @@ function renderCharts() {
   const container = document.getElementById('charts-container');
   container.innerHTML = '';
 
+  const allFiguras = data.figuras || [];
+  if (allFiguras.length === 0) {
+    renderFigurasEmptyState(container);
+    return;
+  }
+
   const filter = _state.chartFilter;
-  const figuras = (data.figuras || []).filter(cfg => {
+  const figuras = allFiguras.filter(cfg => {
     if (filter === 'all') return true;
     return cfg.series.some(s => s.iso.startsWith(filter.toUpperCase()));
   });
@@ -1044,6 +1076,28 @@ function renderCharts() {
     const btn = card.querySelector('.btn-export-chart');
     if (btn) btn.addEventListener('click', () => exportChartCSV(divId, cfg, figNum));
   });
+}
+
+// Sin figuras (sin YAML auto/cargado y editor vacío) — estado vacío amable
+// con dos acciones (decisión 1 del runbook de figuras YAML).
+function renderFigurasEmptyState(container) {
+  container.innerHTML = `
+    <div class="alert alert-secondary text-center py-5">
+      <i class="bi bi-graph-up display-6 text-muted mb-3 d-block"></i>
+      <p class="mb-3">${t('charts.empty_msg')}</p>
+      <div class="d-flex justify-content-center gap-2 flex-wrap">
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-empty-load-yaml">
+          <i class="bi bi-file-earmark-arrow-up me-1"></i>${t('charts.load_yaml')}
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="btn-empty-create-figuras">
+          <i class="bi bi-pencil-square me-1"></i>${t('charts.empty_create')}
+        </button>
+      </div>
+    </div>`;
+  document.getElementById('btn-empty-load-yaml')
+    ?.addEventListener('click', () => document.getElementById('figuras-yaml-file-input').click());
+  document.getElementById('btn-empty-create-figuras')
+    ?.addEventListener('click', openFigurasEditor);
 }
 
 function _renderActivityChart(divId, cfg, simulations) {
@@ -2592,6 +2646,14 @@ function openFigurasEditor() {
     return;
   }
   renderFigurasEditor(_state.analysisData.figuras || []);
+
+  // Reset button restores to the loaded YAML snapshot (decisión 7) — disabled
+  // with a tooltip when there was no YAML to begin with (yaml_used === 'none').
+  const resetBtn   = document.getElementById('btn-figuras-reset');
+  const hasLoaded  = _state.analysisData.yaml_used !== 'none';
+  resetBtn.disabled = !hasLoaded;
+  resetBtn.title    = hasLoaded ? '' : t('figeditor.reset_disabled_title');
+
   bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-figuras')).show();
 }
 
@@ -2609,8 +2671,8 @@ function renderFigurasEditor(figuras) {
     </button>`;
 }
 
-// E6: Read modal DOM → update state → re-render charts
-function applyFigurasChanges() {
+// Read the modal DOM into a figuras array (shared by apply/download/save).
+function _readFigurasFromEditor() {
   const body    = document.getElementById('figuras-editor-body');
   const figuras = [];
 
@@ -2625,7 +2687,12 @@ function applyFigurasChanges() {
     if (series.length > 0) figuras.push({ num: idx + 1, titulo, series });
   });
 
-  _state.analysisData.figuras = figuras;
+  return figuras;
+}
+
+// E6: Read modal DOM → update state → re-render charts
+function applyFigurasChanges() {
+  _state.analysisData.figuras = _readFigurasFromEditor();
   bootstrap.Modal.getInstance(document.getElementById('modal-figuras'))?.hide();
 
   // Re-render charts tab if already visible; otherwise mark stale so it
@@ -2638,17 +2705,74 @@ function applyFigurasChanges() {
   showToast(t('toast.figs_updated'), 'success');
 }
 
-// E7: Fetch defaults from server and repopulate editor
-async function resetFigurasToDefault() {
-  try {
-    const res  = await fetch('/api/defaults');
+// E7: Restore the editor to the YAML snapshot loaded at analyze time
+// (decisión 7 — no longer a hardcoded default; button is disabled when there
+// was no YAML to begin with, see openFigurasEditor).
+function resetFigurasToLoaded() {
+  if (!_state.figurasOriginal) return;
+  renderFigurasEditor(JSON.parse(JSON.stringify(_state.figurasOriginal)));
+  showToast(t('toast.figs_reset'), 'info');
+}
+
+// Build the YAML text to save/download: start from the loaded YAML config (if
+// any) and replace ONLY the "figuras" key, preserving "semividas" and any
+// other top-level section untouched (decisión 6 del runbook de figuras).
+function _buildFigurasYamlText() {
+  const base = (_state.yamlConfigLoaded && typeof _state.yamlConfigLoaded === 'object')
+    ? JSON.parse(JSON.stringify(_state.yamlConfigLoaded))
+    : {};
+  base.figuras = _readFigurasFromEditor();
+  return jsyaml.dump(base, { noRefs: true, lineWidth: -1 });
+}
+
+// "Descargar YAML" — genera el fichero en el navegador, sin servidor.
+function downloadFigurasYaml() {
+  const blob = new Blob([_buildFigurasYamlText()], { type: 'text/yaml' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = 'figuras.yaml';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// "Guardar en carpeta analizada" — POST /api/figuras/save; pide confirmación
+// y reintenta con overwrite si ya existe un figuras.yaml (decisión 5).
+async function saveFigurasToFolder() {
+  if (!_state.analysisData || !_state.folder) {
+    showToast(t('toast.analyze_first'), 'warning');
+    return;
+  }
+  const yamlText = _buildFigurasYamlText();
+
+  async function attempt(overwrite) {
+    const res  = await fetch('/api/figuras/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folder: _state.folder, yaml_text: yamlText, overwrite }),
+    });
     const json = await res.json();
-    if (json.ok) {
-      renderFigurasEditor(json.figuras);
-      showToast(t('toast.figs_reset'), 'info');
+    if (res.status === 409 && json.exists && !overwrite) {
+      return confirm(t('figeditor.save_confirm_overwrite')) ? attempt(true) : false;
     }
-  } catch {
-    showToast(t('toast.figs_reset_err'), 'danger');
+    if (!res.ok || !json.ok) {
+      showToast(json.error || t('toast.unknown_err'), 'danger');
+      return false;
+    }
+    return true;
+  }
+
+  try {
+    if (!(await attempt(false))) return;
+    showToast(t('toast.figs_saved'), 'success');
+    bootstrap.Modal.getInstance(document.getElementById('modal-figuras'))?.hide();
+    // Re-analyze so figuras/badge/reset-snapshot reflect the just-saved
+    // figuras.yaml as the new "carpeta" (auto) origin.
+    await doAnalyze();
+  } catch (err) {
+    showToast(t('toast.net_err', { msg: err.message }), 'danger');
   }
 }
 
@@ -2745,6 +2869,23 @@ function showYamlStatus(yamlUsed) {
     badge.className = 'badge bg-success';
     badge.innerHTML = '<i class="bi bi-file-earmark-check me-1"></i>YAML';
   }
+}
+
+// E-badge: origin badge in the figuras-tab toolbar. Same three states as
+// showYamlStatus (auto|upload|none), relabelled for the figures context
+// (carpeta / cargado a mano / sin figuras — decisión 4 del runbook).
+function updateFigurasBadge(yamlUsed) {
+  const badge = document.getElementById('figuras-badge');
+  if (!badge) return;
+  const byState = {
+    auto:   { cls: 'bg-success',   key: 'charts.badge_carpeta' },
+    upload: { cls: 'bg-info',      key: 'charts.badge_manual' },
+    none:   { cls: 'bg-secondary', key: 'charts.badge_none' },
+  };
+  const cfg = byState[yamlUsed] || byState.none;
+  badge.className = `badge ${cfg.cls}`;
+  badge.textContent = t(cfg.key);
+  badge.classList.remove('d-none');
 }
 
 function renderErrors(errors) {

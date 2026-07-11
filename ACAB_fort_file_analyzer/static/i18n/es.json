@@ -59,7 +59,7 @@
     "t_cool": "T<sub>cool</sub> [h]",
     "phi": "φ total [n/cm²/s]",
     "analyze": "Analizar",
-    "yaml_none": "Sin YAML en carpeta — usando configuración por defecto.",
+    "yaml_none": "Sin YAML en carpeta — sin figuras configuradas (edítalas o carga un YAML).",
     "simlist": "Simulaciones cargadas",
     "iso_summary": "Resumen del Isótopo",
     "iso_peak": "Pico de {label}"
@@ -123,6 +123,13 @@
     "filter_i": "Yodo (I)",
     "edit": "Editar figuras",
     "edit_title": "Editar configuración de figuras",
+    "load_yaml": "Cargar YAML",
+    "load_yaml_title": "Cargar YAML de figuras desde fichero",
+    "badge_carpeta": "YAML: carpeta",
+    "badge_manual": "YAML: cargado a mano",
+    "badge_none": "sin figuras",
+    "empty_msg": "No hay figuras configuradas para esta carpeta. Carga un YAML de figuras o créalas con el editor.",
+    "empty_create": "Crear figuras con el editor",
     "no_figs": "No hay figuras configuradas para el filtro seleccionado.",
     "fig": "Figura {n}",
     "irr_suffix": "irr.",
@@ -196,7 +203,11 @@
 
   "figeditor": {
     "title": "Editor de Figuras",
-    "reset": "Restaurar defecto",
+    "reset": "Restaurar YAML cargado",
+    "reset_disabled_title": "No hay un YAML de partida que restaurar.",
+    "download": "Descargar YAML",
+    "save": "Guardar en carpeta analizada",
+    "save_confirm_overwrite": "Ya existe un figuras.yaml en la carpeta analizada. ¿Sobrescribirlo?",
     "cancel": "Cancelar",
     "apply": "Aplicar",
     "add_fig": "Añadir figura",
@@ -218,8 +229,8 @@
     "net_err": "Error de red: {msg}",
     "analyze_first": "Ejecuta primero un análisis para editar las figuras.",
     "figs_updated": "Figuras actualizadas.",
-    "figs_reset": "Figuras restauradas a los valores por defecto.",
-    "figs_reset_err": "Error al cargar figuras por defecto."
+    "figs_reset": "Figuras restauradas al YAML cargado.",
+    "figs_saved": "figuras.yaml guardado en la carpeta analizada."
   },
 
   "status": {

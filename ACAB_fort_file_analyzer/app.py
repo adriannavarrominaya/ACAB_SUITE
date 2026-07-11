@@ -20,7 +20,6 @@ import yaml
 from flask import Flask, jsonify, render_template, request
 
 from fort_analyzer import (
-    DEFAULT_FIGURAS,
     DEFAULT_SEMIVIDAS,
     GAMMA_I131,
     analizar_carpeta,
@@ -28,10 +27,8 @@ from fort_analyzer import (
     calcular_informe_isotopo,
     calcular_tablas_comparativas,
     descubrir_simulaciones,
-    iso_label,
     leer_decay_dat,
     leer_sweep_manifest,
-    parse_t12,
 )
 
 app = Flask(__name__)
@@ -51,6 +48,20 @@ _last_folder_key: Optional[str] = None
 def _norm_folder(folder: str) -> str:
     """Normalise a folder path for use as a cache key (case-insensitive on Windows)."""
     return os.path.normcase(os.path.abspath(folder))
+
+
+# Auto-discovery order for the YAML config file: canonical name first, then the
+# legacy names kept for backward compatibility with older simulation folders.
+_YAML_NAMES = ("figuras.yaml", "figuras - multiples simulaciones.yaml", "config.yaml")
+
+
+def _yaml_candidates(folder: str) -> list[Path]:
+    """Ordered candidate paths for the YAML config: for each name, folder then parent."""
+    candidates: list[Path] = []
+    for name in _YAML_NAMES:
+        candidates.append(Path(folder) / name)
+        candidates.append(Path(folder).parent / name)
+    return candidates
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -89,12 +100,7 @@ def api_scan():
 
     # Look for YAML config in the folder or its parent
     yaml_path: Optional[str] = None
-    for candidate in [
-        Path(folder) / "figuras - multiples simulaciones.yaml",
-        Path(folder).parent / "figuras - multiples simulaciones.yaml",
-        Path(folder) / "config.yaml",
-        Path(folder).parent / "config.yaml",
-    ]:
+    for candidate in _yaml_candidates(folder):
         if candidate.exists():
             yaml_path = str(candidate)
             break
@@ -133,7 +139,7 @@ def api_analyze():
         cfg = _load_yaml_config(folder)
         yaml_used = "auto" if cfg else "none"
 
-    figuras: list = cfg.get("figuras", DEFAULT_FIGURAS) if cfg else DEFAULT_FIGURAS
+    figuras: list = cfg.get("figuras", []) if cfg else []
 
     # ── Build T½ dictionary ────────────────────────────────────────────────
     # Priority (highest to lowest):
@@ -215,6 +221,10 @@ def api_analyze():
         "all_isotopes":   all_isotopes,
         "semividas_keys": semividas_keys,
         "figuras":        figuras,
+        # Full parsed YAML dict (or {} if none) so the frontend can round-trip
+        # non-"figuras" top-level sections (e.g. "semividas") when saving/
+        # downloading an edited figuras.yaml (decision 6 of RUNBOOK_figuras_yaml.md).
+        "yaml_config":    cfg,
         "sweep_manifest": sweep_manifest,
     }))
 
@@ -308,24 +318,49 @@ def api_isotopo_report():
     }))
 
 
-@app.route("/api/defaults", methods=["GET"])
-def api_defaults():
-    """Return default half-lives, figure config, and isotope labels."""
-    labels = {iso: iso_label(iso) for iso in DEFAULT_SEMIVIDAS}
-    t12_info = {}
-    for iso, val in DEFAULT_SEMIVIDAS.items():
-        t12_s = parse_t12(val)
-        if math.isinf(t12_s):
-            t12_info[iso] = {"val": val, "T12_s": None, "stable": True}
-        else:
-            t12_info[iso] = {"val": val, "T12_s": t12_s, "stable": False,
-                             "T12_d": t12_s / 86400, "T12_h": t12_s / 3600}
-    return jsonify({
-        "ok":       True,
-        "figuras":  DEFAULT_FIGURAS,
-        "semividas": t12_info,
-        "labels":   labels,
-    })
+@app.route("/api/figuras/save", methods=["POST"])
+def api_figuras_save():
+    """Write the figure editor's YAML text as <folder>/figuras.yaml.
+
+    The frontend serialises the round-tripped YAML text client-side (js-yaml)
+    so any top-level sections other than "figuras" (e.g. "semividas") loaded
+    from an existing config survive the save (decision 6 of
+    RUNBOOK_figuras_yaml.md). This endpoint only validates and writes it.
+    """
+    payload = request.get_json(force=True, silent=True) or {}
+    folder    = (payload.get("folder") or "").strip()
+    yaml_text = payload.get("yaml_text")
+    overwrite = bool(payload.get("overwrite"))
+
+    if not folder or not isinstance(yaml_text, str) or not yaml_text.strip():
+        return jsonify({"error": "Debe especificar 'folder' y 'yaml_text'."}), 400
+
+    if _analysis_cache.get(_norm_folder(folder)) is None:
+        return jsonify({
+            "error": f"La carpeta '{folder}' no ha sido analizada. Ejecute el análisis primero."
+        }), 404
+
+    try:
+        parsed = yaml.safe_load(yaml_text)
+    except Exception as exc:
+        return jsonify({"error": f"YAML inválido: {exc}"}), 422
+
+    if not isinstance(parsed, dict) or not isinstance(parsed.get("figuras"), list):
+        return jsonify({"error": "El YAML debe tener una clave 'figuras' con una lista."}), 422
+
+    target = Path(folder) / "figuras.yaml"
+    if target.exists() and not overwrite:
+        return jsonify({
+            "error": f"Ya existe '{target}'. Confirme para sobrescribir.",
+            "exists": True,
+        }), 409
+
+    try:
+        target.write_text(yaml_text, encoding="utf-8")
+    except OSError as exc:
+        return jsonify({"error": f"No se pudo escribir '{target}': {exc}"}), 500
+
+    return jsonify({"ok": True, "path": str(target)})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -362,12 +397,7 @@ def _sanitize_for_json(obj):
 
 def _load_yaml_config(folder: str) -> dict:
     """Try to load YAML config from the folder or its parent."""
-    for candidate in [
-        Path(folder) / "figuras - multiples simulaciones.yaml",
-        Path(folder).parent / "figuras - multiples simulaciones.yaml",
-        Path(folder) / "config.yaml",
-        Path(folder).parent / "config.yaml",
-    ]:
+    for candidate in _yaml_candidates(folder):
         if candidate.exists():
             try:
                 with open(candidate, "r", encoding="utf-8") as f:

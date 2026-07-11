@@ -12,7 +12,7 @@ isótopo. Parte de la suite del TFG (ver CLAUDE.md de la carpeta padre).
 - `C:\venv\acab-venv\Scripts\python app.py` — puerto 5001 por defecto (`--port`/`-p` o variable
   `ACAB_ANALYZER_PORT`; `--host`/`ACAB_ANALYZER_HOST`, por defecto 127.0.0.1).
 - Flask + waitress (con fallback al servidor de desarrollo si waitress falta).
-- Dependencias: flask, waitress, pyyaml, numpy (requirements.txt). Plotly y Bootstrap por CDN.
+- Dependencias: flask, waitress, pyyaml, numpy (requirements.txt). Plotly, Bootstrap y js-yaml por CDN.
 
 ## Ficheros clave
 
@@ -31,8 +31,7 @@ isótopo. Parte de la suite del TFG (ver CLAUDE.md de la carpeta padre).
     10 % de irradiación) y `calcular_pureza` (P = A(objetivo)/ΣA(impurezas)
     en t_pico). `isotopos_mismo_elemento` calcula el criterio POR DEFECTO de
     impurezas (mismo elemento que el isótopo objetivo); es el único criterio
-    soportado como default — no cambiarlo sin validar con el tutor del TFG
-    (ver runbook). Editable desde la UI vía el parámetro `isotopos_impureza`.
+    soportado como default. Editable desde la UI vía el parámetro `isotopos_impureza`.
   - `GAMMA_I131` hardcodeado (espectro ENSDF/NNDC, solo ¹³¹I por ahora).
   - `leer_sweep_manifest` (Fase 5 opcional, `RUNBOOK_barrido_parametrico_v2.md`):
     lee `sweep_manifest.json` de la raíz analizada si existe (escrito por la
@@ -47,6 +46,19 @@ isótopo. Parte de la suite del TFG (ver CLAUDE.md de la carpeta padre).
     dispara ninguna re-ejecución, el analyzer nunca ejecuta nada.
 - `app.py` — API REST. `_analysis_cache` es un dict global en memoria, keyed
   por carpeta normalizada (varias pestañas con carpetas distintas no se pisan).
+  `RUNBOOK_figuras_yaml.md` (`../acab_suite/`): ya no existe `DEFAULT_FIGURAS`
+  ni el endpoint `/api/defaults` (sin otros consumidores, se retiró entero —
+  ver decisión 7 del runbook). `_yaml_candidates(folder)` centraliza el orden
+  de auto-descubierto (`figuras.yaml` → `figuras - multiples simulaciones.yaml`
+  → `config.yaml`, en carpeta y padre) usado por `_load_yaml_config` y
+  `/api/scan`. `/api/analyze` devuelve `figuras: []` (no fallback) y
+  `yaml_config` (dict YAML completo tal cual, `{}` si no hay YAML) para que el
+  frontend pueda hacer round-trip de secciones ajenas a `figuras` al
+  guardar/descargar. `POST /api/figuras/save` `{folder, yaml_text, overwrite}`
+  valida `folder` contra `_analysis_cache`, que `yaml_text` parsee con una
+  clave `figuras` de tipo lista (422 si no), y escribe
+  `<folder>/figuras.yaml` en UTF-8 (409 si ya existe y `overwrite` no es
+  `true`).
 - `static/js/app.js` — UI + gráficas Plotly. Con i18n (`static/js/i18n/es.json` /
   `en.json`, función `t()`, atributos `data-i18n*`); español por defecto.
   Soporta deep link `?folder=<carpeta>` (Fase R3 del runbook runner v2, botón
@@ -81,7 +93,26 @@ isótopo. Parte de la suite del TFG (ver CLAUDE.md de la carpeta padre).
   `yRawValue`/`yNeedsUnitConv` (selector de variable Y: A_pico por defecto,
   t_pico, pureza, rendimiento). Renderizado (`renderOptimizacion` en app.js)
   solo se activa si `analysisData.sweep_manifest` no es `null`.
-- `figuras.yaml` — ejemplo de configuración de figuras; el formato se documenta en README §7.
+  Pestaña "Actividad por Isótopo" (`RUNBOOK_figuras_yaml.md`): sin figuras
+  (`analysisData.figuras.length === 0`) → `renderFigurasEmptyState` (dos
+  acciones: cargar YAML por selector, crear con el editor). Badge
+  `figuras-badge` (`updateFigurasBadge`) refleja `yaml_used` (auto → "carpeta",
+  upload → "cargado a mano", none → "sin figuras"). Selector
+  `figuras-yaml-file-input` lee el `.yaml` con `FileReader` y relanza
+  `doAnalyze({ yamlContentOverride })` → `/api/analyze` con `yaml_content`
+  (necesario porque `semividas` afecta al cálculo en servidor). Snapshot al
+  analizar: `_state.figurasOriginal` (para el botón "Restaurar YAML cargado",
+  deshabilitado si `yaml_used === 'none'`) y `_state.yamlConfigLoaded` (dict
+  YAML completo, para el round-trip de `_buildFigurasYamlText()` — sustituye
+  SOLO la clave `figuras`, conserva el resto). `downloadFigurasYaml()`
+  (Blob) y `saveFigurasToFolder()` (`POST /api/figuras/save`, confirma y
+  reintenta con `overwrite:true` si ya existe, luego re-analiza) usan
+  `jsyaml.dump()` (CDN) para serializar.
+- `figuras.yaml` — ejemplo real de configuración de figuras (16 figuras del
+  caso Te/Xe/I del TFG); el formato se documenta en README §7. NO se carga
+  automáticamente salvo que la carpeta analizada coincida con esta raíz.
+  `docs/ejemplo_figuras_TeO2.yaml` es una plantilla equivalente más simple
+  (15 figuras) pensada para copiar/cargar desde cero.
 - `compare_simulaciones.py` — **[LEGACY]**: la densidad de normalización ya se
   lee automáticamente de `CONCENTRATIONS(GRAM)` (`leer_fort6_concentraciones`)
   y la superposición de datos experimentales la cubre `reference_data.js`; no
@@ -100,7 +131,10 @@ Suite de tests oro (scripts autocontenidos, sin framework, estilo de la suite):
   ambos sentidos.
 - `C:\venv\acab-venv\Scripts\python tools\test_api.py` — API REST vía
   `app.test_client()` (flujo `/api/analyze` → `/api/isotopo_report`, cache
-  keyed por carpeta y errores controlados).
+  keyed por carpeta y errores controlados). Incluye `test_figuras_save()`
+  (`RUNBOOK_figuras_yaml.md`): guardado feliz + discovery posterior como
+  'auto', 409 sin overwrite, 422 con YAML inválido/sin clave `figuras` lista,
+  round-trip que conserva una sección `semividas` de un YAML de partida.
 - `C:\venv\acab-venv\Scripts\python tools\test_reference_data.py` — oráculo
   Python de `reference_data.js` (fixtures CSV de `tests/fixtures/experimental/`
   y criterio de aceptación de la Fase 4 contra la ref_sim).

@@ -98,26 +98,6 @@ DEFAULT_SEMIVIDAS: dict[str, str] = {
     "I134": "52.5 m",
 }
 
-# Default figure groups
-DEFAULT_FIGURAS: list[dict] = [
-    {"num": 1,  "titulo": "¹³¹I (irr. + enf.)",          "mostrar_irr": True,  "series": [{"iso": "I131",   "label": "¹³¹I"}]},
-    {"num": 2,  "titulo": "¹³³Xe / ¹³³ᵐXe",              "mostrar_irr": False, "series": [{"iso": "XE133",  "label": "¹³³Xe"},  {"iso": "XE133M", "label": "¹³³ᵐXe"}]},
-    {"num": 3,  "titulo": "¹³²Te",                        "mostrar_irr": False, "series": [{"iso": "TE132",  "label": "¹³²Te"}]},
-    {"num": 4,  "titulo": "¹³¹ᵐTe / ¹³¹Te",              "mostrar_irr": False, "series": [{"iso": "TE131M", "label": "¹³¹ᵐTe"}, {"iso": "TE131", "label": "¹³¹Te"}]},
-    {"num": 5,  "titulo": "¹³³I",                         "mostrar_irr": False, "series": [{"iso": "I133",   "label": "¹³³I"}]},
-    {"num": 6,  "titulo": "¹³⁵Xe / ¹³⁵ᵐXe",              "mostrar_irr": False, "series": [{"iso": "XE135",  "label": "¹³⁵Xe"},  {"iso": "XE135M", "label": "¹³⁵ᵐXe"}]},
-    {"num": 7,  "titulo": "¹²⁹ᵐXe",                      "mostrar_irr": False, "series": [{"iso": "XE129M", "label": "¹²⁹ᵐXe"}]},
-    {"num": 8,  "titulo": "¹³¹ᵐXe",                      "mostrar_irr": False, "series": [{"iso": "XE131M", "label": "¹³¹ᵐXe"}]},
-    {"num": 9,  "titulo": "¹²⁷Te",                        "mostrar_irr": False, "series": [{"iso": "TE127",  "label": "¹²⁷Te"}]},
-    {"num": 10, "titulo": "¹²⁹Te / ¹²⁹ᵐTe",              "mostrar_irr": False, "series": [{"iso": "TE129",  "label": "¹²⁹Te"},  {"iso": "TE129M", "label": "¹²⁹ᵐTe"}]},
-    {"num": 11, "titulo": "¹²¹Te",                        "mostrar_irr": False, "series": [{"iso": "TE121",  "label": "¹²¹Te"}]},
-    {"num": 12, "titulo": "¹³²I / ¹³²ᵐI",                "mostrar_irr": False, "series": [{"iso": "I132",   "label": "¹³²I"},   {"iso": "I132M",  "label": "¹³²ᵐI"}]},
-    {"num": 13, "titulo": "¹²⁸I",                         "mostrar_irr": False, "series": [{"iso": "I128",   "label": "¹²⁸I"}]},
-    {"num": 14, "titulo": "¹³³ᵐTe / ¹³³Te",              "mostrar_irr": False, "series": [{"iso": "TE133M", "label": "¹³³ᵐTe"}, {"iso": "TE133", "label": "¹³³Te"}]},
-    {"num": 15, "titulo": "¹³⁰ᵐI",                       "mostrar_irr": False, "series": [{"iso": "I130M",  "label": "¹³⁰ᵐI"}]},
-]
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Isotope utilities
 # ─────────────────────────────────────────────────────────────────────────────

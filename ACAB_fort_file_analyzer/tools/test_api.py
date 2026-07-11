@@ -84,6 +84,12 @@ def test_flujo_feliz(client) -> None:
     check(data.get("sweep_manifest") is None,
           "sweep_manifest = None para una carpeta sin barrido")
 
+    # RUNBOOK_figuras_yaml.md: sin YAML en REF_SIM → sin figuras (ya no hay
+    # DEFAULT_FIGURAS de fallback) y yaml_used = 'none'.
+    check(data.get("figuras") == [], f"figuras = [] sin YAML (obtenido {data.get('figuras')})")
+    check(data.get("yaml_used") == "none", f"yaml_used = 'none' (obtenido {data.get('yaml_used')})")
+    check(data.get("yaml_config") == {}, f"yaml_config = {{}} sin YAML (obtenido {data.get('yaml_config')})")
+
     r2 = client.post("/api/isotopo_report", json={"isotopo": "I131"})
     check(r2.status_code == 200, f"/api/isotopo_report responde 200 (obtenido {r2.status_code})")
     rep = r2.get_json()
@@ -156,6 +162,67 @@ def test_sweep_manifest(client) -> None:
               f"nombres de carpeta del manifest = subcarpetas descubiertas (obtenido {folders})")
 
 
+def test_figuras_save(client) -> None:
+    section("/api/figuras/save — guardado, discovery, validaciones (RUNBOOK_figuras_yaml.md)")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        shutil.copy(REF_SIM / "fort.6", root / "fort.6")
+        shutil.copy(REF_SIM / "inp.5", root / "inp.5")
+        shutil.copy(REF_SIM / "DECAY.dat", root / "DECAY.dat")
+
+        # Sin análisis previo de esta carpeta → 404.
+        r = client.post("/api/figuras/save",
+                         json={"folder": str(root), "yaml_text": "figuras: []\n"})
+        check(r.status_code == 404, f"404 si la carpeta no ha sido analizada (obtenido {r.status_code})")
+
+        r = client.post("/api/analyze", json={"folder": str(root)})
+        check(r.status_code == 200, "análisis previo de la carpeta ok (puebla la cache)")
+
+        # 422: YAML sin clave 'figuras' lista, o mal formado.
+        r = client.post("/api/figuras/save",
+                         json={"folder": str(root), "yaml_text": "otra_cosa: 1\n"})
+        check(r.status_code == 422, f"422 sin clave 'figuras' lista (obtenido {r.status_code})")
+
+        r = client.post("/api/figuras/save",
+                         json={"folder": str(root), "yaml_text": "figuras: [not-closed\n"})
+        check(r.status_code == 422, f"422 con YAML mal formado (obtenido {r.status_code})")
+
+        # Guardado feliz — round-trip: conserva 'semividas' de un YAML de partida.
+        yaml_text = (
+            "figuras:\n"
+            "  - num: 1\n"
+            "    titulo: Figura 1\n"
+            "    series:\n"
+            "      - iso: I131\n"
+            "        label: I131\n"
+            "semividas:\n"
+            "  I131: 8.0252 d\n"
+        )
+        r = client.post("/api/figuras/save", json={"folder": str(root), "yaml_text": yaml_text})
+        check(r.status_code == 200, f"200 en guardado feliz (obtenido {r.status_code})")
+        saved_path = root / "figuras.yaml"
+        check(saved_path.exists(), "figuras.yaml escrito en la carpeta analizada")
+        check("semividas" in saved_path.read_text(encoding="utf-8"),
+              "el fichero guardado conserva la sección 'semividas' del YAML de partida")
+
+        # 409 sin overwrite si ya existe; overwrite=True lo permite.
+        r = client.post("/api/figuras/save", json={"folder": str(root), "yaml_text": yaml_text})
+        check(r.status_code == 409, f"409 si ya existe y no se pide overwrite (obtenido {r.status_code})")
+
+        r = client.post("/api/figuras/save",
+                         json={"folder": str(root), "yaml_text": yaml_text, "overwrite": True})
+        check(r.status_code == 200, f"200 con overwrite=True (obtenido {r.status_code})")
+
+        # Discovery posterior: un nuevo análisis lo encuentra como 'auto'.
+        r = client.post("/api/analyze", json={"folder": str(root)})
+        data = r.get_json()
+        check(data.get("yaml_used") == "auto",
+              f"yaml_used = 'auto' tras guardar y reanalizar (obtenido {data.get('yaml_used')})")
+        check(len(data.get("figuras", [])) == 1,
+              "figuras.yaml guardado se descubre automáticamente en el siguiente análisis")
+
+
 def test_carpeta_inexistente(client) -> None:
     section("/api/analyze — carpeta inexistente")
     r = client.post("/api/analyze", json={"folder": str(REPO_ROOT / "no_existe_xyz")})
@@ -198,6 +265,7 @@ def main() -> int:
     test_informe_folder_explicito(client)
     test_informe_folder_no_analizado(client)
     test_sweep_manifest(client)
+    test_figuras_save(client)
     test_isotopo_sin_analisis(client)
 
     print(f"\n{'-' * 50}")

@@ -59,7 +59,7 @@
     "t_cool": "T<sub>cool</sub> [h]",
     "phi": "φ total [n/cm²/s]",
     "analyze": "Analyze",
-    "yaml_none": "No YAML in folder — using default configuration.",
+    "yaml_none": "No YAML in folder — no figures configured (edit them or load a YAML).",
     "simlist": "Loaded simulations",
     "iso_summary": "Isotope Summary",
     "iso_peak": "{label} peak"
@@ -71,7 +71,7 @@
     "howto_title": "How to use:",
     "howto": "<li>Enter the path of the folder that contains the simulation subfolders.</li><li>Each subfolder must contain at least one <code>fort.6</code> file.</li><li>To read T<sub>irr</sub>, T<sub>cool</sub> and flux automatically, include <code>inp.5</code> in each subfolder.</li><li>Optionally, upload a YAML configuration file with half-lives and figures.</li><li>Click <strong>Analyze</strong>.</li>",
     "structure_title": "Expected structure:",
-    "structure": "parent_folder/<br>&nbsp;&nbsp;simulation_A/fort.6 &nbsp;[inp.5]<br>&nbsp;&nbsp;simulation_B/fort.6 &nbsp;[inp.5]<br>&nbsp;&nbsp;…<br>&nbsp;&nbsp;[figuras - multiples simulaciones.yaml]"
+    "structure": "parent_folder/<br>&nbsp;&nbsp;simulation_A/fort.6 &nbsp;[inp.5]<br>&nbsp;&nbsp;simulation_B/fort.6 &nbsp;[inp.5]<br>&nbsp;&nbsp;…<br>&nbsp;&nbsp;[figuras.yaml]"
   },
 
   "errors": {
@@ -123,6 +123,13 @@
     "filter_i": "Iodine (I)",
     "edit": "Edit figures",
     "edit_title": "Edit figure configuration",
+    "load_yaml": "Load YAML",
+    "load_yaml_title": "Load figures YAML from file",
+    "badge_carpeta": "YAML: folder",
+    "badge_manual": "YAML: manually loaded",
+    "badge_none": "no figures",
+    "empty_msg": "No figures configured for this folder. Load a figures YAML or create them with the editor.",
+    "empty_create": "Create figures with the editor",
     "no_figs": "No figures configured for the selected filter.",
     "fig": "Figure {n}",
     "irr_suffix": "irr.",
@@ -196,7 +203,11 @@
 
   "figeditor": {
     "title": "Figure Editor",
-    "reset": "Restore defaults",
+    "reset": "Restore loaded YAML",
+    "reset_disabled_title": "There is no loaded YAML to restore.",
+    "download": "Download YAML",
+    "save": "Save to analysed folder",
+    "save_confirm_overwrite": "A figuras.yaml already exists in the analysed folder. Overwrite it?",
     "cancel": "Cancel",
     "apply": "Apply",
     "add_fig": "Add figure",
@@ -218,8 +229,8 @@
     "net_err": "Network error: {msg}",
     "analyze_first": "Run an analysis first to edit the figures.",
     "figs_updated": "Figures updated.",
-    "figs_reset": "Figures restored to default values.",
-    "figs_reset_err": "Error loading default figures."
+    "figs_reset": "Figures restored to the loaded YAML.",
+    "figs_saved": "figuras.yaml saved to the analysed folder."
   },
 
   "status": {

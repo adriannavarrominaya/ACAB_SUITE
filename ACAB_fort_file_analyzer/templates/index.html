@@ -7,6 +7,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
   <link href="/static/css/style.css" rel="stylesheet">
 </head>
 <body>
@@ -239,7 +240,7 @@
                     &nbsp;&nbsp;simulacion_A/fort.6 &nbsp;[inp.5]<br>
                     &nbsp;&nbsp;simulacion_B/fort.6 &nbsp;[inp.5]<br>
                     &nbsp;&nbsp;…<br>
-                    &nbsp;&nbsp;[figuras - multiples simulaciones.yaml]
+                    &nbsp;&nbsp;[figuras.yaml]
                   </code>
                 </div>
               </div>
@@ -318,6 +319,11 @@
                   <option value="Xe" data-i18n="charts.filter_xe">Xenón (Xe)</option>
                   <option value="I" data-i18n="charts.filter_i">Yodo (I)</option>
                 </select>
+                <span id="figuras-badge" class="badge bg-secondary d-none"></span>
+                <button class="btn btn-outline-secondary btn-sm" id="btn-load-figuras-yaml"
+                        data-i18n-title="charts.load_yaml_title" title="Cargar YAML de figuras">
+                  <i class="bi bi-file-earmark-arrow-up me-1"></i><span data-i18n="charts.load_yaml">Cargar YAML</span>
+                </button>
                 <button class="btn btn-outline-secondary btn-sm" id="btn-edit-figuras"
                         data-i18n-title="charts.edit_title" title="Editar configuración de figuras">
                   <i class="bi bi-pencil-square me-1"></i><span data-i18n="charts.edit">Editar figuras</span>
@@ -389,6 +395,8 @@
   </div>
 </div>
 
+<input type="file" id="figuras-yaml-file-input" accept=".yaml,.yml" class="d-none">
+
 <!-- ═══════════════════════════════════════════════════════════════════════
      MODAL: FIGURE EDITOR
      ═══════════════════════════════════════════════════════════════════════ -->
@@ -406,12 +414,18 @@
       <div class="modal-body" id="figuras-editor-body">
         <!-- Rendered by renderFigurasEditor() -->
       </div>
-      <div class="modal-footer d-flex justify-content-between align-items-center">
+      <div class="modal-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
         <button type="button" class="btn btn-outline-secondary btn-sm"
                 id="btn-figuras-reset">
-          <i class="bi bi-arrow-counterclockwise me-1"></i><span data-i18n="figeditor.reset">Restaurar defecto</span>
+          <i class="bi bi-arrow-counterclockwise me-1"></i><span data-i18n="figeditor.reset">Restaurar YAML cargado</span>
         </button>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-figuras-download">
+            <i class="bi bi-download me-1"></i><span data-i18n="figeditor.download">Descargar YAML</span>
+          </button>
+          <button type="button" class="btn btn-outline-primary btn-sm" id="btn-figuras-save">
+            <i class="bi bi-save me-1"></i><span data-i18n="figeditor.save">Guardar en carpeta analizada</span>
+          </button>
           <button type="button" class="btn btn-secondary"
                   data-bs-dismiss="modal" data-i18n="figeditor.cancel">Cancelar</button>
           <button type="button" class="btn btn-primary" id="btn-figuras-apply">
@@ -452,6 +466,16 @@
     </div>
   </div>
 </div>
+<!-- ═══════════════════════════════════════════════════════════════════════
+     FOOTER
+     ═══════════════════════════════════════════════════════════════════════ -->
+<footer class="text-center text-muted small mt-5 pb-4">
+  <hr>
+  <p class="mb-0" data-i18n="footer.tfg">Trabajo de Fin de Grado — Ingeniería de la Energía | 2026</p>
+  <span>Autor: <strong>Adrián Navarro Minaya</strong> &nbsp;&mdash;&nbsp;
+        Tutor: <strong>Óscar Luis Cabellos de Francisco</strong></span><br>
+  <p class="mb-0" data-i18n="footer.center">Escuela Universitaria de Minas y Energía — Universidad Politécnica de Madrid</p>
+</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/static/js/units.js"></script>

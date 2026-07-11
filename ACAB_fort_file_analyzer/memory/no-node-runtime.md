@@ -8,7 +8,7 @@ metadata:
 Actualización 2026-07-08: `Get-Command node.exe` encuentra node v24.18.0 en
 `C:\Program Files\nodejs\node.exe`. Los `tools/test_units.js`, `tools/test_export.js`
 y `tools/test_reference_data.js` corren y pasan en verde con `node tools/test_*.js`
-en esta misma máquina — no hace falta esperar al tutor/CI para verificarlos.
+en esta misma máquina.
 
 **Why:** un hallazgo anterior de sesión (`Get-Command node/deno/bun` sin
 resultados) quedó guardado como memoria permanente y ya no era cierto; instaló
