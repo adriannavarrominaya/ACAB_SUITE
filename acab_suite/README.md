@@ -98,16 +98,18 @@ Estado a 2026-07-13. Cada runbook lleva además una línea de estado en su cabec
   hardcodeados, con selector de YAML y guardado desde el editor. ✅ Completado y validado (2026-07-13).
 - `RUNBOOK_barrido_espectral.md` — cuarto tipo de barrido (forma del espectro,
   COLL.inp tarjeta 7, espectros CONDERC/OIEA) + pipeline COLLAPS→ACAB.
-  🔄 En curso: P0 (verificaciones: invariancia de escala ✅, unidades CX=MeV ✅,
+  ✅ Completado: P0 (verificaciones: invariancia de escala ✅, unidades CX=MeV ✅,
   espectros descargados ✅), P1 (runner v3) ✅, P2 (import CONDERC + coll_writer)
   ✅, P3 (UI del cuarto tipo "Espectro (COLLAPS)" en la pestaña Barrido: tarjeta
   explicativa, φ_ref editable con patch uniforme, filas de espectros importados
   con índices/badge direccional, gráfica Plotly superpuesta, manifest con
-  fracciones espectrales) ✅ y P4 (`/api/run/batch` construye el pipeline D7
+  fracciones espectrales) ✅, P4 (`/api/run/batch` construye el pipeline D7
   por sim cuando `sweep_manifest.json` tiene `sweep_type: "spectrum"`, sin
   modificar `runner.py`; `batch_results.json` incluye los pasos y el resumen
-  de FLUX.inf; UI de progreso con el paso en curso) ✅ completadas; pendiente
-  P5 (documentación y verificación en Optimización).
+  de FLUX.inf; UI de progreso con el paso en curso) ✅ y P5 (README del INP
+  configurator con la sección de usuario del barrido espectral, columna
+  "Rango de energía" en la tabla de espectros, verificación de la pestaña
+  Optimización del analyzer y CLAUDE.md actualizado) ✅.
 
 ## Invocación de los códigos (fuente de verdad para el runner — fase R0)
 
@@ -200,3 +202,12 @@ requerido más: si no está en el workdir, error 422 con mensaje indicándolo.
   0.1438 MeV. Conclusión: pipeline y barrido espectral VALIDADOS con datos
   independientes del OIEA; la diferencia analítico↔G1 es física de posición/
   representación, no error de la herramienta.
+- **Optimización vs `frac_termica` (P5)** ✅ (2026-07-13): verificado en el
+  Fort Analyzer que `paramKeys` (`static/js/optim_utils.js`) selecciona
+  claves de `params` genéricamente por tipo (`number` finito), sin lista
+  hardcodeada de nombres — `frac_termica` es seleccionable como eje X sin
+  cambios y la clave categórica `espectro` (string) se descarta sola, sin
+  crash ni ruido en el selector ni en la tabla. No hizo falta código nuevo.
+  Detalle cosmético anotado (no corregido, fuera del alcance de P5): falta la
+  traducción `optim.type_spectrum` en `es.json`/`en.json` del analyzer — el
+  badge de subtítulo del barrido espectral mostraría la clave cruda.
