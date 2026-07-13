@@ -2,8 +2,7 @@
 
 > Parte de la [suite ACAB del TFG](../README.md) — configurar entradas → ejecutar → analizar salidas.
 
-Carpeta transversal de la suite del TFG: launcher, configuración común y runbooks
-de mejoras. No es una app; las tres apps viven en las carpetas hermanas.
+Carpeta transversal de la suite del TFG: launcher, configuración común y runbooks de mejoras. No es una app; las tres apps viven en las carpetas hermanas, los pendientes no planificados viven en BACKLOG.md.
 
 ## Puertos canónicos
 
@@ -19,11 +18,7 @@ de mejoras. No es una app; las tres apps viven en las carpetas hermanas.
 .\setup.ps1
 ```
 
-Crea el venv compartido en `C:\venv\acab-venv` (parametrizable con `-VenvPath`) e
-instala en él las dependencias de las 3 apps. Es el único setup necesario para
-usar la suite con `suite_launcher.py` — sustituye a ejecutar el `setup.ps1` de
-cada app por separado (esos siguen existiendo para arrancar una app suelta con
-su propio venv local).
+Crea el venv compartido en `C:\venv\acab-venv` (parametrizable con `-VenvPath`) e instala en él las dependencias de las 3 apps. Es el único setup necesario para usar la suite con `suite_launcher.py` — sustituye a ejecutar el `setup.ps1` de cada app por separado (esos siguen existiendo para arrancar una app suelta con su propio venv local).
 
 ## Launcher
 
@@ -35,9 +30,7 @@ C:\venv\acab-venv\Scripts\python suite_launcher.py
 Qué hace:
 
 1. Lee `suite_config.json` (lo crea con la plantilla por defecto si no existe).
-2. Lanza cada app (`app.py --port <puerto> --no-browser`) como subproceso, con la
-   salida redirigida a `logs/<name>.log`. Si una app ya responde en su puerto,
-   avisa "ya en ejecución" y no la lanza de nuevo.
+2. Lanza cada app (`app.py --port <puerto> --no-browser`) como subproceso, con la  salida redirigida a `logs/<name>.log`. Si una app ya responde en su puerto, avisa "ya en ejecución" y no la lanza de nuevo.
 3. Health-check de `/api/ping` hasta 15 s e informa ✓/✗ por consola.
 4. Abre UNA pestaña del navegador en `open_browser`.
 5. `Ctrl+C` para las apps lanzadas por el launcher (terminate; kill a los 5 s).
@@ -113,27 +106,16 @@ Estado a 2026-07-13. Cada runbook lleva además una línea de estado en su cabec
 
 ## Invocación de los códigos (fuente de verdad para el runner — fase R0)
 
-Convención de la suite: **simulaciones autocontenidas**. Cada carpeta de
-simulación contiene su propio ejecutable junto a sus ficheros de entrada, y el
-código lee todo del directorio de trabajo actual. Esta sección prevalece sobre
-cualquier mención a "ruta del ejecutable" en los runbooks: NO hay ruta global de
-ejecutable; el runner invoca el exe de la propia carpeta.
+Convención de la suite: **simulaciones autocontenidas**. Cada carpeta de simulación contiene su propio ejecutable junto a sus ficheros de entrada, y el código lee todo del directorio de trabajo actual. Esta sección prevalece sobre cualquier mención a "ruta del ejecutable" en los runbooks: NO hay ruta global de ejecutable; el runner invoca el exe de la propia carpeta.
 
 ### ACAB
 - Ejecutable: `acab.exe`, presente EN la carpeta de la simulación.
-- Invocación: el runner lanza `acab.exe` SIN argumentos con
-  `cwd = carpeta de la simulación` (comando: la ruta absoluta
-  `<workdir>\acab.exe`). Lee todas sus entradas del cwd.
-- Fichero de entrada principal: `inp.5` (nombre que debe usar la opción
-  "guardar el fichero actual en el workdir" del runner).
-- Ficheros requeridos en el workdir (pre-check del runner; lista exacta de una
-  carpeta de trabajo buena conocida): `acab.exe`, `inp.5`, `DECAY.dat`, `XSECTION.dat`.
-- Salidas generadas: `fort.6` (la que consume el analyzer), fichero de tiempo
-  de CPU (nombre: `cpu_time.txt`) y otros auxiliares.
+- Invocación: el runner lanza `acab.exe` SIN argumentos con `cwd = carpeta de la simulación` (comando: la ruta absoluta `<workdir>\acab.exe`). Lee todas sus entradas del cwd.
+- Fichero de entrada principal: `inp.5` (nombre que debe usar la opción "guardar el fichero actual en el workdir" del runner).
+- Ficheros requeridos en el workdir (pre-check del runner; lista exacta de una carpeta de trabajo buena conocida): `acab.exe`, `inp.5`, `DECAY.dat`, `XSECTION.dat`.
+- Salidas generadas: `fort.6` (la que consume el analyzer), fichero de tiempo de CPU (nombre: `cpu_time.txt`) y otros auxiliares.
 - Duración típica: < 1 s. Timeout por defecto del runner: 60 s.
-- Barridos: `acab.exe` y el resto de ficheros requeridos deben estar en la
-  CARPETA BASE del barrido (se copian a cada subcarpeta de simulación, que así
-  nace autocontenida).
+- Barridos: `acab.exe` y el resto de ficheros requeridos deben estar en la CARPETA BASE del barrido (se copian a cada subcarpeta de simulación, que así nace autocontenida).
 
   Nota: `XSECTION.dat` es salida de COLLAPS — si se regenera el espectro, actualizar la carpeta base de los barridos antes de generar/ejecutar.
 
@@ -154,15 +136,8 @@ requerido más: si no está en el workdir, error 422 con mensaje indicándolo.
 
 ## Verificaciones de control (checklist)
 
-- **Control XNORM** ✅ (2026-07-09): barrido de flujo con XNORM ∈ {0.5, 1.0} sobre el
-  caso de pulso (T_irr=10 s). A_pico(I131): 8.6140e+3 vs 1.7230e+4 Bq/cm³ →
-  cociente 0.4999 ≈ 0.5 teórico (régimen lineal). El barrido de flujo escala la
-  producción linealmente como predice la teoría. Ambas sims: t_pico=3.753 h (enfr.).
-- **Control de malla** ✅ (2026-07-09): mismo historial temporal (T_irr y pasos
-  idénticos) generado por las dos vías — generador manual de la pestaña temporal
-  vs barrido temporal de una fila — produce inp.5 BYTE-IDÉNTICOS (verificado con
-  fc). Al compartir ambas vías buildBlocks78 (sweep_utils.js) y _write_inp5, la
-  equivalencia de los fort.6 queda garantizada sin ejecución comparada.
+- **Control XNORM** ✅ (2026-07-09): barrido de flujo con XNORM ∈ {0.5, 1.0} sobre el caso de pulso (T_irr=10 s). A_pico(I131): 8.6140e+3 vs 1.7230e+4 Bq/cm³ → cociente 0.4999 ≈ 0.5 teórico (régimen lineal). El barrido de flujo escala la producción linealmente como predice la teoría. Ambas sims: t_pico=3.753 h (enfr.).
+- **Control de malla** ✅ (2026-07-09): mismo historial temporal (T_irr y pasos idénticos) generado por las dos vías — generador manual de la pestaña temporal vs barrido temporal de una fila — produce inp.5 BYTE-IDÉNTICOS (verificado con fc). Al compartir ambas vías buildBlocks78 (sweep_utils.js) y _write_inp5, la equivalencia de los fort.6 queda garantizada sin ejecución comparada.
 - **Criterio de pureza radionucleídica** ✅
   impurezas = otros isótopos de yodo (confirmado el default mismo-elemento);
   requisito del producto: pureza > 99.9 % (impurezas < 0.1 %), con atención a
