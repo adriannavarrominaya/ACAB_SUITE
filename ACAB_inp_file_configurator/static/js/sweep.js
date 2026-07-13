@@ -590,7 +590,21 @@
     return workdir;
   }
 
-  function renderSweepBatchRows(jobs, root) {
+  // Etiquetas i18n de los pasos del pipeline D7 (barrido espectral), en el
+  // mismo orden que 'pipeline_steps' de /api/run/status (ver app.py).
+  const SWEEP_STEP_I18N = {
+    collaps: 'sweep.run_step_collaps', copy: 'sweep.run_step_copy',
+    acab: 'sweep.run_step_acab', check_flux: 'sweep.run_step_check_flux',
+  };
+
+  function sweepStepLabel(j, pipelineSteps) {
+    if (!pipelineSteps || j.step_index == null) return '';
+    const key = pipelineSteps[j.step_index];
+    const i18nKey = key && SWEEP_STEP_I18N[key];
+    return i18nKey ? t(i18nKey) : '';
+  }
+
+  function renderSweepBatchRows(jobs, root, pipelineSteps) {
     const tb = $('sweep-run-tbody');
     tb.innerHTML = '';
     jobs.forEach(j => {
@@ -598,11 +612,13 @@
       const dur = j.duracion_s != null ? `${j.duracion_s.toFixed(1)} s` : '—';
       const variant = SWEEP_STATE_VARIANT[j.estado] || 'secondary';
       const icon = SWEEP_STATE_ICON[j.estado] || 'bi-question-circle';
+      const step = sweepStepLabel(j, pipelineSteps);
       const tr = document.createElement('tr');
       tr.innerHTML =
         `<td class="font-monospace small">${folder}</td>`
         + `<td><span class="badge bg-${variant}"><i class="bi ${icon} me-1"></i>`
         + `${t('sweep.run_state_' + j.estado)}</span></td>`
+        + `<td class="small">${step}</td>`
         + `<td class="small">${dur}</td>`;
       tb.appendChild(tr);
     });
@@ -629,7 +645,7 @@
     const root = s.root || sweepRunState.root || '';
     $('sweep-run-log').textContent = s.log_tail || '';
     const jobs = s.jobs || [];
-    renderSweepBatchRows(jobs, root);
+    renderSweepBatchRows(jobs, root, s.pipeline_steps || null);
 
     const total  = jobs.length;
     const ok     = jobs.filter(j => j.estado === 'ok').length;

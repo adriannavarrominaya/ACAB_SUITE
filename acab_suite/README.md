@@ -100,11 +100,14 @@ Estado a 2026-07-13. Cada runbook lleva además una línea de estado en su cabec
   COLL.inp tarjeta 7, espectros CONDERC/OIEA) + pipeline COLLAPS→ACAB.
   🔄 En curso: P0 (verificaciones: invariancia de escala ✅, unidades CX=MeV ✅,
   espectros descargados ✅), P1 (runner v3) ✅, P2 (import CONDERC + coll_writer)
-  ✅ y P3 (UI del cuarto tipo "Espectro (COLLAPS)" en la pestaña Barrido: tarjeta
+  ✅, P3 (UI del cuarto tipo "Espectro (COLLAPS)" en la pestaña Barrido: tarjeta
   explicativa, φ_ref editable con patch uniforme, filas de espectros importados
   con índices/badge direccional, gráfica Plotly superpuesta, manifest con
-  fracciones espectrales) ✅ completadas; pendientes P4 (pipeline de ejecución)
-  y P5 (documentación y verificación en Optimización).
+  fracciones espectrales) ✅ y P4 (`/api/run/batch` construye el pipeline D7
+  por sim cuando `sweep_manifest.json` tiene `sweep_type: "spectrum"`, sin
+  modificar `runner.py`; `batch_results.json` incluye los pasos y el resumen
+  de FLUX.inf; UI de progreso con el paso en curso) ✅ completadas; pendiente
+  P5 (documentación y verificación en Optimización).
 
 ## Invocación de los códigos (fuente de verdad para el runner — fase R0)
 

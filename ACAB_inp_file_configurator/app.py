@@ -250,6 +250,15 @@ _DEFAULT_RUNNER_CONFIG = {
     'default_workdir': '',
 }
 
+# Pipeline del barrido espectral (Fase P4, D7 del RUNBOOK_barrido_espectral.md):
+# run collaps (cwd=<sim>/collaps) → copy XSECTION.dat → run acab (cwd=<sim>) →
+# check_flux sobre <sim>/collaps/FLUX.inf. El nombre de collaps.exe no es
+# configurable en esta app (a diferencia de acab.exe vía cfg['exe_name']):
+# es una convención fija de la suite (acab_suite/README.md).
+_COLLAPS_EXE_NAME = 'collaps.exe'
+_SPECTRUM_SIM_REQUIRED_FILES = ('inp.5', 'DECAY.dat')  # XSECTION.dat lo genera el pipeline
+_SPECTRUM_COLLAPS_REQUIRED_FILES = ('COLL.inp', 'XSBL.dat')
+
 # Recordados por /api/run para que /api/run/status pueda informar si el
 # fichero de salida (fort.6) quedó generado tras el último run individual
 # (botón "Abrir en Fort Analyzer" del R3 — el runner común no conoce este
@@ -405,9 +414,13 @@ def api_run_status():
         status['workdir'] = _last_run_workdir
     # Enriquecer el estado batch con la carpeta raíz del barrido (botón
     # "Abrir en Fort Analyzer" del R4 — el runner común no conoce este
-    # concepto, así que el chequeo vive aquí, igual que para single).
-    if status.get('mode') == 'batch' and _last_batch_root:
-        status['root'] = _last_batch_root
+    # concepto, así que el chequeo vive aquí, igual que para single) y, si es
+    # un barrido espectral, la lista de pasos del pipeline (D7) para que la
+    # UI traduzca step_index/step_type en la etiqueta del paso en curso.
+    if status.get('mode') == 'batch':
+        if _last_batch_root:
+            status['root'] = _last_batch_root
+        status['pipeline_steps'] = _last_batch_pipeline_steps
     return jsonify({'ok': True, 'status': status})
 
 
@@ -422,15 +435,43 @@ def api_run_cancel():
 # ---------------------------------------------------------------------------
 
 _last_batch_root: str | None = None
+# Etiquetas de los pasos del pipeline D7 del último batch lanzado, en orden de
+# step_index (None si el batch no es un barrido espectral). Ver api_run_status.
+_last_batch_pipeline_steps: list[str] | None = None
 
 
-def _read_sweep_manifest_folders(root_p: Path) -> list[str]:
+def _read_sweep_manifest(root_p: Path) -> dict:
     manifest_path = root_p / 'sweep_manifest.json'
     if not manifest_path.is_file():
         raise FileNotFoundError(f'No se encontró sweep_manifest.json en {root_p}.')
     with open(manifest_path, 'r', encoding='utf-8') as f:
-        manifest = json.load(f)
-    return [sim['folder'] for sim in manifest.get('simulations', [])]
+        return json.load(f)
+
+
+def _build_spectrum_pipeline_jobs(root_p: Path, folders: list[str],
+                                  acab_exe_name: str, collaps_exe_name: str) -> list[dict]:
+    """Jobs del barrido espectral: pipeline D7 por simulación (runner v3).
+
+    1) run collaps.exe con cwd=<sim>/collaps; 2) copy XSECTION.dat →
+    <sim>/XSECTION.dat; 3) run acab.exe con cwd=<sim>; 4) check_flux sobre
+    <sim>/collaps/FLUX.inf.
+    """
+    jobs = []
+    for folder in folders:
+        wd = root_p / folder
+        collaps_dir = wd / 'collaps'
+        jobs.append({
+            'workdir': str(wd),
+            'steps': [
+                {'type': 'run', 'cmd': [str(collaps_dir / collaps_exe_name)],
+                 'cwd': str(collaps_dir)},
+                {'type': 'copy', 'src': str(collaps_dir / 'XSECTION.dat'),
+                 'dst': str(wd / 'XSECTION.dat')},
+                {'type': 'run', 'cmd': [str(wd / acab_exe_name)], 'cwd': str(wd)},
+                {'type': 'check_flux', 'path': str(collaps_dir / 'FLUX.inf')},
+            ],
+        })
+    return jobs
 
 
 @app.route('/api/run/batch', methods=['POST'])
@@ -446,34 +487,64 @@ def api_run_batch():
     if not root_p.is_dir():
         return jsonify({'error': f'La carpeta raíz no existe: {root}'}), 422
 
+    # El manifest se lee siempre que exista (best-effort si folders viene
+    # explícito) para saber el sweep_type y así decidir el pipeline de
+    # ejecución (D7, espectral vs tipos 1-3). Si folders no viene, el
+    # manifest es obligatorio (404 si falta, como antes).
+    manifest = None
     if not folders:
         try:
-            folders = _read_sweep_manifest_folders(root_p)
+            manifest = _read_sweep_manifest(root_p)
         except FileNotFoundError as exc:
             return jsonify({'error': str(exc)}), 404
         except (OSError, json.JSONDecodeError) as exc:
             return jsonify({'error': f'No se pudo leer sweep_manifest.json: {exc}'}), 422
+        folders = [sim['folder'] for sim in manifest.get('simulations', [])]
+    else:
+        try:
+            manifest = _read_sweep_manifest(root_p)
+        except (OSError, json.JSONDecodeError, FileNotFoundError):
+            manifest = None
 
     if not folders:
         return jsonify({'error': 'El barrido no tiene simulaciones que ejecutar.'}), 422
 
+    is_spectrum = bool(manifest) and manifest.get('sweep_type') == 'spectrum'
+
     cfg = _load_runner_config()
     exe_name = cfg['exe_name']
     timeout_s = cfg['timeout_s']
-    required_files = cfg['required_files']
     output_file = cfg['output_file']
 
     missing_dirs, missing_files, existing_outputs = [], {}, []
-    for folder in folders:
-        wd = root_p / folder
-        if not wd.is_dir():
-            missing_dirs.append(folder)
-            continue
-        missing = [f for f in required_files if not (wd / f).exists()]
-        if missing:
-            missing_files[folder] = missing
-        if (wd / output_file).exists():
-            existing_outputs.append(folder)
+    if is_spectrum:
+        for folder in folders:
+            wd = root_p / folder
+            if not wd.is_dir():
+                missing_dirs.append(folder)
+                continue
+            missing = [f for f in (exe_name, *_SPECTRUM_SIM_REQUIRED_FILES)
+                      if not (wd / f).exists()]
+            collaps_dir = wd / 'collaps'
+            missing += [f'collaps/{f}' for f
+                       in (_COLLAPS_EXE_NAME, *_SPECTRUM_COLLAPS_REQUIRED_FILES)
+                       if not (collaps_dir / f).exists()]
+            if missing:
+                missing_files[folder] = missing
+            if (wd / output_file).exists():
+                existing_outputs.append(folder)
+    else:
+        required_files = cfg['required_files']
+        for folder in folders:
+            wd = root_p / folder
+            if not wd.is_dir():
+                missing_dirs.append(folder)
+                continue
+            missing = [f for f in required_files if not (wd / f).exists()]
+            if missing:
+                missing_files[folder] = missing
+            if (wd / output_file).exists():
+                existing_outputs.append(folder)
 
     if missing_dirs:
         return jsonify({'error':
@@ -490,16 +561,21 @@ def api_run_batch():
             'existing_outputs': existing_outputs,
         }), 422
 
-    jobs = [{'workdir': str(root_p / folder)} for folder in folders]
-    # Cada subcarpeta lleva su propia copia del ejecutable (la sweep copia el
-    # contenido de la carpeta base). El comando se formatea por-job con el
-    # workdir de cada uno (soporte '{workdir}' de runner.start_batch); se
-    # entrecomilla en Windows para tolerar espacios en la ruta (en POSIX las
-    # comillas formarían parte literal del nombre de fichero, así que no se
-    # añaden).
-    exe_join = str(Path('{workdir}') / exe_name)
-    cmd_template = f'"{exe_join}"' if os.name == 'nt' else exe_join
     results_path = str(root_p / 'batch_results.json')
+
+    if is_spectrum:
+        jobs = _build_spectrum_pipeline_jobs(root_p, folders, exe_name, _COLLAPS_EXE_NAME)
+        cmd_template = ''  # no usado: cada job del pipeline lleva sus propios 'steps'
+    else:
+        jobs = [{'workdir': str(root_p / folder)} for folder in folders]
+        # Cada subcarpeta lleva su propia copia del ejecutable (la sweep copia el
+        # contenido de la carpeta base). El comando se formatea por-job con el
+        # workdir de cada uno (soporte '{workdir}' de runner.start_batch); se
+        # entrecomilla en Windows para tolerar espacios en la ruta (en POSIX las
+        # comillas formarían parte literal del nombre de fichero, así que no se
+        # añaden).
+        exe_join = str(Path('{workdir}') / exe_name)
+        cmd_template = f'"{exe_join}"' if os.name == 'nt' else exe_join
 
     try:
         runner.start_batch(jobs=jobs, cmd_template=cmd_template,
@@ -508,8 +584,10 @@ def api_run_batch():
     except runner.RunnerBusyError as exc:
         return jsonify({'error': str(exc)}), 409
 
-    global _last_batch_root
+    global _last_batch_root, _last_batch_pipeline_steps
     _last_batch_root = str(root_p)
+    _last_batch_pipeline_steps = (
+        ['collaps', 'copy', 'acab', 'check_flux'] if is_spectrum else None)
 
     return jsonify({'ok': True, 'n': len(folders), 'root': str(root_p)})
 

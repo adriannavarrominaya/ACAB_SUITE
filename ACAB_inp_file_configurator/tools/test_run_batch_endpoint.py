@@ -14,6 +14,7 @@ import json
 import shutil
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -23,10 +24,10 @@ import app as app_module  # noqa: E402
 import runner  # noqa: E402
 
 
-def _write_manifest(root: Path, folders):
+def _write_manifest(root: Path, folders, sweep_type: str = 'flux'):
     manifest = {
         'timestamp': '2026-01-01T00:00:00+00:00',
-        'sweep_type': 'flux',
+        'sweep_type': sweep_type,
         'description': 'test',
         'fixed_params': {},
         'n': len(folders),
@@ -72,6 +73,7 @@ class RunBatchEndpointTestCase(unittest.TestCase):
             pass
         runner._runner._reset_state()
         app_module._last_batch_root = None
+        app_module._last_batch_pipeline_steps = None
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     # ── Pre-checks 422 / 404 ─────────────────────────────────────────
@@ -190,6 +192,200 @@ class RunBatchEndpointTestCase(unittest.TestCase):
         }):
             res = self.client.get('/api/run/status')
             self.assertEqual(res.get_json()['status']['root'], str(self.tmp))
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Barrido espectral (Fase P4, D7 del RUNBOOK_barrido_espectral.md): pipeline
+# real encadenado (collaps -> copy XSECTION.dat -> acab -> check_flux) con
+# ejecutables falsos .bat, SIN mockear runner.start_batch — verifica el
+# encadenado real, no solo la construcción de jobs.
+# ═══════════════════════════════════════════════════════════════════════
+
+# Fixture de FLUX.inf (mismo formato que tools/test_runner.py): REAL TOTAL
+# FLUX=6.6700E+13, AVERAGE ENERGY=6.2744E-07 MeV.
+_FLUX_INF_FIXTURE = """  ILIB,IESF =            2           5
+  ngroup,ff =           -3           0
+ REAL TOTAL FLUX AND AVERAGE ENERGY (MeV)
+ 6.6700E+13
+ 6.2744E-07
+"""
+
+# El falso collaps: crea XSECTION.dat y copia la plantilla de FLUX.inf.
+_COLLAPS_OK_BAT = (
+    '@echo off\r\n'
+    'echo fake-xsection > XSECTION.dat\r\n'
+    'copy /Y _flux_template.inf FLUX.inf >nul\r\n'
+    'exit /b 0\r\n'
+)
+# El falso collaps que falla: no crea nada, sale con código != 0.
+_COLLAPS_FAIL_BAT = (
+    '@echo off\r\n'
+    'exit /b 1\r\n'
+)
+# El falso acab: falla si XSECTION.dat no existe en su cwd; si existe, crea
+# fort.6 (verifica que el paso 'copy' del pipeline corrió antes).
+_ACAB_BAT = (
+    '@echo off\r\n'
+    'if not exist XSECTION.dat exit /b 1\r\n'
+    'echo fake-fort6 > fort.6\r\n'
+    'exit /b 0\r\n'
+)
+
+
+def _make_spectrum_sim_folder(root: Path, folder: str, *, collaps_ok: bool = True) -> Path:
+    """Carpeta de sim del barrido espectral: acab.bat/inp.5/DECAY.dat en la
+    raíz + collaps/ con collaps.bat/COLL.inp/XSBL.dat (convención D6)."""
+    d = root / folder
+    d.mkdir(parents=True)
+    (d / 'acab.bat').write_text(_ACAB_BAT, encoding='utf-8')
+    (d / 'inp.5').write_text('x', encoding='utf-8')
+    (d / 'DECAY.dat').write_text('x', encoding='utf-8')
+
+    collaps_dir = d / 'collaps'
+    collaps_dir.mkdir()
+    (collaps_dir / 'XSBL.dat').write_text('x', encoding='utf-8')
+    (collaps_dir / 'COLL.inp').write_text('x', encoding='utf-8')
+    (collaps_dir / '_flux_template.inf').write_text(
+        _FLUX_INF_FIXTURE, encoding='utf-8')
+    (collaps_dir / 'collaps.bat').write_text(
+        _COLLAPS_OK_BAT if collaps_ok else _COLLAPS_FAIL_BAT, encoding='utf-8')
+    return d
+
+
+def _wait_batch_done(client, timeout: float = 20.0, poll: float = 0.1) -> dict:
+    """Sondea /api/run/status (no runner.status() directo) para recoger el
+    enriquecimiento de app.py: 'root' y 'pipeline_steps' (D7)."""
+    t0 = time.monotonic()
+    s = {}
+    while time.monotonic() - t0 < timeout:
+        s = client.get('/api/run/status').get_json()['status']
+        if s.get('mode') == 'batch' and not s.get('running', True):
+            return s
+        time.sleep(poll)
+    return s
+
+
+class TestSpectrumPipelineEndToEnd(unittest.TestCase):
+    """Barrido espectral: no se mockea runner.start_batch, así que estos
+    tests lanzan de verdad los .bat falsos y esperan a que la cola acabe."""
+
+    def setUp(self):
+        self.client = app_module.app.test_client()
+        self.tmp = Path(tempfile.mkdtemp(prefix='run_batch_spectrum_test_'))
+
+        self._suite_dir_patch = patch.object(app_module, '_suite_dir', return_value=None)
+        self._suite_dir_patch.start()
+        self._local_cfg_patch = patch.object(
+            app_module, '_local_run_config_path',
+            return_value=self.tmp / 'run_config.json')
+        self._local_cfg_patch.start()
+        # collaps.exe no es configurable en la app (constante de módulo, D7);
+        # se sustituye por un .bat falso solo para el test.
+        self._collaps_exe_patch = patch.object(
+            app_module, '_COLLAPS_EXE_NAME', 'collaps.bat')
+        self._collaps_exe_patch.start()
+        app_module._save_runner_config({'exe_name': 'acab.bat'})
+
+    def tearDown(self):
+        self._collaps_exe_patch.stop()
+        self._local_cfg_patch.stop()
+        self._suite_dir_patch.stop()
+        try:
+            runner.cancel()
+        except Exception:
+            pass
+        runner._runner._reset_state()
+        app_module._last_batch_root = None
+        app_module._last_batch_pipeline_steps = None
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_chained_pipeline_real_execution(self):
+        _write_manifest(self.tmp, ['sim_0', 'sim_1'], sweep_type='spectrum')
+        # sim_0: el collaps falso FALLA -> el pipeline debe pararse en el
+        # paso 0, sin copiar XSECTION.dat ni intentar ejecutar acab.
+        d0 = _make_spectrum_sim_folder(self.tmp, 'sim_0', collaps_ok=False)
+        # sim_1: pipeline completo, todos los pasos ok. La cola debe seguir
+        # con esta sim aunque la anterior haya fallado.
+        d1 = _make_spectrum_sim_folder(self.tmp, 'sim_1', collaps_ok=True)
+
+        res = self.client.post('/api/run/batch', json={'root': str(self.tmp)})
+        self.assertEqual(res.status_code, 200, res.get_json())
+
+        s = _wait_batch_done(self.client)
+        self.assertFalse(s['running'])
+        self.assertEqual(
+            s.get('pipeline_steps'), ['collaps', 'copy', 'acab', 'check_flux'])
+
+        job0, job1 = s['jobs']
+
+        self.assertEqual(job0['estado'], 'failed')
+        self.assertEqual(job0['step_index'], 0)
+        self.assertEqual(len(job0['steps']), 1)
+        self.assertEqual(job0['steps'][0]['type'], 'run')
+        self.assertEqual(job0['steps'][0]['estado'], 'failed')
+        self.assertFalse((d0 / 'XSECTION.dat').exists())
+        self.assertFalse((d0 / 'fort.6').exists())
+
+        self.assertEqual(job1['estado'], 'ok')
+        self.assertEqual(len(job1['steps']), 4)
+        run_collaps, copy_step, run_acab, flux_step = job1['steps']
+
+        self.assertEqual(run_collaps['type'], 'run')
+        self.assertEqual(run_collaps['estado'], 'ok')
+        self.assertTrue((d1 / 'collaps' / 'XSECTION.dat').exists())
+
+        self.assertEqual(copy_step['type'], 'copy')
+        self.assertEqual(copy_step['estado'], 'ok')
+        self.assertTrue((d1 / 'XSECTION.dat').exists())
+
+        self.assertEqual(run_acab['type'], 'run')
+        self.assertEqual(run_acab['estado'], 'ok')
+        self.assertTrue((d1 / 'fort.6').exists())
+
+        self.assertEqual(flux_step['type'], 'check_flux')
+        self.assertEqual(flux_step['estado'], 'ok')
+        self.assertAlmostEqual(
+            flux_step['data']['real_total_flux'], 6.6700e13, delta=1e9)
+        self.assertAlmostEqual(
+            flux_step['data']['average_energy_mev'], 6.2744e-07, delta=1e-10)
+
+        with open(self.tmp / 'batch_results.json', 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        self.assertEqual(data['resumen']['total'], 2)
+        self.assertEqual(data['resumen']['ok'], 1)
+        self.assertEqual(data['resumen']['fallos'], 1)
+
+    def test_missing_collaps_files_returns_422(self):
+        _write_manifest(self.tmp, ['sim_0'], sweep_type='spectrum')
+        d = self.tmp / 'sim_0'
+        d.mkdir()
+        (d / 'acab.bat').write_text(_ACAB_BAT, encoding='utf-8')
+        (d / 'inp.5').write_text('x', encoding='utf-8')
+        (d / 'DECAY.dat').write_text('x', encoding='utf-8')
+        # Sin subcarpeta collaps/: deben faltar collaps.bat, COLL.inp, XSBL.dat.
+
+        res = self.client.post('/api/run/batch', json={'root': str(self.tmp)})
+        self.assertEqual(res.status_code, 422)
+        err = res.get_json()['error']
+        self.assertIn('collaps/collaps.bat', err)
+        self.assertIn('collaps/COLL.inp', err)
+        self.assertIn('collaps/XSBL.dat', err)
+
+    def test_xsection_not_required_upfront(self):
+        # A diferencia del pre-check legacy, XSECTION.dat NO se exige antes
+        # de arrancar el barrido espectral: lo genera el propio pipeline.
+        _write_manifest(self.tmp, ['sim_0'], sweep_type='spectrum')
+        _make_spectrum_sim_folder(self.tmp, 'sim_0', collaps_ok=True)
+
+        with patch.object(runner, 'start_batch') as mock_start:
+            res = self.client.post('/api/run/batch', json={'root': str(self.tmp)})
+            self.assertEqual(res.status_code, 200, res.get_json())
+            mock_start.assert_called_once()
+            _, kwargs = mock_start.call_args
+            jobs = kwargs['jobs']
+            self.assertEqual(len(jobs), 1)
+            self.assertIn('steps', jobs[0])
+            self.assertEqual(len(jobs[0]['steps']), 4)
 
 
 if __name__ == '__main__':
