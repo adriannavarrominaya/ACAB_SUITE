@@ -25,7 +25,17 @@
     {
       "name": "collaps",
       "path": "../COLLAPS_inp_file_configurator",
-      "port": 5002
+      "port": 5002,
+      "runner": {
+        "exe_name": "collaps.exe",
+        "required_files": [
+          "COLL.inp",
+          "XSBL.dat"
+        ],
+        "output_file": "XSECTION.dat",
+        "timeout_s": 60,
+        "default_workdir": "C:\\trabajo\\Jose\\acab\\Programa COLLAPS - Neutrones Térmicos"
+      }
     }
   ],
   "open_browser": "http://127.0.0.1:5000",

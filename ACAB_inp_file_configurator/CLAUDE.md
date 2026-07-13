@@ -18,21 +18,11 @@ de la carpeta padre).
 - `acab_parser.py` — `ACABParser.read_inp5()`: parser de los 14 bloques. Tokenizador
   FORTRAN libre (D-exp, bare-exp tipo `3.2336+27`, comentarios con `<`). Los errores
   deben incluir el bloque en curso y el token ofensivo (`_ctx_msg`).
-- `app.py` — rutas + writer `_write_inp5()` y `_sci(v, prec=6)`. TODO fichero inp.5
-  que salga de la app pasa por `_write_inp5`; nunca duplicar lógica de formato.
-- `static/js/app.js` — lógica de UI y `validateAll()` con las validaciones cruzadas
-  V01–V25. Toda validación nueva sigue esa numeración y se cubre en `tools/test_validate_all.js`.
-- `static/js/calc_utils.js` — funciones de cálculo PURAS (sin DOM), testeables con
-  node. Todo cálculo nuevo de frontend va aquí con su test, no dentro de app.js.
-- `static/js/sweep_utils.js` — funciones PURAS del barrido paramétrico (mallas
-  `buildBlocks78`/`calcularVectorTiempos` compartidas con el generador temporal,
-  `buildFluxPatches`/`buildMassPatches`/`buildTimePatches`, `parseSweepValues`,
-  `proposeSuffix`). Test: `tools/test_sweep_utils.js`.
-- `sweep_writer.py` + `static/js/sweep.js` + pestaña "Barrido" en `index.html` —
-  generador de barridos: el cliente calcula un `patch` por simulación y el
-  endpoint genérico `/api/sweep` lo fusiona (merge recursivo) sobre el fichero
-  base, escribe con `_write_inp5`, verifica round-trip, copia la carpeta base y
-  escribe manifest/README/scripts. Test: `tools/test_sweep_endpoint.py`.
+- `app.py` — rutas + writer `_write_coll_inp()`. [...texto actual...] Todo COL.inp generado pasa por este writer. ⚠ Copia sincronizada: si se modifica el writer, replicar en `ACAB_inp_file_configurator/coll_writer.py`. ⚠ Copia sincronizada: si se modifica el writer, replicar en `ACAB_inp_file_configurator/coll_writer.py`.
+- `static/js/app.js` — lógica de UI y `validateAll()` con las validaciones cruzadas V01–V25. Toda validación nueva sigue esa numeración y se cubre en `tools/test_validate_all.js`.
+- `static/js/calc_utils.js` — funciones de cálculo PURAS (sin DOM), testeables con node. Todo cálculo nuevo de frontend va aquí con su test, no dentro de app.js.
+- `static/js/sweep_utils.js` — funciones PURAS del barrido paramétrico (mallas `buildBlocks78`/`calcularVectorTiempos` compartidas con el generador temporal, `buildFluxPatches`/`buildMassPatches`/`buildTimePatches`, `parseSweepValues`, `proposeSuffix`). Test: `tools/test_sweep_utils.js`.
+- `sweep_writer.py` + `static/js/sweep.js` + pestaña "Barrido" en `index.html` —  generador de barridos: el cliente calcula un `patch` por simulación y el endpoint genérico `/api/sweep` lo fusiona (merge recursivo) sobre el fichero base, escribe con `_write_inp5`, verifica round-trip, copia la carpeta base y escribe manifest/README/scripts. Test: `tools/test_sweep_endpoint.py`.
 - `static/data/` — `atomic_data.json` (masas atómicas CIAAW), `egrp_presets.json`.
 - `runner.py` — **común de la suite, mantener sincronizado** con la copia de
   `COLLAPS_inp_file_configurator/runner.py`: motor de ejecución single/batch
@@ -42,27 +32,29 @@ de la carpeta padre).
   Config de invocación (exe_name, required_files, output_file, timeout_s) en
   `acab_suite/README.md` §"Invocación de los códigos". Test: `tools/test_runner.py`,
   `tools/test_run_endpoints.py`.
-- `/api/run/batch` (Fase R4 del runbook runner v2) — ejecución en cola de un
-  barrido completo desde la pestaña "Barrido": body `{root, folders?, overwrite}`;
-  si no se pasan `folders` los lee de `root/sweep_manifest.json` (404 si no
-  existe). Cada subcarpeta lleva su propia copia del ejecutable (la sweep
-  copia la carpeta base), así que el `cmd_template` pasado a `runner.start_batch`
-  usa el marcador `{workdir}` para resolverse por-job; `batch_results.json`
-  queda en la raíz. UI en `static/js/sweep.js` (panel tras generar + "Ejecutar
-  un barrido existente"), pestaña Barrido en `index.html`. Test:
-  `tools/test_run_batch_endpoint.py`.
+- `/api/run/batch` (Fase R4 del runbook runner v2) — ejecución en cola de un barrido completo desde la pestaña "Barrido": body `{root, folders?, overwrite}`; si no se pasan `folders` los lee de `root/sweep_manifest.json` (404 si no existe). Cada subcarpeta lleva su propia copia del ejecutable (la sweep copia la carpeta base), así que el `cmd_template` pasado a `runner.start_batch` usa el marcador `{workdir}` para resolverse por-job; `batch_results.json` queda en la raíz. UI en `static/js/sweep.js` (panel tras generar + "Ejecutar un barrido existente"), pestaña Barrido en `index.html`. Test: `tools/test_run_batch_endpoint.py`.
 - `chains_handler.py` + `templates/chains.html` + `static/js/chains.js` — utilidad CHAINS.
 - `docs/Block#*.md`, `docs/chainsCode.md`, `docs/inp.5.md` — manual del formato.
+- `collaps_parser.py` — `COLLAPSParser.read_coll_inp()`: parser de las 9 tarjetas.
+  Mismo tokenizador FORTRAN que la suite (D-exp, bare-exp). ⚠ Copia sincronizada: si se modifica este parser, replicar en`ACAB_inp_file_configurator/coll_writer.py`.
   **Fuente de verdad**: ante cualquier duda de formato o semántica de un parámetro,
   consultar aquí antes que suponer. Directorio de solo lectura: no editar.
 - `generador_acab.py` — [LEGACY] GUI Tkinter de mallas temporales; su lógica ya está extraída a static/js/sweep_utils.js (buildBlocks78) y el generador web de la pestaña temporal la usa. No invertir más en él.
 - `examples/` — ficheros inp.5 reales; casos oro de regresión.
+- `tests/fixtures/spectra/` — espectros CONDERC de referencia para el barrido
+  espectral: `112_MURR-G1.txt` (caso oro del parser: 112 grupos, energías en eV
+  decrecientes, línea TOTAL como checksum), `sneg_2-6` (extremo grueso, 6 grupos:
+  test del aviso direccional) y `br2-621` (extremo fino, 621 grupos).
+- `tests/fixtures/COLL.inp` — COLL.inp de referencia (211 grupos, NGROUP=-211)
+  para el round-trip de `coll_writer.py`. Regla: los fixtures viven junto a los
+  tests que los consumen — la suite de este repo es autocontenida y no depende
+  de ficheros de otros repos.
 
 ## Tests (obligatorio en verde antes de cada commit)
 
 ```bash
-python tools/regression_roundtrip.py examples/<ficheros oro>
-python tools/test_parser_robustness.py examples/<inp.5 de referencia>
+python tools/regression_roundtrip.py "examples/exp1.inp.5" "examples/exp2.inp.5" "examples/exp3.inp.5" "examples/exp4.inp.5"
+python tools/test_parser_robustness.py "examples/exp1.inp.5"
 node tools/test_calc_utils.js
 node tools/test_validate_all.js
 node tools/test_sweep_utils.js
@@ -70,6 +62,8 @@ python tools/test_sweep_endpoint.py
 python tools/test_runner.py
 python tools/test_run_endpoints.py
 python tools/test_run_batch_endpoint.py
+node tools/test_conderc_import.js
+python tools/test_coll_writer.py
 ```
 
 Los tests nuevos se añaden en `tools/` siguiendo el estilo existente (scripts
@@ -84,6 +78,13 @@ autocontenidos ejecutables directamente, sin framework).
 - **Limitación documentada, no "arreglar" sin decisión explícita**: `_sci` formatea
   reales a 7 cifras significativas (README §10); originales con más cifras se
   redondean al regenerar.
+- **`regression_roundtrip.py` y `test_parser_robustness.py` no tienen fichero por
+  defecto**: sin argumentos, imprimen el `__doc__` y salen con código 2 (no
+  confundir con "todo OK"). Los 4 "patrones oro" (`exp1.inp.5`…`exp4.inp.5`, 6
+  decimales) son los únicos ficheros de `examples/` pensados para el round-trip;
+  el resto de `examples/` (`inp (N).5`, `Activation of TeO2 Experiment 1.5`, etc.)
+  tiene valores con más de 7 cifras significativas y falla el round-trip por la
+  limitación de precisión de arriba — eso es esperado, no una regresión.
 - El writer no debe fabricar valores silenciosos: lista de reales vacía donde se
   esperan datos → error claro con el nombre del campo (comportamiento actual, conservar).
 - INPT condiciona la interpretación del Bloque #5 (1/2 = átomos/barn·cm, 3 = g/cc);

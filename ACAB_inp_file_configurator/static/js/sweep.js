@@ -13,6 +13,12 @@
   const LS_KEYS = { root: 'acab-sweep-root', base: 'acab-sweep-base', prefix: 'acab-sweep-prefix' };
   let _lastPatches = [];   // [{params, patch, suffix}] tras "Previsualizar"
 
+  // ── Barrido espectral (Fase P3 del RUNBOOK_barrido_espectral.md) ─────────
+  const XSBL_LIBRARY_NGROUP = 211;   // D5: constante de configuración (grupos de la librería XSBL)
+  let _spectrumRows = [];            // [{id, label, suffix, parsed, indices, patch}]
+  let _spectrumRowSeq = 0;
+  let _spectrumPhiRefEdited = false; // D1: solo se parchea block3 si el usuario edita φ_ref
+
   const $ = id => document.getElementById(id);
 
   function humanBytes(n) {
@@ -68,11 +74,12 @@
   // ── Paneles por tipo ─────────────────────────────────────────────────────
   function syncTypePanels() {
     const type = currentType();
-    ['flux', 'mass', 'time'].forEach(k =>
+    ['flux', 'mass', 'time', 'spectrum'].forEach(k =>
       $(`sweep-panel-${k}`).classList.toggle('d-none', k !== type));
     if (type === 'flux') refreshFluxInfo();
     if (type === 'mass') refreshMassPanel();
     if (type === 'time') ensureTimeRow();
+    if (type === 'spectrum') refreshSpectrumPanel();
     hidePreview();
   }
 
@@ -147,6 +154,174 @@
     return out;
   }
 
+  // ── Panel: Espectro (COLLAPS) — Fase P3 del RUNBOOK_barrido_espectral.md ──
+  // Reutiliza conderc_import.js (P2) para parseo (parseConderc), índices
+  // (spectralIndices) y patch (buildSpectrumPatch); esta capa solo hace UI.
+
+  function spectrumPhiRefBase() {
+    const flux = (appState.data && appState.data.block3 && appState.data.block3.FLUX) || [];
+    return flux.reduce((a, b) => a + (Number(b) || 0), 0);
+  }
+
+  function refreshSpectrumPanel() {
+    if (!appState.data) appState.data = {};
+    collectAll(appState.data);
+    const el = $('sweep-spectrum-phiref');
+    if (el && !_spectrumPhiRefEdited) {
+      const base = spectrumPhiRefBase();
+      el.value = Number.isFinite(base) && base > 0 ? base.toExponential(4) : '';
+    }
+    renderSpectrumRows();
+  }
+
+  function _sanitizeSuffix(s) {
+    const clean = String(s == null ? '' : s).trim().replace(/[^A-Za-z0-9._+-]/g, '_');
+    return clean || 'espectro';
+  }
+
+  function _uniqueAmong(base, taken) {
+    if (!taken.includes(base)) return base;
+    let i = 2;
+    while (taken.includes(`${base}_${i}`)) i++;
+    return `${base}_${i}`;
+  }
+
+  async function handleSpectrumFiles(fileList) {
+    for (const file of fileList) {
+      let text;
+      try {
+        text = await file.text();
+      } catch (_) {
+        setMsg('danger', t('sweep.err_spectrum_read').replace('{file}', file.name));
+        continue;
+      }
+      addSpectrumRow(file.name, text);
+    }
+  }
+
+  function addSpectrumRow(filename, text) {
+    let parsed, indices, patch;
+    try {
+      parsed = parseConderc(text);
+      indices = spectralIndices(parsed.boundaries_eV, parsed.data);
+      patch = buildSpectrumPatch(parsed, { cxUnit: 'MeV' });
+    } catch (e) {
+      setMsg('danger', t('sweep.err_spectrum_parse').replace('{file}', filename).replace('{err}', e.message));
+      return;
+    }
+    const baseLabel = filename.replace(/\.[^./\\]+$/, '') || filename;
+    const takenSuffixes = _spectrumRows.map(r => r.suffix);
+    const suffix = _uniqueAmong(_sanitizeSuffix(baseLabel), takenSuffixes);
+    _spectrumRows.push({
+      id: ++_spectrumRowSeq, label: baseLabel, suffix, parsed, indices, patch,
+    });
+    clearMsg();
+    renderSpectrumRows();
+    hidePreview();
+  }
+
+  function renderSpectrumRows() {
+    const tb = $('sweep-spectrum-tbody');
+    if (!tb) return;
+    tb.innerHTML = '';
+    _spectrumRows.forEach(row => {
+      const tr = document.createElement('tr');
+
+      const tdLabel = document.createElement('td');
+      const labelInput = document.createElement('input');
+      labelInput.type = 'text';
+      labelInput.className = 'form-control form-control-sm font-monospace';
+      labelInput.value = row.label;
+      labelInput.addEventListener('input', () => { row.label = labelInput.value; hidePreview(); });
+      tdLabel.appendChild(labelInput);
+      tr.appendChild(tdLabel);
+
+      const tdN = document.createElement('td');
+      tdN.className = 'text-center font-monospace';
+      tdN.textContent = row.parsed.n;
+      tr.appendChild(tdN);
+
+      const tdOrder = document.createElement('td');
+      tdOrder.className = 'text-center';
+      tdOrder.textContent = row.parsed.orden === 'decreciente'
+        ? t('sweep.spectrum_order_desc') : t('sweep.spectrum_order_asc');
+      tdOrder.title = t('sweep.spectrum_order_confirm');
+      tr.appendChild(tdOrder);
+
+      const tdChecksum = document.createElement('td');
+      tdChecksum.className = 'text-center';
+      tdChecksum.innerHTML = `<span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>${t('sweep.spectrum_checksum_ok')}</span>`;
+      tr.appendChild(tdChecksum);
+
+      const tdThermal = document.createElement('td');
+      tdThermal.className = 'text-center font-monospace';
+      tdThermal.textContent = `${(row.indices.frac_termica * 100).toFixed(1)}%`;
+      tr.appendChild(tdThermal);
+
+      const tdWarn = document.createElement('td');
+      tdWarn.className = 'text-center';
+      if (row.parsed.n < XSBL_LIBRARY_NGROUP) {
+        tdWarn.innerHTML = '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill"></i></span>';
+        tdWarn.title = t('sweep.spectrum_warn_directional');
+      }
+      tr.appendChild(tdWarn);
+
+      const tdDel = document.createElement('td');
+      tdDel.className = 'text-center';
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'btn btn-sm btn-outline-danger p-1 lh-1';
+      delBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
+      delBtn.addEventListener('click', () => {
+        _spectrumRows = _spectrumRows.filter(r => r.id !== row.id);
+        renderSpectrumRows();
+        hidePreview();
+      });
+      tdDel.appendChild(delBtn);
+      tr.appendChild(tdDel);
+
+      tb.appendChild(tr);
+    });
+
+    const empty = $('sweep-spectrum-empty');
+    if (empty) empty.classList.toggle('d-none', _spectrumRows.length > 0);
+
+    updateSpectrumPlot();
+  }
+
+  function updateSpectrumPlot() {
+    const div = $('sweep-spectrum-plot');
+    if (!div || typeof Plotly === 'undefined') return;
+    if (_spectrumRows.length === 0) {
+      Plotly.purge(div);
+      div.classList.add('d-none');
+      return;
+    }
+    div.classList.remove('d-none');
+
+    const traces = _spectrumRows.map(row => {
+      const { boundaries_eV, data, total } = row.parsed;
+      const x = [], y = [];
+      for (let i = 0; i < data.length; i++) {
+        const eHi = Math.max(boundaries_eV[i], boundaries_eV[i + 1]);
+        const eLo = Math.min(boundaries_eV[i], boundaries_eV[i + 1]);
+        if (!(eHi > eLo) || eLo <= 0) continue;
+        const width = Math.log(eHi / eLo);
+        const dNorm = total > 0 ? data[i] / total : data[i];
+        x.push(Math.sqrt(eHi * eLo));
+        y.push(dNorm / width);
+      }
+      return { x, y, mode: 'lines', type: 'scatter', name: row.label };
+    });
+
+    Plotly.newPlot(div, traces, {
+      margin: { t: 20, r: 20, b: 45, l: 55 },
+      xaxis: { title: t('sweep.spectrum_plot_x'), type: 'log' },
+      yaxis: { title: t('sweep.spectrum_plot_y'), type: 'log' },
+      legend: { orientation: 'h' },
+    }, { displaylogo: false, responsive: true });
+  }
+
   // ── Construcción de patches (cliente) ────────────────────────────────────
   function buildPatches() {
     const type = currentType();
@@ -176,22 +351,45 @@
       return list.map(p => ({ ...p, suffix: proposeSuffix('mass', p.params.mass) }));
     }
 
-    // temporal
-    const rows = [...$('sweep-time-tbody').querySelectorAll('tr')].map(tr => ({
-      t_irr_fin:  parseFloat(tr.querySelector('.sweep-t-irr').value),
-      pasos_irr:  parseInt(tr.querySelector('.sweep-p-irr').value, 10),
-      t_cool_fin: parseFloat(tr.querySelector('.sweep-t-cool').value),
-      pasos_cool: parseInt(tr.querySelector('.sweep-p-cool').value, 10),
-    }));
-    if (rows.length === 0) throw new Error(t('sweep.err_no_rows'));
-    const iunit = getInt('b78-iunit') || 3;
-    const iout  = $('b78-iout')?.checked ? 1 : 0;
-    const iplot = $('b78-iplot')?.checked ? 1 : 0;
-    const list = buildTimePatches(rows, { iunit, iout, iplot, t, ...baseFases() });
-    return list.map(p => ({
-      ...p,
-      suffix: proposeSuffix('time',
-        Number.isFinite(p.params.t_irr_fin) ? p.params.t_irr_fin : p.params.t_cool_fin),
+    if (type === 'time') {
+      const rows = [...$('sweep-time-tbody').querySelectorAll('tr')].map(tr => ({
+        t_irr_fin:  parseFloat(tr.querySelector('.sweep-t-irr').value),
+        pasos_irr:  parseInt(tr.querySelector('.sweep-p-irr').value, 10),
+        t_cool_fin: parseFloat(tr.querySelector('.sweep-t-cool').value),
+        pasos_cool: parseInt(tr.querySelector('.sweep-p-cool').value, 10),
+      }));
+      if (rows.length === 0) throw new Error(t('sweep.err_no_rows'));
+      const iunit = getInt('b78-iunit') || 3;
+      const iout  = $('b78-iout')?.checked ? 1 : 0;
+      const iplot = $('b78-iplot')?.checked ? 1 : 0;
+      const list = buildTimePatches(rows, { iunit, iout, iplot, t, ...baseFases() });
+      return list.map(p => ({
+        ...p,
+        suffix: proposeSuffix('time',
+          Number.isFinite(p.params.t_irr_fin) ? p.params.t_irr_fin : p.params.t_cool_fin),
+      }));
+    }
+
+    // spectrum (Fase P3): D1 — φ_ref solo se parchea (uniforme, todas las
+    // sims) si el usuario lo edita; el resto del inp.5 queda intacto.
+    if (_spectrumRows.length === 0) throw new Error(t('sweep.err_no_spectra'));
+    let block3Patch = null;
+    if (_spectrumPhiRefEdited) {
+      const phiRef = parseFloat(getVal('sweep-spectrum-phiref'));
+      if (!Number.isFinite(phiRef) || phiRef <= 0) throw new Error(t('sweep.err_bad_phiref'));
+      block3Patch = { block3: { FLUX: [phiRef] } };
+    }
+    return _spectrumRows.map(row => ({
+      params: {
+        espectro: row.label,
+        n_grupos: row.parsed.n,
+        frac_termica: row.indices.frac_termica,
+        frac_epitermica: row.indices.frac_epitermica,
+        frac_rapida: row.indices.frac_rapida,
+      },
+      patch: block3Patch || {},
+      coll_patch: row.patch,
+      suffix: row.suffix,
     }));
   }
 
@@ -299,6 +497,11 @@
       const f = getVal('sweep-mass-formula'); if (f) fp.formula = f;
       const v = getVal('sweep-mass-vol');     if (v) fp.volumen_cc = v;
     }
+    if (type === 'spectrum') {
+      const phiRef = parseFloat(getVal('sweep-spectrum-phiref'));
+      if (Number.isFinite(phiRef) && phiRef > 0) fp.phi_ref = phiRef.toExponential(4);
+      fp.libreria_ngroup = XSBL_LIBRARY_NGROUP;
+    }
     return fp;
   }
 
@@ -313,7 +516,10 @@
         !window.confirm(t('sweep.confirm_many').replace('{n}', n))) return;
 
     // Re-sincronizar sufijos editados en la tabla
-    const sims = _lastPatches.map(p => ({ suffix: p.suffix, params: p.params, patch: p.patch }));
+    const sims = _lastPatches.map(p => ({
+      suffix: p.suffix, params: p.params, patch: p.patch,
+      ...(p.coll_patch ? { coll_patch: p.coll_patch } : {}),
+    }));
 
     const payload = {
       root: getVal('sweep-root'), base_folder: getVal('sweep-base'),
@@ -586,6 +792,17 @@
     $('sweep-time-add')?.addEventListener('click', () => { addTimeRow(); hidePreview(); });
     $('sweep-preview-btn')?.addEventListener('click', doPreview);
     $('sweep-generate-btn')?.addEventListener('click', () => doGenerate(false));
+
+    $('sweep-spectrum-add')?.addEventListener('click', () => $('sweep-spectrum-file').click());
+    $('sweep-spectrum-file')?.addEventListener('change', async (e) => {
+      const files = [...e.target.files];
+      await handleSpectrumFiles(files);
+      e.target.value = '';
+    });
+    $('sweep-spectrum-phiref')?.addEventListener('input', () => {
+      _spectrumPhiRefEdited = true;
+      hidePreview();
+    });
 
     document.querySelectorAll('.sweep-browse-btn').forEach(btn =>
       btn.addEventListener('click', () => browseFolder(btn)));

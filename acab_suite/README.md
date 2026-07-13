@@ -74,25 +74,37 @@ demás (ver comentario de cabecera en los propios ficheros).
 
 ## Runbooks
 
-- `RUNBOOK_suite_y_runner.md` — Parte A (puertos/banner/launcher, implementada).
-  Su Parte B (runner de ejecución) queda sustituida íntegramente por
-  `RUNBOOK_runner_v2.md`.
+Estado a 2026-07-13. Cada runbook lleva además una línea de estado en su cabecera.
+
+- `RUNBOOK_suite_y_runner.md` — Parte A (puertos/banner/launcher): ✅ implementada.
+  Su Parte B queda sustituida íntegramente por `RUNBOOK_runner_v2.md`.
 - `RUNBOOK_runner_v2.md` — runner de ejecución de ACAB/COLLAPS desde las
-  interfaces. Fases R0-R5 completadas: `runner.py` (con cola) en COLLAPS y en
-  el INP configurator, paneles de ejecución individual, deep link al analyzer
+  interfaces. ✅ Fases R0-R5 completadas: `runner.py` (con cola) en ambos
+  configuradores, paneles de ejecución individual, deep link al analyzer
   (`?folder=`), ejecución en cola del barrido (`/api/run/batch`) y detección de
-  resultados desactualizados (badge en el analyzer si el `inp.5` es más
-  reciente que el `fort.6`).
+  resultados desactualizados en el analyzer. Ampliado a pipelines de pasos por
+  la fase P1 del barrido espectral (runner v3, compatible hacia atrás).
+- `RUNBOOK_barrido_parametrico.md` — v1, ❌ OBSOLETO: sustituido por la v2;
+  conservado solo como histórico.
 - `RUNBOOK_barrido_parametrico_v2.md` — generador de barridos paramétricos
-  (sustituye a `RUNBOOK_barrido_parametrico.md`, v1). Completado: fases T0 y
-  1-3 implementadas, y Fase 5 opcional implementada en el analyzer (pestaña
-  "Optimización", que lee `sweep_manifest.json`). T0 ya existía en el código y
-  se verificó el 2026-07-09.
-- `RUNBOOK_fort_analyzer_mejoras.md` — mejoras del fort file analyzer. Fases
-  0-5 completadas (tests oro, i18n/paridad, unidades físicas, exportación CSV,
-  datos experimentales, métricas de optimización de producción). Fases 6-7
-  (espectro gamma genérico desde PHOTON.dat y cierre de documentación)
-  pendientes: falta el fixture `PHOTON.dat` de partida.
+  (flujo/masa/temporal). ✅ Completado: T0 y fases 1-3, más la Fase 5 opcional en
+  el analyzer (pestaña "Optimización", lee `sweep_manifest.json`). Nota: la malla
+  temporal del generador y del barrido es lineal (ver cabecera del runbook).
+- `RUNBOOK_fort_analyzer_mejoras.md` — mejoras del fort file analyzer.
+  ✅ Fases 0-5 y 7a completadas (tests oro, i18n/paridad, unidades físicas,
+  exportación CSV, datos experimentales, métricas de optimización, README).
+  ⏸ Fases 6 y 7b pendientes de obtener `PHOTON.dat`.
+- `RUNBOOK_figuras_yaml.md` — figuras de "Actividad por isótopo" sin defaults
+  hardcodeados, con selector de YAML y guardado desde el editor. ✅ Completado y validado (2026-07-13).
+- `RUNBOOK_barrido_espectral.md` — cuarto tipo de barrido (forma del espectro,
+  COLL.inp tarjeta 7, espectros CONDERC/OIEA) + pipeline COLLAPS→ACAB.
+  🔄 En curso: P0 (verificaciones: invariancia de escala ✅, unidades CX=MeV ✅,
+  espectros descargados ✅), P1 (runner v3) ✅, P2 (import CONDERC + coll_writer)
+  ✅ y P3 (UI del cuarto tipo "Espectro (COLLAPS)" en la pestaña Barrido: tarjeta
+  explicativa, φ_ref editable con patch uniforme, filas de espectros importados
+  con índices/badge direccional, gráfica Plotly superpuesta, manifest con
+  fracciones espectrales) ✅ completadas; pendientes P4 (pipeline de ejecución)
+  y P5 (documentación y verificación en Optimización).
 
 ## Invocación de los códigos (fuente de verdad para el runner — fase R0)
 
@@ -160,3 +172,16 @@ requerido más: si no está en el workdir, error 422 con mensaje indicándolo.
   curvas es degenerada por construcción (anclaje en t_fin), así que la medición
   de la desviación real queda pendiente de un caso de irradiación larga.
   Detalle y valores oro: `ACAB_fort_file_analyzer/tests/fixtures/README.md`.
+- **Control de invariancia de escala (barrido espectral, P0.1)** ✅ (2026-07-12):
+  COLLAPS con la misma forma espectral y FT×10 produce XSECTION.dat idéntico —
+  confirmado empíricamente que el colapso depende solo de la FORMA del espectro
+  (D2 del runbook espectral).
+- **Unidades de CX (P0.2)** ✅ (2026-07-12): COLLAPS espera la tarjeta CX en MeV;
+  CONDERC publica en eV → el import convierte fronteras ×1e-6. Anotado en D4.
+- **Incidente suite "en rojo" (P1, resuelto)** ✅ (2026-07-12): regression_roundtrip
+  y test_parser_robustness se reportaron en rojo tras la fase P1. Causa raíz:
+  invocación sin argumentos (exit 2 imprimiendo el uso), no regresión — con los
+  ficheros oro correctos (examples/exp1..exp4.inp.5), suite completa en verde.
+  Corregido en el CLAUDE.md del INP configurator: comandos con ficheros explícitos
+  + nota de que exit 2 sin argumentos no es fallo de tests. Lección: "exit ≠ 0"
+  no se interpreta sin leer la salida.

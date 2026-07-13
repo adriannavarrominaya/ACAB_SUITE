@@ -428,6 +428,277 @@ class TestBatchLogTail(unittest.TestCase):
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# Tests — Runner v3: pipelines de pasos (Fase P1, RUNBOOK_barrido_espectral)
+# ═══════════════════════════════════════════════════════════════════════
+
+# Fixture real de FLUX.inf (formato COLLAPS), usada por los tests del paso
+# 'check_flux'. REAL TOTAL FLUX=6.6700E+13, AVERAGE ENERGY=6.2744E-07 MeV,
+# ILIB=2, IESF=5, NGROUP=-3.
+_FLUX_INF_FIXTURE = """  ILIB,IESF =            2           5
+ ihead=           16
+ isfis,igent,isoca,ibest =           0           0           0           1
+  ngroup,ff =           -3           0
+  iuncer =            0
+  iconversion =            0
+ REAL TOTAL FLUX AND AVERAGE ENERGY (MeV)
+ 6.6700E+13
+ 6.2744E-07
+ TOTAL FLUX for subsequent calculation, * FTL*
+ 9.4464E+17
+ average energy, spectrum library (MeV)
+ 3.3342E+00
+ ffftttllg    end/stop
+ 9.4464E+17
+"""
+
+
+class TestPipelineThreeSteps(unittest.TestCase):
+    """Job con 3 pasos (run, copy, check_flux) — todos ok."""
+
+    def setUp(self):
+        _force_reset()
+        self.tmp = Path(tempfile.mkdtemp(prefix='runner_pipeline_test_'))
+        self.job_dir = self.tmp / 'job0'
+        self.job_dir.mkdir()
+        self.fake = _write_fake_exe(self.job_dir)
+        (self.job_dir / 'FLUX.inf').write_text(
+            _FLUX_INF_FIXTURE, encoding='utf-8')
+
+    def tearDown(self):
+        _force_reset()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_three_step_pipeline_ok(self):
+        results_path = str(self.tmp / 'batch_results.json')
+        steps = [
+            {'type': 'run',
+             'cmd': _cmd(self.fake, lines=2, delay=0.01, exit_code=0),
+             'cwd': str(self.job_dir)},
+            {'type': 'copy',
+             'src': str(self.job_dir / 'run.log'),
+             'dst': str(self.job_dir / 'copied.log')},
+            {'type': 'check_flux', 'path': str(self.job_dir / 'FLUX.inf')},
+        ]
+        jobs = [{'workdir': str(self.job_dir), 'steps': steps}]
+
+        runner.start_batch(
+            jobs=jobs,
+            cmd_template=[sys.executable, '-c', 'pass'],  # no usado
+            timeout_s_per_sim=10,
+            results_path=results_path,
+        )
+        s = _wait_done(timeout=15.0)
+        self.assertFalse(s['running'])
+
+        job0 = s['jobs'][0]
+        self.assertEqual(job0['estado'], 'ok')
+        self.assertEqual(len(job0['steps']), 3)
+
+        run_step, copy_step, flux_step = job0['steps']
+        self.assertEqual(run_step['type'], 'run')
+        self.assertEqual(run_step['estado'], 'ok')
+
+        self.assertEqual(copy_step['type'], 'copy')
+        self.assertEqual(copy_step['estado'], 'ok')
+        self.assertTrue((self.job_dir / 'copied.log').exists())
+
+        self.assertEqual(flux_step['type'], 'check_flux')
+        self.assertEqual(flux_step['estado'], 'ok')
+        data = flux_step['data']
+        self.assertAlmostEqual(data['real_total_flux'], 6.6700e13, delta=1e9)
+        self.assertAlmostEqual(data['average_energy_mev'], 6.2744e-07,
+                               delta=1e-10)
+        self.assertEqual(data['ilib'], 2)
+        self.assertEqual(data['iesf'], 5)
+        self.assertEqual(data['ngroup'], -3)
+
+
+class TestPipelineStepFailureContinuesQueue(unittest.TestCase):
+    """Fallo en el 2º paso (índice 1) de 3 → job 'failed', step_index=1,
+    el 3er paso no se ejecuta y el job siguiente de la cola sí corre."""
+
+    def setUp(self):
+        _force_reset()
+        self.tmp = Path(tempfile.mkdtemp(prefix='runner_pipeline_test_'))
+        self.job0_dir = self.tmp / 'job0'
+        self.job0_dir.mkdir()
+        self.fake0 = _write_fake_exe(self.job0_dir)
+        self.job1_dir = self.tmp / 'job1'
+        self.job1_dir.mkdir()
+        self.fake1 = _write_fake_exe(self.job1_dir)
+
+    def tearDown(self):
+        _force_reset()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_step_failure_step_index_and_queue_continues(self):
+        results_path = str(self.tmp / 'batch_results.json')
+        steps_job0 = [
+            {'type': 'run',
+             'cmd': _cmd(self.fake0, lines=1, delay=0.01, exit_code=0),
+             'cwd': str(self.job0_dir)},
+            {'type': 'run',
+             'cmd': _cmd(self.fake0, lines=1, delay=0.01, exit_code=1),
+             'cwd': str(self.job0_dir)},
+            {'type': 'run',
+             'cmd': _cmd(self.fake0, lines=1, delay=0.01, exit_code=0),
+             'cwd': str(self.job0_dir)},
+        ]
+        jobs = [
+            {'workdir': str(self.job0_dir), 'steps': steps_job0},
+            {'workdir': str(self.job1_dir)},  # job simple (compatibilidad)
+        ]
+        cmd_template = _cmd(self.fake1, lines=1, delay=0.01, exit_code=0)
+
+        runner.start_batch(
+            jobs=jobs,
+            cmd_template=cmd_template,
+            timeout_s_per_sim=10,
+            results_path=results_path,
+        )
+        s = _wait_done(timeout=15.0)
+        self.assertFalse(s['running'])
+
+        job0 = s['jobs'][0]
+        self.assertEqual(job0['estado'], 'failed')
+        self.assertEqual(job0['step_index'], 1)
+        self.assertEqual(job0['step_type'], 'run')
+        # Solo se ejecutaron 2 de los 3 pasos (el 3º nunca corrió).
+        self.assertEqual(len(job0['steps']), 2)
+        self.assertEqual(job0['steps'][0]['estado'], 'ok')
+        self.assertEqual(job0['steps'][1]['estado'], 'failed')
+
+        # El job siguiente (simple, compatibilidad) se ejecutó igualmente.
+        job1 = s['jobs'][1]
+        self.assertEqual(job1['estado'], 'ok')
+        self.assertEqual(job1['step_type'], 'run')
+        self.assertEqual(len(job1['steps']), 1)
+
+
+class TestPipelineCopyMissingSrc(unittest.TestCase):
+    """Paso 'copy' con origen inexistente → fallo limpio del job."""
+
+    def setUp(self):
+        _force_reset()
+        self.tmp = Path(tempfile.mkdtemp(prefix='runner_pipeline_test_'))
+        self.job_dir = self.tmp / 'job0'
+        self.job_dir.mkdir()
+
+    def tearDown(self):
+        _force_reset()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_copy_missing_src_fails_cleanly(self):
+        results_path = str(self.tmp / 'batch_results.json')
+        missing_src = str(self.job_dir / 'no_existe.txt')
+        dst = str(self.job_dir / 'out.txt')
+        jobs = [{
+            'workdir': str(self.job_dir),
+            'steps': [{'type': 'copy', 'src': missing_src, 'dst': dst}],
+        }]
+
+        runner.start_batch(
+            jobs=jobs,
+            cmd_template=[sys.executable, '-c', 'pass'],
+            timeout_s_per_sim=10,
+            results_path=results_path,
+        )
+        s = _wait_done(timeout=10.0)
+        self.assertFalse(s['running'])
+
+        job0 = s['jobs'][0]
+        self.assertEqual(job0['estado'], 'failed')
+        self.assertEqual(job0['step_index'], 0)
+        copy_step = job0['steps'][0]
+        self.assertEqual(copy_step['type'], 'copy')
+        self.assertEqual(copy_step['estado'], 'failed')
+        self.assertIn('no encontrado', copy_step['error'])
+        self.assertFalse(Path(dst).exists())
+
+
+class TestPipelineCheckFluxWarningDoesNotFailJob(unittest.TestCase):
+    """check_flux con fichero inexistente/ilegible → aviso, nunca fallo."""
+
+    def setUp(self):
+        _force_reset()
+        self.tmp = Path(tempfile.mkdtemp(prefix='runner_pipeline_test_'))
+        self.job_dir = self.tmp / 'job0'
+        self.job_dir.mkdir()
+        self.fake = _write_fake_exe(self.job_dir)
+
+    def tearDown(self):
+        _force_reset()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_check_flux_parse_failure_is_warning_not_failure(self):
+        results_path = str(self.tmp / 'batch_results.json')
+        jobs = [{
+            'workdir': str(self.job_dir),
+            'steps': [
+                {'type': 'check_flux',
+                 'path': str(self.job_dir / 'no_existe_FLUX.inf')},
+                {'type': 'run',
+                 'cmd': _cmd(self.fake, lines=1, delay=0.01, exit_code=0),
+                 'cwd': str(self.job_dir)},
+            ],
+        }]
+
+        runner.start_batch(
+            jobs=jobs,
+            cmd_template=[sys.executable, '-c', 'pass'],
+            timeout_s_per_sim=10,
+            results_path=results_path,
+        )
+        s = _wait_done(timeout=10.0)
+        self.assertFalse(s['running'])
+
+        job0 = s['jobs'][0]
+        # El aviso en check_flux no impide que el pipeline siga y acabe ok.
+        self.assertEqual(job0['estado'], 'ok')
+        self.assertEqual(len(job0['steps']), 2)
+        self.assertEqual(job0['steps'][0]['type'], 'check_flux')
+        self.assertEqual(job0['steps'][0]['estado'], 'warning')
+        self.assertIn('warning', job0['steps'][0])
+        self.assertEqual(job0['steps'][1]['estado'], 'ok')
+
+
+class TestLegacySimpleJobMetadata(unittest.TestCase):
+    """Job simple (sin 'steps') se normaliza a un único paso 'run'."""
+
+    def setUp(self):
+        _force_reset()
+        self.tmp = Path(tempfile.mkdtemp(prefix='runner_pipeline_test_'))
+        self.job_dir = self.tmp / 'job0'
+        self.job_dir.mkdir()
+        self.fake = _write_fake_exe(self.job_dir)
+
+    def tearDown(self):
+        _force_reset()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_legacy_job_normalized_to_single_run_step(self):
+        results_path = str(self.tmp / 'batch_results.json')
+        jobs = [{'workdir': str(self.job_dir)}]
+        cmd_template = _cmd(self.fake, lines=2, delay=0.01, exit_code=0)
+
+        runner.start_batch(
+            jobs=jobs,
+            cmd_template=cmd_template,
+            timeout_s_per_sim=10,
+            results_path=results_path,
+        )
+        s = _wait_done(timeout=10.0)
+        self.assertFalse(s['running'])
+
+        job0 = s['jobs'][0]
+        self.assertEqual(job0['estado'], 'ok')
+        self.assertEqual(job0['step_type'], 'run')
+        self.assertEqual(job0['step_index'], 0)
+        self.assertEqual(len(job0['steps']), 1)
+        self.assertEqual(job0['steps'][0]['type'], 'run')
+
+
+# ═══════════════════════════════════════════════════════════════════════
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

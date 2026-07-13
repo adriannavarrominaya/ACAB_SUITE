@@ -31,13 +31,11 @@ ACAB → fort.6 → analyzer.
   `acab_suite/RUNBOOK_*.md`. Si una tarea corresponde a un runbook, seguir sus fases
   en orden y no mezclar fases en un mismo commit.
 - **Fragmentos duplicados a mantener sincronizados entre repos** (marcados con
-  comentario de cabecera en el propio fichero): el banner de navegación de la suite y
-  su JS, y `runner.py` (ya existe en `ACAB_inp_file_configurator/` y en
-  `COLLAPS_inp_file_configurator/`). También `install_python.ps1` (detección/
-  instalación automática de Python vía winget o instalador oficial, con
-  confirmación del usuario) y el bloque de `setup.ps1` que lo invoca — existen
-  copias en las tres apps y en `acab_suite/`; el resto de cada `setup.ps1` (venv,
-  requirements) puede diferir. Si se edita una copia, replicar en las demás.
+  comentario de cabecera en el propio fichero): el banner de navegación de la
+  suite y su JS; `runner.py` (en ambos configuradores); y `coll_writer.py` del
+  INP configurator, que es copia del parser/writer de COL.inp del repo COLLAPS
+  (`collaps_parser.py` / `_write_coll_inp`). Si se edita una copia, replicar en
+  las demás.
 - **Forma canónica de arrancar la suite:** `acab_suite/suite_launcher.py` (lanza las
   tres apps, health-check y abre el navegador). Ver `acab_suite/README.md`.
 - Idioma de la UI: español (con i18n es/en donde el repo lo soporte). Código y

@@ -2092,7 +2092,7 @@
           <div class="card-header block-card-header" data-i18n="sweep.type_h">Tipo de barrido</div>
           <div class="card-body">
             <div class="row g-2 mb-3">
-              <div class="col-md-4">
+              <div class="col-md-3">
                 <div class="form-check card p-2 h-100">
                   <input class="form-check-input ms-1" type="radio" name="sweep-type" id="sweep-type-flux" value="flux" checked>
                   <label class="form-check-label ms-3" for="sweep-type-flux">
@@ -2100,7 +2100,7 @@
                   </label>
                 </div>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-3">
                 <div class="form-check card p-2 h-100">
                   <input class="form-check-input ms-1" type="radio" name="sweep-type" id="sweep-type-mass" value="mass">
                   <label class="form-check-label ms-3" for="sweep-type-mass">
@@ -2108,11 +2108,19 @@
                   </label>
                 </div>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-3">
                 <div class="form-check card p-2 h-100">
                   <input class="form-check-input ms-1" type="radio" name="sweep-type" id="sweep-type-time" value="time">
                   <label class="form-check-label ms-3" for="sweep-type-time">
                     <strong data-i18n="sweep.type_time">Historial temporal</strong>
+                  </label>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="form-check card p-2 h-100">
+                  <input class="form-check-input ms-1" type="radio" name="sweep-type" id="sweep-type-spectrum" value="spectrum">
+                  <label class="form-check-label ms-3" for="sweep-type-spectrum">
+                    <strong data-i18n="sweep.type_spectrum">Espectro (COLLAPS)</strong>
                   </label>
                 </div>
               </div>
@@ -2198,6 +2206,61 @@
               <button class="btn btn-sm btn-outline-secondary" id="sweep-time-add">
                 <i class="bi bi-plus-lg me-1"></i><span data-i18n="sweep.time_add">Añadir fila</span>
               </button>
+            </div>
+
+            <!-- Panel: Espectro (COLLAPS) -->
+            <div id="sweep-panel-spectrum" class="sweep-panel d-none">
+              <div class="alert alert-info py-2 small" data-i18n="sweep.spectrum_expl">
+                Importa espectros neutrónicos externos (formato CONDERC del OIEA) y varía la FORMA
+                del espectro pasado a COLLAPS. El Bloque #3 (flujo total) se mantiene igual en todas
+                las simulaciones, así que la comparación entre espectros es a igualdad de flujo total
+                por construcción. Tras cada ejecución de COLLAPS se anota FLUX.inf como verificador
+                (nunca como fuente de datos de entrada).
+              </div>
+              <div class="row g-3 align-items-end mb-3">
+                <div class="col-md-4">
+                  <label class="form-label" for="sweep-spectrum-phiref" data-i18n="sweep.spectrum_phiref_lbl">φ_ref (Bloque #3)</label>
+                  <input id="sweep-spectrum-phiref" type="text" class="form-control font-monospace" placeholder="6.5000E+13">
+                  <div class="form-text" data-i18n="sweep.spectrum_phiref_hint">
+                    Prefijado con el Bloque #3 del fichero base. Si lo editas, se aplica el mismo valor a todas las simulaciones.
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <span data-i18n="sweep.spectrum_library_lbl">Grupos de la librería (XSBL):</span>
+                  <span class="font-monospace fw-bold">211</span>
+                </div>
+              </div>
+              <div class="mb-2 d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="sweep-spectrum-add">
+                  <i class="bi bi-plus-lg me-1"></i><span data-i18n="sweep.spectrum_add_btn">Añadir espectro</span>
+                </button>
+                <input type="file" id="sweep-spectrum-file" class="d-none" accept=".txt,.csv" multiple>
+              </div>
+              <p id="sweep-spectrum-empty" class="text-muted small mb-2" data-i18n="sweep.spectrum_empty">
+                No se ha cargado ningún espectro todavía.
+              </p>
+              <div class="table-responsive mb-3">
+                <table class="table table-sm table-bordered align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th data-i18n="sweep.spectrum_col_label">Etiqueta</th>
+                      <th class="text-center" data-i18n="sweep.spectrum_col_ngroups">Nº grupos</th>
+                      <th class="text-center" data-i18n="sweep.spectrum_col_order">Orden</th>
+                      <th class="text-center" data-i18n="sweep.spectrum_col_checksum">Checksum</th>
+                      <th class="text-center" data-i18n="sweep.spectrum_col_thermal">Frac. térmica</th>
+                      <th style="width:2.5rem"></th>
+                      <th style="width:3rem"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="sweep-spectrum-tbody"></tbody>
+                </table>
+              </div>
+              <div class="card block-card">
+                <div class="card-header block-card-header" data-i18n="sweep.spectrum_plot_h">Espectros cargados</div>
+                <div class="card-body">
+                  <div id="sweep-spectrum-plot" class="d-none" style="height:22rem"></div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2475,8 +2538,10 @@
      SCRIPTS
      ═══════════════════════════════════════════════════════════════════════ -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
 <script src="/static/js/calc_utils.js"></script>
 <script src="/static/js/sweep_utils.js"></script>
+<script src="/static/js/conderc_import.js"></script>
 <script src="/static/js/app.js"></script>
 <script src="/static/js/sweep.js"></script>
 <script src="/static/js/suite_banner.js"></script>

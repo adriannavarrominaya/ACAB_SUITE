@@ -1,14 +1,11 @@
 # Runbook v2 — Generador de Barridos Paramétricos (ACAB INP File Configurator)
 
 Estado: completado (fases T0 y 1-3 implementadas, fase 5 opcional implementada en el analyzer; T0 ya existía en el código y se verificó el 2026-07-09). El estado actualizado de todos los runbooks se mantiene en README.md de esta carpeta.
+Nota (2026-07-13): la malla del generador (y del barrido) es LINEAL, no geométrica como decía el caso oro original de la Fase 1; el test se congeló al comportamiento real del generador, y el control de malla (inp.5 byte-idénticos por ambas vías) valida la consistencia.
 
 **Sustituye íntegramente al runbook v1 del barrido.**
 
-**Objetivo:** desde el configurador, con un inp.5 base cargado y VÁLIDO, definir un
-barrido de UN parámetro (flujo vía XNORM / masa del blanco / historial temporal) con
-el resto de parámetros fijos, y generar N carpetas de simulación listas para ejecutar
-ACAB: cada una con su `inp.5` y con la copia del contenido de una "carpeta base"
-(librerías y ficheros auxiliares que ACAB necesita en el directorio de trabajo).
+**Objetivo:** desde el configurador, con un inp.5 base cargado y VÁLIDO, definir un barrido de UN parámetro (flujo vía XNORM / masa del blanco / historial temporal) con el resto de parámetros fijos, y generar N carpetas de simulación listas para ejecutar ACAB: cada una con su `inp.5` y con la copia del contenido de una "carpeta base" (librerías y ficheros auxiliares que ACAB necesita en el directorio de trabajo).
 
 **Repositorio afectado:** `ACAB_inp_file_configurator` (Fase 5 opcional: analyzer).
 
@@ -18,22 +15,11 @@ ACAB: cada una con su `inp.5` y con la copia del contenido de una "carpeta base"
 
 ### Alcance y semántica
 
-- **Un barrido = un solo tipo** (flujo XOR masa XOR temporal). Resto de parámetros
-  congelados tal como estén en el fichero base. El producto cartesiano es v2 futura.
-- **Flujo → `block9.XNORM`.** Confirmado en docs/Block#9.md: factor multiplicativo
-  que escala todos los flujos; sin restricción de rango documentada; válidos los
-  reales > 0, incluidos > 1. Escala magnitud, NO forma del espectro (las XS
-  colapsadas por COLLAPS siguen siendo válidas en todo el barrido).
-- **Masa → XCOMP de UNA zona objetivo** (selector si hay varias). Estructura de
-  zonas CONGELADA en todo el barrido: IZM, NUCZO, MA, XRR y el resto del Bloque #2
-  no se tocan. Compuesto y volumen fijos; solo varía la masa (⇒ físicamente, la
-  densidad de empaquetado del blanco). El volumen NO es barrible en el MVP (en
+- **Un barrido = un solo tipo** (flujo XOR masa XOR temporal). Resto de parámetros   congelados tal como estén en el fichero base. El producto cartesiano es v2 futura.
+- **Flujo → `block9.XNORM`.** Confirmado en docs/Block#9.md: factor multiplicativo   que escala todos los flujos; sin restricción de rango documentada; válidos los   reales > 0, incluidos > 1. Escala magnitud, NO forma del espectro (las XS   colapsadas por COLLAPS siguen siendo válidas en todo el barrido).
+- **Masa → XCOMP de UNA zona objetivo** (selector si hay varias). Estructura de zonas CONGELADA en todo el barrido: IZM, NUCZO, MA, XRR y el resto del Bloque #2 no se tocan. Compuesto y volumen fijos; solo varía la masa (⇒ físicamente, la densidad de empaquetado del blanco). El volumen NO es barrible en el MVP (en
   geometrías 3-D vive también en XRR y exigiría coherencia adicional).
-- **Temporal → blocks78 regenerado por simulación** reutilizando el generador de
-  historial temporal YA EXISTENTE en la web (`generarB78` en app.js), refactorizado
-  a función pura. Cada simulación define sus fases (t_fin, pasos) de irradiación y/o
-  enfriamiento. OBLIGATORIO sincronizar `block11.NOTTS = nº de sets` por simulación
-  (el generador actual ya lo hace; el barrido debe replicarlo).
+- **Temporal → blocks78 regenerado por simulación** reutilizando el generador de historial temporal YA EXISTENTE en la web (`generarB78` en app.js), refactorizado a función pura. Cada simulación define sus fases (t_fin, pasos) de irradiación y/o enfriamiento. OBLIGATORIO sincronizar `block11.NOTTS = nº de sets` por simulación (el generador actual ya lo hace; el barrido debe replicarlo).
 
 ### Arquitectura: patches en cliente + servidor genérico
 

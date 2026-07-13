@@ -1,11 +1,14 @@
-"""Tests del generador de barridos (Fase 2 del runbook v2).
+"""Tests del generador de barridos (Fase 2 del runbook v2; Fase P2 del
+RUNBOOK_barrido_espectral.md para los tests de coll_patch).
 
     C:\\venv\\acab-venv\\Scripts\\python.exe tools/test_sweep_endpoint.py
 
 Cubre: merge recursivo, flujo feliz (copia de carpeta base + reemplazo de
 inp.5 + manifest coherente), colisión 409, límites 422 (N>200, sufijo
-duplicado, descripción vacía), y aborto + limpieza ante un patch que produce
-un inp.5 inválido / no re-parseable.
+duplicado, descripción vacía), aborto + limpieza ante un patch que produce
+un inp.5 inválido / no re-parseable, y el barrido espectral (coll_patch):
+escritura de collaps/COLL.inp por sim, 422 si falta collaps/COLL.inp en la
+base, y round-trip del COLL.inp generado.
 """
 import json
 import shutil
@@ -18,7 +21,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import app as appmod                              # noqa: E402
 from acab_parser import ACABParser               # noqa: E402
+from coll_writer import read_coll_inp            # noqa: E402
 from sweep_writer import SweepError, deep_merge, _roundtrip_check  # noqa: E402
+
+FIXTURE_COLL_211 = Path(__file__).resolve().parents[1] / 'tests/fixtures/spectra/COLL.inp'
 
 
 class DeepMergeTests(unittest.TestCase):
@@ -175,6 +181,91 @@ class SweepEndpointTests(unittest.TestCase):
     def test_roundtrip_check_rejects_garbage(self):
         with self.assertRaises(SweepError):
             _roundtrip_check('esto no es un fichero ACAB valido', ACABParser(), 'g')
+
+
+class SpectralSweepTests(unittest.TestCase):
+    """coll_patch (D9, RUNBOOK_barrido_espectral.md Fase P2)."""
+
+    def setUp(self):
+        self.client = appmod.app.test_client()
+        self.tmp = Path(tempfile.mkdtemp())
+        self.base = self.tmp / 'base'
+        self.base.mkdir(parents=True)
+        (self.base / 'inp.5').write_text('OLD BASE INP', encoding='utf-8')
+        self.data = appmod._default_data()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _spectrum_sims(self):
+        return [
+            {'suffix': 'MURR', 'params': {'espectro': 'MURR-G1'},
+             'coll_patch': {'ngroup': -3, 'cx': [20.0, 10.0, 1.0, 0.1],
+                            'ft': [1.1e10, 2.2e10, 3.3e10]}},
+            {'suffix': 'TRIGA', 'params': {'espectro': 'TRIGA'},
+             'coll_patch': {'ngroup': -2, 'cx': [20.0, 5.0, 0.5],
+                            'ft': [4.4e10, 5.5e10]}},
+        ]
+
+    def test_missing_collaps_coll_inp_422(self):
+        # La base no tiene 'collaps/COLL.inp' -> 422 claro (D9)
+        root = self.tmp / 'out_spec1'
+        r = self.client.post('/api/sweep', json={
+            'root': str(root), 'base_folder': str(self.base), 'prefix': 'S_',
+            'description': 'barrido espectral sin base collaps', 'sweep_type': 'spectrum',
+            'data': self.data, 'sims': self._spectrum_sims()})
+        self.assertEqual(r.status_code, 422)
+        body = r.get_json()
+        self.assertIn('collaps/COLL.inp', body['error'])
+        self.assertFalse(root.exists())
+
+    def test_happy_path_writes_coll_inp_per_sim(self):
+        collaps_dir = self.base / 'collaps'
+        collaps_dir.mkdir()
+        shutil.copy(FIXTURE_COLL_211, collaps_dir / 'COLL.inp')
+
+        root = self.tmp / 'out_spec2'
+        r = self.client.post('/api/sweep', json={
+            'root': str(root), 'base_folder': str(self.base), 'prefix': 'S_',
+            'description': 'barrido espectral de prueba', 'sweep_type': 'spectrum',
+            'fixed_params': {'phi_ref': '6.5E+13'},
+            'data': self.data, 'sims': self._spectrum_sims()})
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        body = r.get_json()
+        self.assertTrue(body['ok'])
+        self.assertEqual(body['n_written'], 2)
+
+        for suf, ngroup, ncx, nft in [('MURR', -3, 4, 3), ('TRIGA', -2, 3, 2)]:
+            coll_path = root / f'S_{suf}' / 'collaps' / 'COLL.inp'
+            self.assertTrue(coll_path.is_file(), f'{coll_path} no se generó')
+            parsed = read_coll_inp(coll_path)
+            self.assertEqual(parsed['card1']['IESF'], 5, 'coll_patch con cx fuerza IESF=5')
+            self.assertEqual(parsed['card5']['NGROUP'], ngroup)
+            self.assertEqual(len(parsed['card6']['CX']), ncx)
+            self.assertEqual(len(parsed['card7']['FT']), nft)
+            # inp.5 de la sim también se generó con normalidad (independiente del COLL.inp)
+            self.assertTrue((root / f'S_{suf}' / 'inp.5').is_file())
+
+    def test_bad_coll_patch_aborts_and_cleans_up(self):
+        collaps_dir = self.base / 'collaps'
+        collaps_dir.mkdir()
+        shutil.copy(FIXTURE_COLL_211, collaps_dir / 'COLL.inp')
+
+        root = self.tmp / 'out_spec3'
+        sims = [
+            {'suffix': 'good', 'params': {},
+             'coll_patch': {'ngroup': -2, 'cx': [20.0, 1.0, 0.1], 'ft': [1.0, 2.0]}},
+            # FT con longitud incoherente con NGROUP -> apply_spectrum_patch falla
+            {'suffix': 'bad', 'params': {},
+             'coll_patch': {'ngroup': -2, 'cx': [20.0, 1.0, 0.1], 'ft': [1.0]}},
+        ]
+        r = self.client.post('/api/sweep', json={
+            'root': str(root), 'base_folder': str(self.base), 'prefix': 'S_',
+            'description': 'd', 'data': self.data, 'sims': sims})
+        self.assertEqual(r.status_code, 422)
+        self.assertFalse((root / 'S_good').exists(), 'limpió la sim ya escrita')
+        self.assertFalse((root / 'S_bad').exists())
+        self.assertFalse((root / 'sweep_manifest.json').exists())
 
 
 if __name__ == '__main__':

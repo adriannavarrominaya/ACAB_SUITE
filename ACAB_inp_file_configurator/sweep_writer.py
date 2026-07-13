@@ -14,6 +14,13 @@ Semántica del merge (deep_merge):
 
 El writer (`_write_inp5`) y el parser (`ACABParser`) se inyectan / importan
 para no crear dependencia circular con app.py.
+
+Barrido espectral (Fase P2, D9 del RUNBOOK_barrido_espectral.md): además del
+`patch` de inp.5, cada sim puede llevar un `coll_patch` (ngroup, cx, ft) que
+se aplica sobre el COLL.inp de `<base_folder>/collaps/COLL.inp` y se escribe
+en `<sim>/collaps/COLL.inp` (reemplaza al copiado por la base, misma
+precedencia que el inp.5 generado). Requiere `collaps/COLL.inp` en la carpeta
+base; 422 si falta y el barrido lleva `coll_patch`.
 """
 
 from __future__ import annotations
@@ -30,6 +37,7 @@ from pathlib import Path
 from typing import Callable
 
 from acab_parser import ACABParser
+from coll_writer import apply_spectrum_patch, read_coll_inp, write_coll_inp
 
 MAX_SIMS = 200
 _SAFE_SUFFIX = re.compile(r'^[A-Za-z0-9._+-]+$')
@@ -143,6 +151,21 @@ def _roundtrip_check(content: str, parser: ACABParser, folder: str) -> None:
     except Exception as exc:  # noqa: BLE001 — se re-lanza como SweepError
         raise SweepError(
             f"El inp.5 generado para '{folder}' no se puede re-parsear "
+            f"(round-trip fallido): {exc}", 422)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def _coll_roundtrip_check(content: str, folder: str) -> None:
+    with tempfile.NamedTemporaryFile('w', suffix='.inp', delete=False,
+                                     encoding='utf-8') as tf:
+        tf.write(content)
+        tmp = Path(tf.name)
+    try:
+        read_coll_inp(tmp)
+    except Exception as exc:  # noqa: BLE001 — se re-lanza como SweepError
+        raise SweepError(
+            f"El COLL.inp generado para '{folder}' no se puede re-parsear "
             f"(round-trip fallido): {exc}", 422)
     finally:
         tmp.unlink(missing_ok=True)
@@ -277,6 +300,20 @@ def generate_sweep(payload: dict, write_fn: Callable[[dict], str]) -> dict:
     if not base_p.is_dir():
         raise SweepError('La carpeta base no existe o no es un directorio.', 422)
 
+    # ── Barrido espectral (D9): requiere collaps/COLL.inp en la base ───────
+    has_coll_patch = any(s.get('coll_patch') for s in sims)
+    coll_base_data = None
+    if has_coll_patch:
+        coll_base_path = base_p / 'collaps' / 'COLL.inp'
+        if not coll_base_path.is_file():
+            raise SweepError(
+                "El barrido espectral requiere 'collaps/COLL.inp' en la carpeta base "
+                f"('{coll_base_path}' no existe).", 422)
+        try:
+            coll_base_data = read_coll_inp(coll_base_path)
+        except Exception as exc:  # noqa: BLE001
+            raise SweepError(f"No se pudo parsear el COLL.inp base: {exc}", 422)
+
     dups, invalid = _suffix_issues(sims)
     if invalid:
         raise SweepError('Sufijos inválidos o vacíos: ' + ', '.join(repr(s) for s in invalid), 422)
@@ -317,6 +354,20 @@ def generate_sweep(payload: dict, write_fn: Callable[[dict], str]) -> dict:
             shutil.copytree(base_p, sub, dirs_exist_ok=True)
             # …y escribir el inp.5 generado DESPUÉS (reemplaza el de la base)
             (sub / 'inp.5').write_text(content, encoding='utf-8')
+
+            coll_patch = sim.get('coll_patch')
+            if coll_patch:
+                try:
+                    coll_data = apply_spectrum_patch(coll_base_data, coll_patch)
+                    coll_content = write_coll_inp(coll_data)
+                except SweepError:
+                    raise
+                except Exception as exc:  # noqa: BLE001
+                    raise SweepError(f"Error al escribir el COLL.inp de '{folder}': {exc}", 422)
+                _coll_roundtrip_check(coll_content, folder)
+                coll_dir = sub / 'collaps'
+                coll_dir.mkdir(parents=True, exist_ok=True)
+                (coll_dir / 'COLL.inp').write_text(coll_content, encoding='utf-8')
     except SweepError:
         _rollback(created)
         raise
