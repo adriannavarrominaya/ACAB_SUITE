@@ -211,3 +211,11 @@ requerido más: si no está en el workdir, error 422 con mensaje indicándolo.
   Detalle cosmético anotado (no corregido, fuera del alcance de P5): falta la
   traducción `optim.type_spectrum` en `es.json`/`en.json` del analyzer — el
   badge de subtítulo del barrido espectral mostraría la clave cruda.
+- **Barrido espectral de 9 reactores (experimento central)** ✅ (2026-07-13):
+  φ_ref idéntico, 9 espectros CONDERC. A_pico(¹³¹I) crece monótonamente con la
+  fracción térmica (×37 entre Cf252 y HFIR-VXF3: 3.38e2 → 1.255e4 Bq/cm³).
+  Excepción explicada: Phénix (0.03% térmico, 96.9% epitérmico) produce 3.32e3
+  vía resonancias del ¹³⁰Te — evidencia del canal de integral de resonancia.
+  t_pico varía 3.50–4.50 h con el espectro (mezcla Te131/Te131m dependiente de
+  la forma). Pureza 100% en todos (esperado: pulso de 10 s).
+- **Runbook barrido espectral** ✅ P0–P5 completadas.

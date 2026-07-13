@@ -2,36 +2,22 @@
 
 # ACAB Fort File Analyzer
 
-App web Flask (monousuario, 127.0.0.1:5001) para analizar ficheros de salida `fort.6`
-de ACAB 2008: parsea múltiples simulaciones (subcarpetas), convierte átomos→actividad,
-grafica evolución temporal (Plotly) y genera informes y tablas comparativas por
-isótopo. Parte de la suite del TFG (ver CLAUDE.md de la carpeta padre).
+App web Flask (monousuario, 127.0.0.1:5001) para analizar ficheros de salida `fort.6` de ACAB 2008: parsea múltiples simulaciones (subcarpetas), convierte átomos→actividad, grafica evolución temporal (Plotly) y genera informes y tablas comparativas por isótopo. Parte de la suite del TFG (ver CLAUDE.md de la carpeta padre).
 
 ## Arranque y stack
 
-- `C:\venv\acab-venv\Scripts\python app.py` — puerto 5001 por defecto (`--port`/`-p` o variable
-  `ACAB_ANALYZER_PORT`; `--host`/`ACAB_ANALYZER_HOST`, por defecto 127.0.0.1).
+- `C:\venv\acab-venv\Scripts\python app.py` — puerto 5001 por defecto (`--port`/`-p` o variable `ACAB_ANALYZER_PORT`; `--host`/`ACAB_ANALYZER_HOST`, por defecto 127.0.0.1).
 - Flask + waitress (con fallback al servidor de desarrollo si waitress falta).
 - Dependencias: flask, waitress, pyyaml, numpy (requirements.txt). Plotly, Bootstrap y js-yaml por CDN.
 
 ## Ficheros clave
 
 - `fort_analyzer.py` — motor de análisis, todo el conocimiento del dominio:
-  - Parsers: `leer_fort6_irradiacion` (sección NUMBER OF ATOMS, átomos/cm³),
-    `leer_fort6_enfriamiento` (sección NUCLIDE RADIOACTIVITY, Bq/cm³),
-    `leer_inp5` (T_irr, T_cool, flujos, XNORM), `leer_decay_dat` (semividas,
-    codificación ZZAAAS, S=1 metaestable).
-  - Cálculo: conversión A = λ·N en irradiación; `calcular_pico`,
-    `calcular_informe_isotopo`, `calcular_tablas_comparativas`.
-  - Fase 5 — métricas de optimización de producción (integradas en
-    `calcular_informe_isotopo` bajo la clave `"metricas"`, por simulación):
-    `calcular_saturacion` (curva teórica A_teo=A_sat·(1−e^−λt) anclada al
-    valor ACAB en T_irr + tabla de tiempos a 50/75/90/95 % de saturación),
-    `calcular_rendimiento` (A_pico/T_irr vs. ganancia marginal del último
-    10 % de irradiación) y `calcular_pureza` (P = A(objetivo)/ΣA(impurezas)
-    en t_pico). `isotopos_mismo_elemento` calcula el criterio POR DEFECTO de
-    impurezas (mismo elemento que el isótopo objetivo); es el único criterio
-    soportado como default. Editable desde la UI vía el parámetro `isotopos_impureza`.
+  - Parsers: `leer_fort6_irradiacion` (sección NUMBER OF ATOMS, átomos/cm³), `leer_fort6_enfriamiento` (sección NUCLIDE RADIOACTIVITY, Bq/cm³), `leer_inp5` (T_irr, T_cool, flujos, XNORM), `leer_decay_dat` (semividas, codificación ZZAAAS, S=1 metaestable).
+  - Cálculo: conversión A = λ·N en irradiación; `calcular_pico`, `calcular_informe_isotopo`, `calcular_tablas_comparativas`.
+  - Fase 5 — métricas de optimización de producción (integradas en `calcular_informe_isotopo` bajo la clave `"metricas"`, por simulación):
+    `calcular_saturacion` (curva teórica A_teo=A_sat·(1−e^−λt) anclada al valor ACAB en T_irr + tabla de tiempos a 50/75/90/95 % de saturación),
+    `calcular_rendimiento` (A_pico/T_irr vs. ganancia marginal del último 10 % de irradiación) y `calcular_pureza` (P = A(objetivo)/ΣA(impurezas) en t_pico). `isotopos_mismo_elemento` calcula el criterio POR DEFECTO de impurezas (mismo elemento que el isótopo objetivo); es el único criterio soportado como default. Editable desde la UI vía el parámetro `isotopos_impureza`.
   - `GAMMA_I131` hardcodeado (espectro ENSDF/NNDC, solo ¹³¹I por ahora).
   - `leer_sweep_manifest` (Fase 5 opcional, `RUNBOOK_barrido_parametrico_v2.md`):
     lee `sweep_manifest.json` de la raíz analizada si existe (escrito por la
@@ -76,23 +62,6 @@ isótopo. Parte de la suite del TFG (ver CLAUDE.md de la carpeta padre).
   (`isotopos_mismo_elemento`, backend) es independiente de esta tabla: usa una
   regex sobre la clave del isótopo, así que ya funcionaba con cualquier
   elemento antes de esta fase.
-- `static/js/units.js` — conversión pura de unidades de actividad (Bq/cm³ ↔
-  MBq/g / actividad total), aplicada por simulación en el frontend.
-- `static/js/export_utils.js` — generación CSV pura (delimitador/decimal es-ES
-  o internacional) para gráficas, informe y tablas comparativas.
-- `static/js/reference_data.js` — parser del CSV de datos de referencia
-  (`docs/SPEC_csv_datos_referencia.md`), interpolación lineal recortada a los
-  extremos y métricas de desviación (Fase 4: superposición de datos
-  experimentales/computacionales de referencia sobre la curva ACAB).
-- `static/js/optim_utils.js` — puro (UMD, sin DOM): combina `sweep_manifest`
-  (folder→params) con `informe.simulations`/`informe.metricas` YA calculados
-  por el servidor (A_pico, t_pico, pureza, rendimiento) para la pestaña
-  "Optimización" (Fase 5 opcional del barrido); NO recalcula ninguna fórmula
-  física, solo combina/agrupa. `mergeSweepRows`, `paramKeys`,
-  `groupByOtherParams` (series de color = resto de dimensiones del barrido),
-  `yRawValue`/`yNeedsUnitConv` (selector de variable Y: A_pico por defecto,
-  t_pico, pureza, rendimiento). Renderizado (`renderOptimizacion` en app.js)
-  solo se activa si `analysisData.sweep_manifest` no es `null`.
   Pestaña "Actividad por Isótopo" (`RUNBOOK_figuras_yaml.md`): sin figuras
   (`analysisData.figuras.length === 0`) → `renderFigurasEmptyState` (dos
   acciones: cargar YAML por selector, crear con el editor). Badge
@@ -108,81 +77,38 @@ isótopo. Parte de la suite del TFG (ver CLAUDE.md de la carpeta padre).
   (Blob) y `saveFigurasToFolder()` (`POST /api/figuras/save`, confirma y
   reintenta con `overwrite:true` si ya existe, luego re-analiza) usan
   `jsyaml.dump()` (CDN) para serializar.
-- `figuras.yaml` — ejemplo real de configuración de figuras (16 figuras del
-  caso Te/Xe/I del TFG); el formato se documenta en README §7. NO se carga
-  automáticamente salvo que la carpeta analizada coincida con esta raíz.
-  `docs/ejemplo_figuras_TeO2.yaml` es una plantilla equivalente más simple
-  (15 figuras) pensada para copiar/cargar desde cero.
-- `compare_simulaciones.py` — **[LEGACY]**: la densidad de normalización ya se
-  lee automáticamente de `CONCENTRATIONS(GRAM)` (`leer_fort6_concentraciones`)
-  y la superposición de datos experimentales la cubre `reference_data.js`; no
-  invertir más en este script.
+- `static/js/units.js` — conversión pura de unidades de actividad (Bq/cm³ ↔ MBq/g / actividad total), aplicada por simulación en el frontend.
+- `static/js/export_utils.js` — generación CSV pura (delimitador/decimal es-ES o internacional) para gráficas, informe y tablas comparativas.
+- `static/js/reference_data.js` — parser del CSV de datos de referencia (`docs/SPEC_csv_datos_referencia.md`), interpolación lineal recortada a los extremos y métricas de desviación (Fase 4: superposición de datos experimentales/computacionales de referencia sobre la curva ACAB).
+- `static/js/optim_utils.js` — puro (UMD, sin DOM): combina `sweep_manifest` (folder→params) con `informe.simulations`/`informe.metricas` YA calculados por el servidor (A_pico, t_pico, pureza, rendimiento) para la pestaña "Optimización" (Fase 5 opcional del barrido); NO recalcula ninguna fórmula física, solo combina/agrupa. `mergeSweepRows`, `paramKeys`, `groupByOtherParams` (series de color = resto de dimensiones del barrido), `yRawValue`/`yNeedsUnitConv` (selector de  variable Y: A_pico por defecto, t_pico, pureza, rendimiento). Renderizado (`renderOptimizacion` en app.js) solo se activa si `analysisData.sweep_manifest` no es `null`.
+- `figuras.yaml` — ejemplo real de configuración de figuras (16 figuras del caso Te/Xe/I del TFG); el formato se documenta en README §7. NO se carga automáticamente salvo que la carpeta analizada coincida con esta raíz.
+  `docs/ejemplo_figuras_TeO2.yaml` es una plantilla equivalente más simple (15 figuras) pensada para copiar/cargar desde cero.
+- `compare_simulaciones.py` — **[LEGACY]**: la densidad de normalización ya se lee automáticamente de `CONCENTRATIONS(GRAM)` (`leer_fort6_concentraciones`) y la superposición de datos experimentales la cubre `reference_data.js`; no invertir más en este script.
 - `add_report_sheet.py` — auxiliar puntual de Excel; no forma parte de la app.
 
 ## Tests
 
 Suite de tests oro (scripts autocontenidos, sin framework, estilo de la suite):
 
-- `C:\venv\acab-venv\Scripts\python tools\test_fort_analyzer.py` — parsers
-  (`fort.6`, `inp.5`, `DECAY.dat`), cálculo del pico, `CONCENTRATIONS(GRAM)` y
-  conversiones de unidad, contra la simulación de referencia. Incluye
-  `test_desactualizada()` (Fase R5 del runbook runner v2): toca mtimes con
-  `os.utime` sobre un fixture temporal y comprueba el flag `desactualizada` en
-  ambos sentidos.
-- `C:\venv\acab-venv\Scripts\python tools\test_api.py` — API REST vía
-  `app.test_client()` (flujo `/api/analyze` → `/api/isotopo_report`, cache
-  keyed por carpeta y errores controlados). Incluye `test_figuras_save()`
-  (`RUNBOOK_figuras_yaml.md`): guardado feliz + discovery posterior como
-  'auto', 409 sin overwrite, 422 con YAML inválido/sin clave `figuras` lista,
-  round-trip que conserva una sección `semividas` de un YAML de partida.
-- `C:\venv\acab-venv\Scripts\python tools\test_reference_data.py` — oráculo
-  Python de `reference_data.js` (fixtures CSV de `tests/fixtures/experimental/`
-  y criterio de aceptación de la Fase 4 contra la ref_sim).
-- `C:\venv\acab-venv\Scripts\python tools\test_metricas.py` — métricas de
-  optimización de producción (Fase 5: saturación, rendimiento, pureza) con
-  curvas sintéticas de solución analítica conocida (no depende de la ref_sim).
-- Node (disponible en esta máquina — comprobar con `Get-Command node` antes de
-  asumir lo contrario): `node tools\test_units.js`, `node tools\test_export.js`,
-  `node tools\test_reference_data.js` — tests directos de las funciones puras
-  de frontend. Sus oráculos numéricos también están espejados en los scripts
-  Python de arriba.
-- `node tools\test_optim_utils.js` — combinación pura `sweep_manifest` +
-  informe de `static/js/optim_utils.js` (Fase 5 opcional, pestaña
-  Optimización). Sin oráculo Python: no reproduce ninguna fórmula física
-  (esas ya están cubiertas por `test_metricas.py`/`test_fort_analyzer.py`),
-  solo combina/agrupa datos ya calculados — su verificación vive únicamente
-  en node, como `test_export.js`.
+- `C:\venv\acab-venv\Scripts\python tools\test_fort_analyzer.py` — parsers (`fort.6`, `inp.5`, `DECAY.dat`), cálculo del pico, `CONCENTRATIONS(GRAM)` y conversiones de unidad, contra la simulación de referencia. Incluye `test_desactualizada()` (Fase R5 del runbook runner v2): toca mtimes con `os.utime` sobre un fixture temporal y comprueba el flag `desactualizada` en ambos sentidos.
+- `C:\venv\acab-venv\Scripts\python tools\test_api.py` — API REST vía `app.test_client()` (flujo `/api/analyze` → `/api/isotopo_report`, cache keyed por carpeta y errores controlados). Incluye `test_figuras_save()` (`RUNBOOK_figuras_yaml.md`): guardado feliz + discovery posterior como 'auto', 409 sin overwrite, 422 con YAML inválido/sin clave `figuras` lista, round-trip que conserva una sección `semividas` de un YAML de partida.
+- `C:\venv\acab-venv\Scripts\python tools\test_reference_data.py` — oráculo Python de `reference_data.js` (fixtures CSV de `tests/fixtures/experimental/` y criterio de aceptación de la Fase 4 contra la ref_sim).
+- `C:\venv\acab-venv\Scripts\python tools\test_metricas.py` — métricas de optimización de producción (Fase 5: saturación, rendimiento, pureza) con curvas sintéticas de solución analítica conocida (no depende de la ref_sim).
+- Node (disponible en esta máquina — comprobar con `Get-Command node` antes de asumir lo contrario): `node tools\test_units.js`, `node tools\test_export.js`, `node tools\test_reference_data.js` — tests directos de las funciones puras de frontend. Sus oráculos numéricos también están espejados en los scripts Python de arriba.
+- `node tools\test_optim_utils.js` — combinación pura `sweep_manifest` + informe de `static/js/optim_utils.js` (Fase 5 opcional, pestaña Optimización). Sin oráculo Python: no reproduce ninguna fórmula física (esas ya están cubiertas por `test_metricas.py`/`test_fort_analyzer.py`), solo combina/agrupa datos ya calculados — su verificación vive únicamente en node, como `test_export.js`.
 
-Fixtures en `tests/fixtures/ref_sim/` (simulación v.5 "info thesis") y
-`tests/fixtures/experimental/` (CSV de la Fase 4); valores oro documentados en
-`tests/fixtures/README.md` y `docs/SPEC_csv_datos_referencia.md`. Cada script
-devuelve código de salida 0/1. Regla: cualquier cambio en `fort_analyzer.py`
-o en los módulos JS puros debe dejar toda la suite (Python + node) en verde y
-añadir los tests oro correspondientes.
+Fixtures en `tests/fixtures/ref_sim/` (simulación v.5 "info thesis") y `tests/fixtures/experimental/` (CSV de la Fase 4); valores oro documentados en `tests/fixtures/README.md` y `docs/SPEC_csv_datos_referencia.md`. Cada script devuelve código de salida 0/1. Regla: cualquier cambio en `fort_analyzer.py` o en los módulos JS puros debe dejar toda la suite (Python + node) en verde y añadir los tests oro correspondientes.
 
 ## Semántica del dominio (no violar)
 
-- Estructura de entrada: carpeta padre con subcarpetas, cada una con `fort.6`
-  (obligatorio), `inp.5` y `DECAY.dat` (opcionales). Modo simulación única si
-  `fort.6` está en la raíz.
-- La columna `RESTART` del fort.6 marca el inicio del enfriamiento; la columna
-  `INITIAL` es el estado pre-irradiación y se OMITE en los análisis de enfriamiento.
-- Prioridad de semividas: sección `semividas` del YAML > `DECAY.dat` > tabla interna
-  `DEFAULT_SEMIVIDAS` (fallback Te/I/Xe).
-- Unidades: los datos internos y el cache SIEMPRE están en Bq/cm³; la
-  conversión a MBq/g / actividad total es un factor por simulación aplicado
-  en el FRONTEND (`static/js/units.js`), no en el backend.
-- Claves de isótopo tal como aparecen en fort.6, en mayúsculas (`I131`, `XE133M`);
-  `iso_label()` genera la notación Unicode para la UI.
-- Datos de referencia externos (Fase 4, `reference_data.js`): el t=0 de una
-  serie con `fase: enfriamiento` es el fin de la irradiación (RESTART), igual
-  que en el resto de la app; se traslada sumando `T_IRR_h` de la simulación de
-  referencia elegida al importar. Las series viven solo en `appState`
-  (`_state.refSeries`), nunca en el cache del servidor ni en disco.
+- Estructura de entrada: carpeta padre con subcarpetas, cada una con `fort.6` (obligatorio), `inp.5` y `DECAY.dat` (opcionales). Modo simulación única si `fort.6` está en la raíz.
+- La columna `RESTART` del fort.6 marca el inicio del enfriamiento; la columna   `INITIAL` es el estado pre-irradiación y se OMITE en los análisis de enfriamiento.
+- Prioridad de semividas: sección `semividas` del YAML > `DECAY.dat` > tabla interna `DEFAULT_SEMIVIDAS` (fallback Te/I/Xe).
+- Unidades: los datos internos y el cache SIEMPRE están en Bq/cm³; la conversión a MBq/g / actividad total es un factor por simulación aplicado en el FRONTEND (`static/js/units.js`), no en el backend.
+- Claves de isótopo tal como aparecen en fort.6, en mayúsculas (`I131`, `XE133M`); `iso_label()` genera la notación Unicode para la UI.
+- Datos de referencia externos (Fase 4, `reference_data.js`): el t=0 de una serie con `fase: enfriamiento` es el fin de la irradiación (RESTART), igual que en el resto de la app; se traslada sumando `T_IRR_h` de la simulación de referencia elegida al importar. Las series viven solo en `appState` (`_state.refSeries`), nunca en el cache del servidor ni en disco.
 
 ## Gotchas
 
-- `/api/browse-folder` abre el selector nativo vía tkinter en subprocess: frágil en
-  instalaciones Python sin tkinter; el campo de ruta manual es el fallback. No
-  convertirlo en dependencia dura de ningún flujo.
+- `/api/browse-folder` abre el selector nativo vía tkinter en subprocess: frágil en instalaciones Python sin tkinter; el campo de ruta manual es el fallback. No convertirlo en dependencia dura de ningún flujo.
 - Respuestas JSON pasan por `_sanitize_for_json` (NaN/inf); mantener al añadir endpoints.

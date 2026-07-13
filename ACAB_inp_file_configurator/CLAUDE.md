@@ -2,10 +2,7 @@
 
 # ACAB INP File Configurator
 
-App web Flask (monousuario, 127.0.0.1:5000) para crear, cargar, validar y generar
-ficheros de entrada `inp.5` de ACAB 2008 (formato FORTRAN libre, 14 bloques), con
-herramienta integrada para ficheros CHAINS. Parte de la suite del TFG (ver CLAUDE.md
-de la carpeta padre).
+App web Flask (monousuario, 127.0.0.1:5000) para crear, cargar, validar y generar ficheros de entrada `inp.5` de ACAB 2008 (formato FORTRAN libre, 14 bloques), con herramienta integrada para ficheros CHAINS. Parte de la suite del TFG (ver CLAUDE.md de la carpeta padre).
 
 ## Arranque y stack
 
@@ -18,7 +15,8 @@ de la carpeta padre).
 - `acab_parser.py` — `ACABParser.read_inp5()`: parser de los 14 bloques. Tokenizador
   FORTRAN libre (D-exp, bare-exp tipo `3.2336+27`, comentarios con `<`). Los errores
   deben incluir el bloque en curso y el token ofensivo (`_ctx_msg`).
-- `app.py` — rutas + writer `_write_inp5()` del `inp.5`.
+- `app.py` — rutas + writer `_write_inp5()` y `_sci(v, prec=6)`. TODO fichero inp.5
+  que salga de la app pasa por `_write_inp5`; nunca duplicar lógica de formato.
 - `static/js/app.js` — lógica de UI y `validateAll()` con las validaciones cruzadas V01–V25. Toda validación nueva sigue esa numeración y se cubre en `tools/test_validate_all.js`.
 - `static/js/calc_utils.js` — funciones de cálculo PURAS (sin DOM), testeables con node. Todo cálculo nuevo de frontend va aquí con su test, no dentro de app.js.
 - `static/js/sweep_utils.js` — funciones PURAS del barrido paramétrico (mallas `buildBlocks78`/`calcularVectorTiempos` compartidas con el generador temporal, `buildFluxPatches`/`buildMassPatches`/`buildTimePatches`, `parseSweepValues`, `proposeSuffix`). Test: `tools/test_sweep_utils.js`.
@@ -26,23 +24,15 @@ de la carpeta padre).
 - `static/js/conderc_import.js` — funciones PURAS (patrón `calc_utils.js`) del barrido espectral (Fase P2 del runbook de barrido espectral): `parseConderc()` (parsea espectros CONDERC del OIEA con checksum contra la línea TOTAL), `spectralIndices()` (fracciones térmica/epitérmica/rápida, D8) y `buildSpectrumPatch()` (NGROUP con signo, CX, FT). Test: `tools/test_conderc_import.js` con el fixture `112_MURR-G1.txt`.
 - `coll_writer.py` — parser+writer de `COLL.inp` para el barrido espectral (D9), limitado a NGROUP/FF, CX (`6E12.5`) y FT (`6E12.5`); conserva el resto de tarjetas del `COLL.inp` base. **Copia sincronizada en semántica** con `collaps_parser.py`/`_write_coll_inp()` del repo `COLLAPS_inp_file_configurator` (fuente de verdad de formato: `docs/COLLAPS.md` de aquel repo) — si cambia el formato de COLL.inp allí, replicar aquí. Test: `tools/test_coll_writer.py` (round-trip con el fixture de 211 grupos).
 - `static/data/` — `atomic_data.json` (masas atómicas CIAAW), `egrp_presets.json`.
-- `runner.py` — **común de la suite, mantener sincronizado** con la copia de
-  `COLLAPS_inp_file_configurator/runner.py`: motor de ejecución single/batch
-  (Fase R3 del runbook runner v2). `app.py` expone `/api/run`, `/api/run/config`,
-  `/api/run/status` (enriquecido con `output_exists`/`workdir` para single y
-  `root` para batch, para el botón "Abrir en Fort Analyzer") y `/api/run/cancel`.
-  Config de invocación (exe_name, required_files, output_file, timeout_s) en
-  `acab_suite/README.md` §"Invocación de los códigos". Test: `tools/test_runner.py`,
-  `tools/test_run_endpoints.py`.
+- `runner.py` — **común de la suite, mantener sincronizado** con la copia de   `COLLAPS_inp_file_configurator/runner.py`: motor de ejecución single/batch (Fase R3 del runbook runner v2). `app.py` expone `/api/run`, `/api/run/config`, `/api/run/status` (enriquecido con `output_exists`/`workdir` para single y `root` para batch, para el botón "Abrir en Fort Analyzer") y `/api/run/cancel`.
+  Config de invocación (exe_name, required_files, output_file, timeout_s) en `acab_suite/README.md` §"Invocación de los códigos". Test: `tools/test_runner.py`,  `tools/test_run_endpoints.py`.
 - `/api/run/batch` (Fase R4 del runbook runner v2) — ejecución en cola de un barrido completo desde la pestaña "Barrido": body `{root, folders?, overwrite}`; si no se pasan `folders` los lee de `root/sweep_manifest.json` (404 si no existe). Cada subcarpeta lleva su propia copia del ejecutable (la sweep copia la carpeta base), así que el `cmd_template` pasado a `runner.start_batch` usa el marcador `{workdir}` para resolverse por-job; `batch_results.json` queda en la raíz. UI en `static/js/sweep.js` (panel tras generar + "Ejecutar un barrido existente"), pestaña Barrido en `index.html`. Test: `tools/test_run_batch_endpoint.py`.
 - `chains_handler.py` + `templates/chains.html` + `static/js/chains.js` — utilidad CHAINS.
 - `docs/Block#*.md`, `docs/chainsCode.md`, `docs/inp.5.md` — manual del formato.
+  **Fuente de verdad**: ante cualquier duda de formato o semántica de un parámetro, consultar aquí antes que suponer. Directorio de solo lectura: no editar.
 - `generador_acab.py` — [LEGACY] GUI Tkinter de mallas temporales; su lógica ya está extraída a static/js/sweep_utils.js (buildBlocks78) y el generador web de la pestaña temporal la usa. No invertir más en él.
-- `examples/` — ficheros inp.5 reales; casos oro de regresión.
-- `tests/fixtures/spectra/` — espectros CONDERC de referencia para el barrido
-  espectral: `112_MURR-G1.txt` (caso oro del parser: 112 grupos, energías en eV
-  decrecientes, línea TOTAL como checksum), `sneg_2-6` (extremo grueso, 6 grupos:
-  test del aviso direccional) y `br2-621` (extremo fino, 621 grupos).
+- `examples/` — ficheros inp.5 reales; casos oro de regresión. 
+- `tests/fixtures/spectra/` — espectros CONDERC de referencia para el barrido espectral: `112_MURR-G1.txt` (caso oro del parser: 112 grupos, energías en eV decrecientes, línea TOTAL como checksum), `sneg_2-6` (extremo grueso, 6 grupos: test del aviso direccional) y `br2-621` (extremo fino, 621 grupos).
 - `tests/fixtures/COLL.inp` — COLL.inp de referencia (211 grupos, NGROUP=-211)
   para el round-trip de `coll_writer.py`. Regla: los fixtures viven junto a los
   tests que los consumen — la suite de este repo es autocontenida y no depende
