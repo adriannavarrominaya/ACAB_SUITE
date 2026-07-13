@@ -188,3 +188,15 @@ requerido más: si no está en el workdir, error 422 con mensaje indicándolo.
   Corregido en el CLAUDE.md del INP configurator: comandos con ficheros explícitos
   + nota de que exit 2 sin argumentos no es fallo de tests. Lección: "exit ≠ 0"
   no se interpreta sin leer la salida.
+- **Control MURR — pipeline (P4)** ✅ (2026-07-13): barrido espectral de 1 sim con
+  MURR-G1 (CONDERC): COLL.inp generado con NGROUP=-112/IESF=5/CX en MeV correctos,
+  pipeline collaps→copy→acab→check_flux OK, y eco de COLLAPS con REAL TOTAL FLUX
+  = 1.4634e14 = Σ DATA del fichero → cadena completa verificada sin pérdidas.
+- **Control MURR — física** ✅ (2026-07-13): A_pico(G1 medido)/A_pico(analítico)
+  = 0.6386; cociente de σ_eff ¹³⁰Te(n,γ)→Te131 entre los dos XSECTION.dat =
+  0.6385 → diferencia atribuida al 100% a la forma espectral (coincidencia a 4
+  cifras). Canal Te131m: 0.660, consistente (peso 22:1 a favor del fundamental).
+  E̅ analítico = 0.627 eV (espectro de 3 grupos, muy térmico) vs E̅ G1 medido =
+  0.1438 MeV. Conclusión: pipeline y barrido espectral VALIDADOS con datos
+  independientes del OIEA; la diferencia analítico↔G1 es física de posición/
+  representación, no error de la herramienta.
