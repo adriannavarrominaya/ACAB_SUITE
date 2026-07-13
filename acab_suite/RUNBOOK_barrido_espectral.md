@@ -35,7 +35,6 @@ salvo verificación en Optimización).
 - **D4 — Import = transcripción, sin rebinning.** La conversión de estructuras la hace COLLAPS (IESF=5 + CX). Del fichero CONDERC: NGROUP = ±N (signo AUTODETECTADO de la monotonía de las fronteras y mostrado en la UI), CX = N+1 fronteras (columna UPPER + última LOWER), FT = columna DATA en el orden del fichero.
   ⚠ Unidades de CX: P0.2 verificado: CX en MeV; CONDERC en eV → el import convierte las fronteras ×10⁻⁶ (los FT no se convierten: son flujos integrales por grupo, adimensionales respecto a la unidad de energía). Es la ÚNICA transformación. 
   Los espectros medidos (origen EXFOR) pueden cubrir solo un rango parcial de energía; para la comparación entre reactores solo valen espectros de rango completo — criterio operativo: la frontera inferior del fichero debe alcanzar la región térmica. La fracción térmica 0.0% en un reactor térmico es el síntoma.
-  2b. Columna "Rango de energía" (E_min – E_max del fichero) en la tabla de espectros de la pestaña, junto al nº de grupos — hace visible de un vistazo el criterio de rango completo (un E_min en keV delata un espectro parcial tipo EXFOR sin necesidad de interpretar la fracción térmica).
 - **D5 — Aviso direccional.** Si |N| < 211 (grupos de la librería XSBL, constante
   de configuración), badge de aviso en la fila: "espectro menos especificado que la
   librería: la expansión de grupos es la operación menos fiable". Informa, no
@@ -150,11 +149,9 @@ ejecución individual funcionan EXACTAMENTE igual que antes (regresión manual b
 
 ## Fase P5 — Documentación y verificación en Optimización
 
-1. README del INP configurator: sección del barrido espectral (D1-D8 en versión
-   usuario, formato CONDERC, enlace a la fuente del OIEA). Los espectros medidos (origen EXFOR) pueden cubrir solo un rango parcial de energía; para la comparación entre reactores solo valen espectros de rango completo — criterio operativo: la frontera inferior del fichero debe alcanzar la región térmica. La fracción térmica 0.0% en un reactor térmico es el síntoma
-2. Verificar (sin código nuevo previsto) que la pestaña Optimización del analyzer
-   grafica A_pico vs `frac_termica` con un barrido espectral real; ajustar solo si
-   los params categóricos (label) molestan.
+1. README del INP configurator: sección del barrido espectral (D1-D8 en versión usuario, formato CONDERC, enlace a la fuente del OIEA). Los espectros medidos (origen EXFOR) pueden cubrir solo un rango parcial de energía; para la comparación entre reactores solo valen espectros de rango completo — criterio operativo: la frontera inferior del fichero debe alcanzar la región térmica. La fracción térmica 0.0% en un reactor térmico es el síntoma
+2. Verificar (sin código nuevo previsto) que la pestaña Optimización del analyzer grafica A_pico vs `frac_termica` con un barrido espectral real; ajustar solo si los params categóricos (label) molestan.
+2b. Columna "Rango de energía" (E_min – E_max del fichero) en la tabla de espectros de la pestaña, junto al nº de grupos — hace visible de un vistazo el criterio de rango completo (un E_min en keV delata un espectro parcial tipo EXFOR sin necesidad de interpretar la fracción térmica).
 3. Tablón y CLAUDE.md de los repos tocados actualizados.
 
 ---
