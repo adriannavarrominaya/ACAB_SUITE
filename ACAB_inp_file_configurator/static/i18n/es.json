@@ -84,6 +84,8 @@
     "spectrum_empty": "No se ha cargado ningún espectro todavía.",
     "spectrum_col_label": "Etiqueta",
     "spectrum_col_ngroups": "Nº grupos",
+    "spectrum_col_erange": "Rango de energía",
+    "spectrum_erange_hint": "E_min–E_max del fichero. Un E_min en keV delata un espectro de rango parcial (p. ej. origen EXFOR): para comparar reactores, la frontera inferior debe alcanzar la región térmica.",
     "spectrum_col_order": "Orden",
     "spectrum_col_checksum": "Checksum",
     "spectrum_col_thermal": "Frac. térmica",

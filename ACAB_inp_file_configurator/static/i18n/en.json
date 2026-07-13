@@ -84,6 +84,8 @@
     "spectrum_empty": "No spectrum has been loaded yet.",
     "spectrum_col_label": "Label",
     "spectrum_col_ngroups": "# groups",
+    "spectrum_col_erange": "Energy range",
+    "spectrum_erange_hint": "E_min–E_max of the file. An E_min in the keV range betrays a partial-range spectrum (e.g. EXFOR origin): to compare reactors, the lower boundary must reach the thermal region.",
     "spectrum_col_order": "Order",
     "spectrum_col_checksum": "Checksum",
     "spectrum_col_thermal": "Thermal frac.",

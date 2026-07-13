@@ -241,6 +241,15 @@
       tdN.textContent = row.parsed.n;
       tr.appendChild(tdN);
 
+      const tdRange = document.createElement('td');
+      tdRange.className = 'text-center font-monospace small';
+      const bounds = row.parsed.boundaries_eV;
+      const eMin = Math.min(...bounds);
+      const eMax = Math.max(...bounds);
+      tdRange.textContent = `${eMin.toExponential(2)} – ${eMax.toExponential(2)} eV`;
+      tdRange.title = t('sweep.spectrum_erange_hint');
+      tr.appendChild(tdRange);
+
       const tdOrder = document.createElement('td');
       tdOrder.className = 'text-center';
       tdOrder.textContent = row.parsed.orden === 'decreciente'

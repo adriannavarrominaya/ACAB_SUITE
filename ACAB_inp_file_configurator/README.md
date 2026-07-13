@@ -656,3 +656,87 @@ interfaz si N > 30 y aviso destacado si el coste en disco estimado
 existentes devuelven HTTP 409 salvo que se confirme sobrescribir. Cada `inp.5`
 generado se verifica re-parseándolo (round-trip) antes de escribir; si alguno
 falla, se aborta **todo** el barrido y se limpia lo ya escrito.
+
+### Barrido espectral (COLLAPS)
+
+Cuarto tipo de barrido de la pestaña "Barrido": en lugar de variar un valor
+del `inp.5`, varía la **forma** del espectro neutrónico que COLLAPS colapsa a
+la librería de secciones eficaces (tarjeta 7/FT y tarjeta 6/CX del `COLL.inp`),
+importando espectros externos publicados en formato **CONDERC** del OIEA
+([https://nds.iaea.org/conderc/spectra](https://nds.iaea.org/conderc/spectra)).
+Pregunta que responde: a igualdad de densidad de flujo total, ¿en qué tipo de
+reactor (térmico, epitérmico, rápido…) es más eficaz la producción del
+radioisótopo?
+
+**Qué NO toca este barrido.** El `inp.5` queda intacto salvo, opcionalmente,
+un único valor: si se edita el campo **φ_ref** de la pestaña (prefijado con el
+Bloque #3 del fichero base), ese mismo valor se aplica como flujo total a
+**todas** las simulaciones (patch uniforme). `XNORM` (Bloque #9) no se toca —
+queda reservado al barrido de flujo, y permite en el futuro combinar espectro
+× flujo.
+
+**Por qué la comparación es "a flujo total igual" sin normalizar nada.** El
+colapso de COLLAPS es una media ponderada por el espectro: la magnitud
+absoluta del flujo (FT) se cancela en el resultado, solo importa su forma.
+Con el Bloque #3 idéntico en todas las simulaciones (por construcción, salvo
+que se edite φ_ref), comparar reactores entre sí ya es "a igualdad de flujo
+total" sin ningún factor de normalización numérico. Normalizar el FT a suma 1
+al importar es puramente **cosmético**, para que la gráfica de espectros
+superpuestos sea comparable visualmente.
+
+**`FLUX.inf` es un verificador, nunca una fuente.** Tras cada ejecución de
+COLLAPS, el pipeline lee de `FLUX.inf` el flujo total real, la energía media y
+el eco de los parámetros de librería (ILIB/IESF/NGROUP), y los anota en
+`batch_results.json`/manifest para control. Ningún valor de `FLUX.inf` se
+copia jamás a un fichero de entrada.
+
+**Formato CONDERC importado** (fichero `.txt`/`.csv` con cabecera `GROUP UPPER
+LOWER LETHARGY DATA DATA/LETHARGY`, una fila por grupo, energías en eV y una
+línea final `TOTAL <valor>`): la importación es una **transcripción directa**,
+sin reagrupar (rebinning) — la conversión de estructura de grupos la hace
+COLLAPS internamente (IESF=5 + tarjeta CX). Del fichero se toman: `NGROUP` con
+signo autodetectado según el fichero venga en energías crecientes o
+decrecientes (mostrado en la UI para confirmación visual), la tarjeta `CX`
+(las N+1 fronteras del fichero, columna UPPER + última LOWER) y la tarjeta
+`FT` (columna DATA, en el orden del fichero). La línea `TOTAL` se usa como
+checksum del parser (Σ DATA, tolerancia relativa 1×10⁻³); si no cuadra, se
+rechaza el fichero con un mensaje claro. Única transformación de unidades: las
+fronteras de energía se convierten de eV (CONDERC) a MeV (unidad de la
+tarjeta CX de COLL.inp), multiplicando por 10⁻⁶ — los valores de FT no se
+convierten (son flujos integrales por grupo, adimensionales respecto a la
+unidad de energía).
+
+**Criterio de rango completo (espectros medidos/EXFOR).** Algunos espectros
+publicados en CONDERC proceden de medidas experimentales (origen EXFOR) y
+pueden cubrir solo una parte del rango de energía. Para comparar reactores
+entre sí solo son válidos espectros de **rango completo**: la frontera
+inferior del fichero debe alcanzar la región térmica. La columna **"Rango de
+energía"** (E_min–E_max) de la tabla de espectros de la pestaña hace este
+criterio visible de un vistazo — un E_min en el rango de keV delata un
+espectro parcial. El síntoma equivalente en los índices espectrales es una
+fracción térmica del 0,0 % en lo que debería ser un reactor térmico.
+
+**Aviso direccional.** Si el número de grupos del espectro importado (|N|) es
+menor que el de la librería XSBL (211 grupos), la fila muestra un badge de
+aviso: expandir un espectro con menos grupos que la librería es la operación
+menos fiable de la transcripción. Es informativo, no bloquea la importación
+(el propio espectro de referencia MURR-G1 de CONDERC, con 112 grupos, lo
+lleva y aun así es válido).
+
+**Índices espectrales.** Por cada espectro importado se calculan tres
+fracciones (reparto plano por letargia en el grupo que contiene cada
+frontera): **térmica** (E < 0,625 eV), **epitérmica** (0,625 eV – 0,1 MeV) y
+**rápida** (> 0,1 MeV). Se guardan en el manifest junto con la etiqueta y el
+número de grupos, de forma que la pestaña "Optimización" del Fort Analyzer
+puede graficar directamente A_pico frente a la fracción térmica sin cambios.
+
+**Ejecución (pipeline collaps → acab).** Cada simulación del barrido
+espectral es un pipeline de varios pasos, no una única ejecución: 1) `collaps.exe`
+sobre el `COLL.inp` parcheado con el espectro de esa fila; 2) copia de
+`XSECTION.dat` generado por COLLAPS a la carpeta de la simulación;
+3) `acab.exe` sobre esa carpeta; 4) lectura de verificación de `FLUX.inf`. La
+carpeta base del barrido debe incluir una subcarpeta `collaps/` con
+`collaps.exe`, `XSBL.dat` y un `COLL.inp` de partida. Un fallo en cualquier
+paso marca esa simulación como fallida (con el paso responsable indicado) sin
+detener el resto de la cola. La fila de cada simulación en curso muestra el
+paso activo ("collaps / copiar / acab").
