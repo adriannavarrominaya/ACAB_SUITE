@@ -268,5 +268,100 @@ class SpectralSweepTests(unittest.TestCase):
         self.assertFalse((root / 'sweep_manifest.json').exists())
 
 
+class BaseFolderExclusionTests(unittest.TestCase):
+    """C4 del BACKLOG: exclusión de salidas viejas al copiar la carpeta base
+    (asimetría espectral vs flujo/masa/temporal) -- caso oro con una carpeta
+    base sembrada de salidas falsas reconocibles ('STALE')."""
+
+    def setUp(self):
+        self.client = appmod.app.test_client()
+        self.tmp = Path(tempfile.mkdtemp())
+        self.data = appmod._default_data()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _seed_acab_outputs(self, base: Path):
+        (base / 'inp.5').write_text('OLD BASE INP', encoding='utf-8')
+        (base / 'acab.exe').write_text('fake exe', encoding='utf-8')
+        (base / 'DECAY.dat').write_text('decay data', encoding='utf-8')
+        (base / 'fort.6').write_text('STALE_ACAB_OUTPUT', encoding='utf-8')
+        (base / 'run.log').write_text('STALE_ACAB_OUTPUT', encoding='utf-8')
+        (base / 'cpu_time.txt').write_text('STALE_ACAB_OUTPUT', encoding='utf-8')
+
+    def test_spectrum_sweep_excludes_acab_and_collaps_outputs(self):
+        base = self.tmp / 'base_spec'
+        base.mkdir(parents=True)
+        self._seed_acab_outputs(base)
+        # XSECTION.dat top-level: copia residual de una ejecución previa de
+        # la propia base (entrada de ACAB, pero regenerada por sim en el
+        # barrido espectral -> también es salida vieja aquí).
+        (base / 'XSECTION.dat').write_text('STALE_COLLAPS_OUTPUT', encoding='utf-8')
+        coll = base / 'collaps'
+        coll.mkdir()
+        (coll / 'COLL.inp').write_text('coll base', encoding='utf-8')
+        for name in ('XSECTION.dat', 'FLUX.inf', 'XS.inf', 'REACTIONS.dat', 'XSZERO.dat'):
+            (coll / name).write_text('STALE_COLLAPS_OUTPUT', encoding='utf-8')
+
+        root = self.tmp / 'out_spec'
+        r = self.client.post('/api/sweep', json={
+            'root': str(root), 'base_folder': str(base), 'prefix': 'P_',
+            'description': 'barrido espectral - exclusion C4', 'sweep_type': 'spectrum',
+            'data': self.data, 'sims': [{'suffix': 's1', 'params': {}, 'patch': {}}]})
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+
+        sim_dir = root / 'P_s1'
+        stale_rel_paths = ('fort.6', 'run.log', 'cpu_time.txt', 'XSECTION.dat',
+                            'collaps/XSECTION.dat', 'collaps/FLUX.inf',
+                            'collaps/XS.inf', 'collaps/REACTIONS.dat',
+                            'collaps/XSZERO.dat')
+        for rel in stale_rel_paths:
+            self.assertFalse((sim_dir / rel).exists(),
+                              f'{rel} no debería copiarse en un barrido espectral')
+        # Lo que no es salida sobrevive (entradas, ejecutable, COLL.inp base).
+        self.assertTrue((sim_dir / 'acab.exe').exists())
+        self.assertTrue((sim_dir / 'DECAY.dat').exists())
+        self.assertTrue((sim_dir / 'collaps' / 'COLL.inp').exists())
+
+        manifest = json.loads((root / 'sweep_manifest.json').read_text(encoding='utf-8'))
+        excluded = set(manifest['excluded_base_files'])
+        self.assertEqual(excluded, {
+            'fort.6', 'run.log', 'cpu_time.txt', 'XSECTION.dat',
+            'collaps/XSECTION.dat', 'collaps/FLUX.inf', 'collaps/XS.inf',
+            'collaps/REACTIONS.dat', 'collaps/XSZERO.dat',
+        })
+
+    def test_flux_sweep_keeps_shared_spectrum_but_drops_acab_outputs(self):
+        base = self.tmp / 'base_flux'
+        base.mkdir(parents=True)
+        self._seed_acab_outputs(base)
+        # XSECTION.dat/FLUX.inf: espectro compartido a propósito por todas
+        # las sims del barrido de flujo -- deben sobrevivir IDÉNTICOS.
+        (base / 'XSECTION.dat').write_text('SHARED_SPECTRUM_DATA', encoding='utf-8')
+        (base / 'FLUX.inf').write_text('SHARED_SPECTRUM_DATA', encoding='utf-8')
+
+        root = self.tmp / 'out_flux'
+        sims = [{'suffix': 'x1', 'params': {'XNORM': 1.0},
+                 'patch': {'block9': {'XNORM': 1.0}}}]
+        r = self.client.post('/api/sweep', json={
+            'root': str(root), 'base_folder': str(base), 'prefix': 'P_',
+            'description': 'barrido de flujo - exclusion C4', 'sweep_type': 'flux',
+            'data': self.data, 'sims': sims})
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+
+        sim_dir = root / 'P_x1'
+        self.assertFalse((sim_dir / 'fort.6').exists())
+        self.assertFalse((sim_dir / 'run.log').exists())
+        self.assertFalse((sim_dir / 'cpu_time.txt').exists())
+        self.assertEqual((sim_dir / 'XSECTION.dat').read_text(encoding='utf-8'),
+                          'SHARED_SPECTRUM_DATA')
+        self.assertEqual((sim_dir / 'FLUX.inf').read_text(encoding='utf-8'),
+                          'SHARED_SPECTRUM_DATA')
+
+        manifest = json.loads((root / 'sweep_manifest.json').read_text(encoding='utf-8'))
+        self.assertEqual(set(manifest['excluded_base_files']),
+                          {'fort.6', 'run.log', 'cpu_time.txt'})
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

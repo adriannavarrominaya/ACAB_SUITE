@@ -21,6 +21,13 @@ se aplica sobre el COLL.inp de `<base_folder>/collaps/COLL.inp` y se escribe
 en `<sim>/collaps/COLL.inp` (reemplaza al copiado por la base, misma
 precedencia que el inp.5 generado). Requiere `collaps/COLL.inp` en la carpeta
 base; 422 si falta y el barrido lleva `coll_patch`.
+
+Excepción a "el servidor no conoce los tipos de barrido" (C4 del BACKLOG):
+la copia de la carpeta base SÍ mira `sweep_type == 'spectrum'` para decidir
+qué salidas viejas excluir (ver `_base_exclusion_names`) -- es la única
+rama del código que distingue el tipo, porque la asimetría (el espectral
+regenera XSECTION.dat/FLUX.inf por sim; los demás lo comparten a propósito)
+no se puede derivar del patch.
 """
 
 from __future__ import annotations
@@ -41,6 +48,53 @@ from coll_writer import apply_spectrum_patch, read_coll_inp, write_coll_inp
 
 MAX_SIMS = 200
 _SAFE_SUFFIX = re.compile(r'^[A-Za-z0-9._+-]+$')
+
+# ── Exclusión de salidas viejas al copiar la carpeta base (C4 del BACKLOG) ──
+# Un fichero de salida muerto (de OTRA ejecución) dentro de la carpeta de una
+# simulación es una trampa de trazabilidad (visto en el control MURR: un
+# FLUX.inf de otro espectro). La exclusión depende del TIPO de barrido:
+#
+# Salidas de ACAB: el pipeline las regenera SIEMPRE por simulación (todo tipo
+# de barrido) — se excluyen siempre.
+_ACAB_OUTPUT_FILES = ('fort.6', 'run.log', 'cpu_time.txt')
+
+# Salidas de COLLAPS: en el barrido ESPECTRAL el espectro cambia por
+# simulación y el pipeline las regenera (D7/D9) -> excluirlas evita heredar
+# el XSECTION.dat/FLUX.inf de OTRO espectro (la propia trampa MURR). En los
+# barridos de FLUJO/MASA/TEMPORAL el espectro es COMPARTIDO a propósito (no
+# se re-ejecuta COLLAPS por simulación, acab_suite/README.md): aquí se
+# CONSERVAN, son la entrada real del cálculo, no una trampa.
+_COLLAPS_OUTPUT_FILES = ('XSECTION.dat', 'FLUX.inf', 'XS.inf', 'REACTIONS.dat', 'XSZERO.dat')
+
+
+def _base_exclusion_names(sweep_type: str) -> set[str]:
+    """Nombres de fichero a excluir al copiar la carpeta base, según el tipo
+    de barrido (asimetría espectral vs flujo/masa/temporal, ver arriba)."""
+    if sweep_type == 'spectrum':
+        return set(_ACAB_OUTPUT_FILES) | set(_COLLAPS_OUTPUT_FILES)
+    return set(_ACAB_OUTPUT_FILES)
+
+
+def _copy_base_folder(base_p: Path, sub: Path, exclude_names: set[str]) -> list[str]:
+    """Copia ``base_p`` en ``sub`` excluyendo ``exclude_names``.
+
+    Devuelve las rutas (relativas a ``base_p``, separador '/') EFECTIVAMENTE
+    excluidas -- solo lo que existía de verdad en la base, no la lista
+    teórica -- para que la limpieza quede trazada en el manifest.
+    """
+    excluded: list[str] = []
+
+    def _ignore(dir_path: str, names: list[str]) -> set[str]:
+        skip = set()
+        for name in names:
+            candidate = Path(dir_path) / name
+            if name in exclude_names and candidate.is_file():
+                skip.add(name)
+                excluded.append(str(candidate.relative_to(base_p)).replace('\\', '/'))
+        return skip
+
+    shutil.copytree(base_p, sub, dirs_exist_ok=True, ignore=_ignore)
+    return excluded
 
 
 class SweepError(Exception):
@@ -179,7 +233,8 @@ def _rollback(created) -> None:
             pass
 
 
-def _manifest_json(root_p, sweep_type, description, fixed_params, sims, folders):
+def _manifest_json(root_p, sweep_type, description, fixed_params, sims, folders,
+                    excluded_base_files):
     return {
         'timestamp': datetime.now(timezone.utc).isoformat(timespec='seconds'),
         'sweep_type': sweep_type,
@@ -190,6 +245,7 @@ def _manifest_json(root_p, sweep_type, description, fixed_params, sims, folders)
             {'folder': folder, 'params': sim.get('params') or {}}
             for sim, folder in zip(sims, folders)
         ],
+        'excluded_base_files': sorted(excluded_base_files),
     }
 
 
@@ -333,6 +389,8 @@ def generate_sweep(payload: dict, write_fn: Callable[[dict], str]) -> dict:
     root_p.mkdir(parents=True, exist_ok=True)
     parser = ACABParser()
     created = []
+    exclude_names = _base_exclusion_names(sweep_type)
+    excluded_base_files: set[str] = set()
     try:
         for sim, folder in zip(sims, folders):
             merged = deep_merge(data, sim.get('patch') or {})
@@ -350,8 +408,9 @@ def generate_sweep(payload: dict, write_fn: Callable[[dict], str]) -> dict:
             sub.mkdir(parents=True, exist_ok=True)
             if not existed:
                 created.append(sub)
-            # Copiar el contenido de la carpeta base (recursivo)…
-            shutil.copytree(base_p, sub, dirs_exist_ok=True)
+            # Copiar el contenido de la carpeta base (recursivo), excluyendo
+            # salidas viejas (C4: la trampa de trazabilidad tipo MURR)…
+            excluded_base_files.update(_copy_base_folder(base_p, sub, exclude_names))
             # …y escribir el inp.5 generado DESPUÉS (reemplaza el de la base)
             (sub / 'inp.5').write_text(content, encoding='utf-8')
 
@@ -376,7 +435,8 @@ def generate_sweep(payload: dict, write_fn: Callable[[dict], str]) -> dict:
         raise SweepError(f'Error inesperado durante la generación: {exc}', 500)
 
     # ── Manifest + README + scripts en la raíz ────────────────────────────
-    manifest = _manifest_json(root_p, sweep_type, description, fixed_params, sims, folders)
+    manifest = _manifest_json(root_p, sweep_type, description, fixed_params, sims, folders,
+                               excluded_base_files)
     (root_p / 'sweep_manifest.json').write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False), encoding='utf-8')
     (root_p / 'sweep_manifest.csv').write_text(
