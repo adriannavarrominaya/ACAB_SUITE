@@ -4,6 +4,8 @@
 
 **Herramienta gráfica web para la generación y edición de ficheros de entrada de COLLAPS**
 
+> **Manual de usuario** (orientado a tareas, sin detalle de arquitectura ni tests): [`docs/manual_usuario.md`](docs/manual_usuario.md).
+
 **Autores:** Adrian Navarro Minaya · Oscar Luis Cabellos de Francisco  
 **Centro:** Escuela Universitaria de Minas y Energía — Universidad Politécnica de Madrid  
 **Fecha:** Mayo 2026  
