@@ -934,6 +934,164 @@ def calcular_pureza(
     }
 
 
+# F1 (runbook_F1_pureza_temporal.md): umbral farmacéutico validado con el tutor.
+UMBRAL_PUREZA_PCT = 99.9
+
+
+def _interp_loglinear(frac: float, a0: float, a1: float) -> float:
+    """Interpolate an activity at *frac* in [0,1] between two timesteps.
+
+    Log-linear (exponential decay/growth is linear in ln A vs t) when both
+    endpoints are positive; falls back to linear when either is zero (ln
+    undefined) — negligible in practice since that only happens for isotopes
+    with no contribution yet.
+    """
+    if a0 > 0 and a1 > 0:
+        return a0 * (a1 / a0) ** frac
+    return a0 + (a1 - a0) * frac
+
+
+def _pureza_en_frac(frac: float, iso_key: str, A0: dict[str, float], A1: dict[str, float]) -> Optional[float]:
+    total = 0.0
+    obj = 0.0
+    for iso, a0 in A0.items():
+        a = _interp_loglinear(frac, a0, A1[iso])
+        total += a
+        if iso == iso_key:
+            obj = a
+    return (obj / total * 100.0) if total > 0 else None
+
+
+def _resolver_cruce_loglineal(
+    t0: float, t1: float, iso_key: str,
+    A0: dict[str, float], A1: dict[str, float],
+    umbral_pct: float,
+) -> float:
+    """Bisect for the instant in [t0, t1] where P(t) == umbral_pct.
+
+    Activities are interpolated log-linearly (see runbook decision); P(t) is
+    derived from those interpolated activities at each trial point, never
+    interpolated directly.
+    """
+    lo, hi = 0.0, 1.0
+    p_hi = _pureza_en_frac(hi, iso_key, A0, A1)
+    if p_hi is None or p_hi < umbral_pct:
+        return t1  # no root in range (caller's bracket assumption failed) — report t1 as-is
+    for _ in range(60):
+        mid = (lo + hi) / 2.0
+        p_mid = _pureza_en_frac(mid, iso_key, A0, A1)
+        if p_mid is None or p_mid < umbral_pct:
+            lo = mid
+        else:
+            hi = mid
+        if hi - lo < 1e-9:
+            break
+    frac_sol = (lo + hi) / 2.0
+    return t0 + frac_sol * (t1 - t0)
+
+
+def calcular_pureza_serie(
+    sim: dict,
+    iso_key: str,
+    isotopos_impureza: list[str],
+    umbral_pct: float = UMBRAL_PUREZA_PCT,
+) -> Optional[dict]:
+    """Radionuclidic purity P(t) = A(iso_key,t)/Σ A(isotopos_impureza,t) through
+    the whole cooling phase (t=0 = end of irradiation, RESTART/SHUTDOWN).
+
+    Returns the real timestep-by-timestep series plus the threshold-crossing
+    instant (*t_cruce*) and the administration window (activity of iso_key at
+    that instant, and as a fraction of its simulation peak). *isotopos_impureza*
+    follows the same convention as calcular_pureza (full denominator set,
+    normally including iso_key). Returns None if there is no impurity list or
+    no cooling data at all.
+
+    t_cruce cases:
+      - already >= umbral_pct at t=0 → t_cruce=0, not interpolated (real point).
+      - crossed between two real timesteps → log-linear interpolation of each
+        isotope's activity (never of P directly), estimado=True.
+      - never reached in the simulated cooling window → t_cruce=None,
+        estado="no_alcanzado" (no extrapolation past the last timestep).
+
+    Does not assume monotonicity: after locating the first crossing, checks
+    that every later real timestep stays >= umbral_pct; the first violation
+    (if any) is reported in *aviso_no_monotono* for the caller to render.
+    """
+    if not isotopos_impureza:
+        return None
+    t_cool = np.asarray(sim["t_cool"], dtype=float)
+    if len(t_cool) == 0:
+        return None
+
+    A_iso = {
+        iso: np.asarray(sim["datos_cool"].get(iso, np.zeros(len(t_cool))), dtype=float)
+        for iso in isotopos_impureza
+    }
+    A_total = np.sum(list(A_iso.values()), axis=0)
+    A_obj = A_iso.get(iso_key, np.zeros(len(t_cool)))
+
+    P_vals: list[Optional[float]] = [
+        (float(a_obj) / float(a_tot) * 100.0) if a_tot > 0 else None
+        for a_obj, a_tot in zip(A_obj, A_total)
+    ]
+    serie = [
+        {"t": float(t), "P_pct": _safe_val(p)}
+        for t, p in zip(t_cool, P_vals)
+    ]
+
+    idx_cruce: Optional[int] = None
+    for i, p in enumerate(P_vals):
+        if p is not None and p >= umbral_pct:
+            idx_cruce = i
+            break
+
+    estado: str
+    t_cruce_info: Optional[dict] = None
+    A_obj_cruce: Optional[float] = None
+
+    if idx_cruce is None:
+        estado = "no_alcanzado"
+    elif idx_cruce == 0:
+        estado = "alcanzado_en_fin_irradiacion"
+        A_obj_cruce = float(A_obj[0])
+        t_cruce_info = {"t_h": 0.0, "estimado": False}
+    else:
+        estado = "alcanzado_en_enfriamiento"
+        t0, t1 = float(t_cool[idx_cruce - 1]), float(t_cool[idx_cruce])
+        A0 = {iso: float(arr[idx_cruce - 1]) for iso, arr in A_iso.items()}
+        A1 = {iso: float(arr[idx_cruce]) for iso, arr in A_iso.items()}
+        t_c = _resolver_cruce_loglineal(t0, t1, iso_key, A0, A1, umbral_pct)
+        frac = (t_c - t0) / (t1 - t0) if t1 > t0 else 1.0
+        A_obj_cruce = _interp_loglinear(frac, A0.get(iso_key, 0.0), A1.get(iso_key, 0.0))
+        t_cruce_info = {"t_h": _safe_val(t_c), "estimado": True}
+
+    aviso_no_monotono: Optional[dict] = None
+    if idx_cruce is not None:
+        for j in range(idx_cruce + 1, len(P_vals)):
+            if P_vals[j] is None or P_vals[j] < umbral_pct:
+                aviso_no_monotono = {"t_h": float(t_cool[j]), "P_pct": _safe_val(P_vals[j])}
+                break
+
+    ventana_administracion: Optional[dict] = None
+    if t_cruce_info is not None:
+        A_pico = calcular_pico(sim, iso_key)["A_pico"]
+        ventana_administracion = {
+            "t_cruce_h":     t_cruce_info["t_h"],
+            "A_objetivo":    _safe_val(A_obj_cruce),
+            "A_pico":        _safe_val(A_pico),
+            "fraccion_pico": _safe_val(A_obj_cruce / A_pico) if A_pico > 0 and A_obj_cruce is not None else None,
+        }
+
+    return {
+        "serie":                  serie,
+        "umbral_pct":             umbral_pct,
+        "estado":                 estado,
+        "t_cruce":                t_cruce_info,
+        "aviso_no_monotono":      aviso_no_monotono,
+        "ventana_administracion": ventana_administracion,
+    }
+
+
 def calcular_informe_isotopo(
     all_data: dict,
     isotopo_key: str,
@@ -968,9 +1126,10 @@ def calcular_informe_isotopo(
         pico = calcular_pico(sim, isotopo_key)
         sim_reports[sim_name] = pico
         metricas[sim_name] = {
-            "saturacion":  calcular_saturacion(sim, isotopo_key, t12_dict),
-            "rendimiento": calcular_rendimiento(sim, isotopo_key),
-            "pureza":      calcular_pureza(sim, isotopo_key, pico["t_pico"], impureza_list),
+            "saturacion":   calcular_saturacion(sim, isotopo_key, t12_dict),
+            "rendimiento":  calcular_rendimiento(sim, isotopo_key),
+            "pureza":       calcular_pureza(sim, isotopo_key, pico["t_pico"], impureza_list),
+            "pureza_serie": calcular_pureza_serie(sim, isotopo_key, impureza_list),
         }
 
     return {
