@@ -1,0 +1,529 @@
+# Manual de usuario — ACAB Fort File Analyzer
+
+> Manual orientado a tareas. Si buscas detalle funcional, arquitectura, la API
+> REST o comandos de test, consulta el `README.md` de este repositorio y su
+> `CLAUDE.md`. Este documento asume que ya conoces física de activación
+> neutrónica y el código ACAB 2008 (UPM), pero no la suite de herramientas.
+
+## Índice
+
+1. [Introducción](#1-introducción)
+2. [Primeros pasos](#2-primeros-pasos)
+3. [Analizar una carpeta de simulaciones](#3-analizar-una-carpeta-de-simulaciones)
+4. [Pestaña "Simulaciones"](#4-pestaña-simulaciones)
+5. [Unidades y exportación CSV](#5-unidades-y-exportación-csv)
+6. [Pestaña "Actividad por Isótopo"](#6-pestaña-actividad-por-isótopo)
+7. [Informe de un isótopo](#7-informe-de-un-isótopo)
+8. [Métricas de optimización de producción](#8-métricas-de-optimización-de-producción)
+9. [Superponer datos experimentales](#9-superponer-datos-experimentales)
+10. [Tablas Comparativas](#10-tablas-comparativas)
+11. [Pestaña "Optimización" (barrido paramétrico)](#11-pestaña-optimización-barrido-paramétrico)
+12. [Errores y avisos frecuentes](#12-errores-y-avisos-frecuentes)
+
+---
+
+## 1. Introducción
+
+Esta aplicación es el último eslabón del flujo de trabajo de la suite ACAB del
+TFG:
+
+```
+COLLAPS (espectro → XSECTION.dat)  →  inp.5 (INP Configurator)  →  ejecutar ACAB  →  fort.6 (ESTA APP)
+```
+
+Su función es leer los ficheros de salida `fort.6` de una o varias
+simulaciones de ACAB 2008, convertirlos a magnitudes físicas comprensibles
+(actividad en Bq/cm³, MBq/g o actividad total) y ofrecer, sin escribir una
+sola línea de código:
+
+- Gráficas interactivas de la evolución temporal de la actividad de cada
+  isótopo.
+- Un informe completo por isótopo: propiedades nucleares, pico de actividad,
+  espectro gamma (solo ¹³¹I por ahora) y métricas de optimización de
+  producción (saturación, rendimiento, pureza).
+- Tablas comparativas entre simulaciones.
+- Superposición de datos experimentales o de referencia importados desde CSV.
+- Una pestaña de optimización que combina los resultados con un barrido
+  paramétrico generado desde el ACAB INP File Configurator.
+
+No necesitas conocer el código fuente para usar este manual; cada sección te
+dice qué botón pulsar, qué pestaña abrir y qué significa cada aviso.
+
+---
+
+## 2. Primeros pasos
+
+### Arrancar la aplicación
+
+La forma recomendada de arrancar toda la suite (INP Configurator + esta app +
+COLLAPS) es el launcher común; consulta la "Guía de inicio rápido de la
+suite" en `acab_suite/` para la instalación y el arranque conjunto.
+
+Si solo necesitas esta aplicación de forma aislada, ejecútala desde su propio
+entorno virtual (`...\venv\Scripts\python app.py`) y abre
+`http://127.0.0.1:5001` — se abre solo en el navegador por defecto.
+
+### Estructura de carpetas que espera la app
+
+```
+carpeta_padre/
+├── simulacion_A/
+│   ├── fort.6        ← Resultados ACAB (OBLIGATORIO)
+│   ├── inp.5         ← Parámetros de simulación (opcional, recomendado)
+│   └── DECAY.dat     ← Biblioteca de semividas (opcional)
+├── simulacion_B/
+│   └── …
+└── figuras.yaml      ← Configuración de figuras (opcional)
+```
+
+También se acepta el modo de **simulación única**: si `fort.6` está
+directamente en la carpeta indicada (sin subcarpetas), se analiza como una
+simulación individual.
+
+- `inp.5` en cada subcarpeta permite leer automáticamente T<sub>irr</sub>,
+  T<sub>cool</sub> y el flujo neutrónico. Sin él, tendrás que introducir esos
+  valores a mano (sección 3).
+- `DECAY.dat` en la subcarpeta de la primera simulación es la fuente
+  autoritativa de semividas para cualquier isótopo; sin él, la app usa la
+  sección `semividas` de un YAML (si lo cargas) y, en último caso, una tabla
+  interna reducida a los isótopos de Te/I/Xe del TFG.
+- `figuras.yaml` en la carpeta o en su padre configura qué gráficas se
+  dibujan en la pestaña "Actividad por Isótopo" (sección 6). Sin él, esa
+  pestaña arranca vacía y te ofrece crearlas desde el propio editor.
+
+### Tour rápido de la interfaz
+
+- **Panel lateral izquierdo** — carpeta a analizar, fuente de parámetros
+  (`inp.5` automático u override manual), botón **Analizar**, selector de
+  **Unidades**, y (tras analizar) la lista de simulaciones cargadas y el
+  resumen del isótopo seleccionado.
+- **Panel principal** — antes de analizar, muestra un panel de bienvenida con
+  instrucciones rápidas; después, cinco pestañas de resultados: **Simulaciones**,
+  **Actividad por Isótopo**, **Informe Isótopo**, **Tablas Comparativas** y
+  **Optimización**.
+- **Selector de idioma** (esquina superior derecha, bandera) — Español/English;
+  la preferencia se guarda en el navegador. Los nombres de isótopo y las
+  unidades físicas (Bq/cm³, MBq/g…) no se traducen: son notación científica,
+  no texto de interfaz.
+- **Insignia de estado** (junto al selector de idioma) — indica cuántas
+  simulaciones hay cargadas o "Sin análisis" si aún no se ha analizado nada.
+
+---
+
+## 3. Analizar una carpeta de simulaciones
+
+1. En la tarjeta **"Carpeta de Simulaciones"** del panel lateral, escribe la
+   ruta absoluta en el campo **Carpeta de simulaciones**, o pulsa el botón
+   de **Examinar…** (icono de carpeta, junto al campo) para abrir el selector
+   nativo del sistema operativo.
+2. Elige la fuente de **Parámetros de simulación**:
+   - **Leer de `inp.5` (automático)** — opción marcada por defecto; lee
+     T<sub>irr</sub>, T<sub>cool</sub> y el flujo de cada subcarpeta que
+     contenga un `inp.5`.
+   - **Introducir manualmente (override)** — despliega tres campos
+     (T<sub>irr</sub> [h], T<sub>cool</sub> [h], φ total [n/cm²/s]) que
+     sobreescriben, para **todas** las simulaciones del análisis, lo que se
+     hubiera leído del `inp.5`. Útil si no tienes `inp.5` a mano o quieres
+     forzar un valor concreto.
+3. Pulsa el botón **Analizar**. Mientras se procesa aparece una superposición
+   de carga ("Analizando simulaciones…"); al terminar se activa el panel de
+   resultados con sus cinco pestañas.
+4. Si la carpeta o su directorio padre contienen un YAML de figuras, se
+   carga automáticamente y aparece una alerta verde bajo el botón Analizar
+   indicando su origen (ver sección 6). Si no hay ninguno, aparece un aviso
+   informativo azul: "Sin YAML en carpeta — sin figuras configuradas
+   (edítalas o carga un YAML)".
+
+### Deep link desde el INP Configurator
+
+Si llegas aquí pulsando **"Abrir en Fort Analyzer"** tras ejecutar una
+simulación desde el ACAB INP File Configurator, la URL trae ya el parámetro
+`?folder=<carpeta>`: el campo de carpeta se rellena solo y el análisis se
+lanza automáticamente, sin que tengas que pulsar nada.
+
+---
+
+## 4. Pestaña "Simulaciones"
+
+Es la pestaña activa por defecto tras analizar. Muestra la tabla **"Resumen de
+Simulaciones"** con una fila por simulación cargada y las columnas:
+Simulación, T<sub>irr</sub> [h], T<sub>cool</sub> [h], φ [n/cm²/s] (o el
+número de grupos si el flujo es multigrupo), ρ [g/cm³], NGRP, Isótopos
+(irr/cool), ¹³¹I (marca si el isótopo está presente), inp.5 (si se encontró
+el fichero) y Fecha fort.6.
+
+Si una simulación tiene flujo multigrupo, debajo de la tabla aparece un
+desglose **"Flujos por grupo de energía"** por simulación, con el grupo
+identificado como Rápido, Térmico o Epitérmico g*n* según su posición.
+
+Más abajo, la sección **"Isótopos detectados en fort.6"** lista todos los
+isótopos presentes como insignias (badges) clicables. Al hacer clic en una,
+ese isótopo queda seleccionado (resaltado en azul) como referencia para el
+**Informe Isótopo** (pestaña 3), las **Tablas Comparativas** (pestaña 4) y la
+**Optimización** (pestaña 5), y se lanza automáticamente la petición del
+informe.
+
+### Detección de simulaciones desactualizadas
+
+Para cada simulación con `inp.5`, el servidor compara su fecha de
+modificación con la de `fort.6`. Si el `inp.5` se editó **después** de
+generarse ese `fort.6`, aparece:
+
+- Junto a la fecha del `fort.6` en esa fila, una insignia amarilla
+  **"Desactualizado"** con un tooltip: "El inp.5 fue modificado después de
+  generar el fort.6: los resultados pueden no corresponder a la configuración
+  actual."
+- Si **cualquier** simulación del análisis está en ese estado, un banner
+  amarillo agregado sobre la tabla: "Una o más simulaciones tienen un fort.6
+  desactualizado respecto a su inp.5. Los resultados pueden no corresponder a
+  la configuración actual."
+
+Este aviso es solo informativo: el Fort Analyzer **nunca re-ejecuta nada**.
+Para regenerar el `fort.6`, vuelve al ACAB INP File Configurator y lanza de
+nuevo la simulación desde el runner.
+
+---
+
+## 5. Unidades y exportación CSV
+
+### Cambiar de unidades
+
+En la tarjeta **"Unidades"** del panel lateral, el desplegable **Unidad de
+actividad** ofrece:
+
+| Opción | Requisito |
+|---|---|
+| **Bq/cm³** | Ninguno — es la unidad interna, disponible siempre |
+| **MBq/g** | Necesita la densidad ρ de la simulación (sección `CONCENTRATIONS(GRAM)` del `fort.6`); si falta, la opción se deshabilita y aparece la nota "MBq/g no disponible: el fort.6 no incluye la sección CONCENTRATIONS(GRAM)." |
+| **Actividad total (MBq)** | Requiere indicar el **Volumen simulado [cm³]** (campo que aparece al elegir esta opción o "mCi") |
+| **Actividad total (mCi)** | Igual que la anterior |
+
+El cambio de unidad se aplica **al vuelo, en el navegador**, a las gráficas,
+al informe del isótopo y a las tablas comparativas — no relanza el análisis
+en el servidor. En análisis multi-simulación, cada serie usa su propia
+densidad; si a alguna le falta, se omite en MBq/g y aparece un aviso con su
+nombre.
+
+> El volumen que introduzcas para "Actividad total" debe ser el volumen de la
+> zona simulada (mismo dato que usarías, por ejemplo, en la composición
+> asistida del INP Configurator).
+
+### Exportar a CSV
+
+Junto al selector de unidad, el desplegable **Formato CSV** decide cómo se
+generan todas las exportaciones de la app:
+
+- **Español (Excel: ; ,)** (por defecto) — delimitador `;`, decimal `,`: abre
+  directamente en Excel es-ES.
+- **Internacional (, .)** — delimitador `,`, decimal `.`.
+
+El botón **Exportar CSV** (icono de descarga) aparece en cada gráfica de la
+pestaña "Actividad por Isótopo", en cada bloque de métricas del informe
+(saturación, rendimiento, pureza), en la pestaña "Optimización" y en el
+diálogo de métricas de desviación de datos experimentales. Todas las
+exportaciones usan la **unidad activa** en ese momento, y el fichero incluye
+una cabecera comentada con carpeta, isótopo, unidad y fecha.
+
+---
+
+## 6. Pestaña "Actividad por Isótopo"
+
+Muestra una gráfica interactiva de Plotly (escala logarítmica) por cada
+**figura** configurada, con la evolución temporal de la actividad de una o
+varias series (isótopos) superpuestas. Controles disponibles en la cabecera
+de la pestaña:
+
+- **Interruptor "Mostrar fase de irradiación"** — añade el tramo de
+  irradiación al eje temporal continuo (por defecto solo se ve el
+  enfriamiento).
+- **Desplegable de filtro** — "Todas las figuras", "Teluro (Te)", "Xenón
+  (Xe)" o "Yodo (I)": muestra solo las figuras cuya primera serie pertenece a
+  ese elemento.
+- **Insignia junto al filtro** — indica el origen del YAML activo: "YAML:
+  carpeta" (auto-descubierto), "YAML: cargado a mano" (por selector) o "sin
+  figuras".
+- **Botón "Cargar YAML"** — abre el selector de ficheros del sistema para
+  leer un `.yaml`/`.yml` del disco y relanza el análisis con su contenido
+  (necesario porque la sección `semividas` del YAML afecta al cálculo en el
+  servidor).
+- **Botón "Editar figuras"** — abre el modal **"Editor de Figuras"**.
+
+Cada gráfica lleva su propio botón de exportación CSV (icono de descarga, en
+la cabecera de la tarjeta).
+
+### Si no hay figuras configuradas
+
+Cuando la carpeta no tiene ningún YAML de figuras (ni auto-descubierto ni
+cargado a mano), la pestaña muestra un estado vacío con dos acciones: cargar
+un YAML por selector, o crear las figuras desde cero con el editor
+("Crear figuras con el editor").
+
+### Editor de Figuras (modal)
+
+Cada figura es una tarjeta con un campo **Título** y una lista de
+**Series**; cada serie tiene un campo para la clave del isótopo (tal como
+aparece en `fort.6`, en mayúsculas — p. ej. `I131`, `XE133M`) y una etiqueta
+opcional para la leyenda. Botones disponibles:
+
+- **"Añadir serie"** dentro de cada figura, y **"Quitar serie"** en cada fila.
+- **"Añadir figura"** al final del listado, y **"Eliminar figura"** en cada
+  tarjeta.
+- **"Restaurar YAML cargado"** (pie del modal) — revierte el editor a la
+  copia del YAML tomada en el momento de analizar; deshabilitado si no había
+  ningún YAML de partida.
+- **"Descargar YAML"** — genera el fichero `figuras.yaml` en el navegador
+  (sin tocar el servidor); es recargable directamente con "Cargar YAML".
+- **"Guardar en carpeta analizada"** — escribe `<carpeta>/figuras.yaml` en el
+  servidor. Si ya existe un `figuras.yaml`, pide confirmación
+  ("Ya existe un figuras.yaml en la carpeta analizada. ¿Sobrescribirlo?")
+  antes de sobrescribir. Conserva cualquier sección del YAML ajena a
+  `figuras` (típicamente `semividas`) que estuviera cargada.
+- **Cancelar** / **Aplicar** — Aplicar vuelca los cambios a la gráfica sin
+  escribir nada en disco (solo persiste al pulsar "Guardar en carpeta
+  analizada" o "Descargar YAML").
+
+> La sección `semividas` del YAML no se edita desde este modal: solo se
+> conserva en el round-trip. Para modificarla, edita el fichero YAML
+> directamente (ver formato en el README, sección "Configuración YAML").
+
+---
+
+## 7. Informe de un isótopo
+
+Se genera automáticamente al hacer clic en una insignia de isótopo en la
+pestaña **Simulaciones** (sección 4), y se muestra en la pestaña **Informe
+Isótopo**. Contiene, en orden:
+
+1. **Propiedades Nucleares** — símbolo, Z/A, semivida T½ (en distintas
+   unidades), constante de desintegración λ y actividad específica (isótopo
+   puro).
+2. **Pico de Actividad por Simulación** — tabla con, por cada simulación, el
+   valor máximo de actividad (A<sub>pico</sub>), el instante en que se
+   alcanza (t<sub>pico</sub>) y la fase (irradiación o enfriamiento).
+3. **Evolución de Actividad** — gráfica combinada de irradiación y
+   enfriamiento para el isótopo seleccionado, con el mismo interruptor de
+   fase de irradiación que la pestaña de gráficas. Debajo, el botón
+   **"Cargar datos experimentales"** abre el importador de datos de
+   referencia (sección 9).
+4. **Métricas de Optimización de Producción** (sección 8 de este manual).
+5. **Datos de Actividad en fort.6 por Simulación** — tablas numéricas
+   completas (irradiación y enfriamiento) del isótopo, por simulación.
+6. **Espectro Gamma** (ENSDF/NNDC) — **solo aparece si el isótopo
+   seleccionado es ¹³¹I**; para el resto de isótopos esta sección no se
+   muestra, porque los datos de espectro gamma solo están integrados para
+   ¹³¹I por ahora.
+
+Cada tabla y cada gráfica de esta pestaña respeta la unidad de actividad
+activa (sección 5) y ofrece su propio botón de exportación CSV donde aplica.
+
+---
+
+## 8. Métricas de optimización de producción
+
+Sección incluida en el Informe Isótopo (punto 4 de la sección anterior),
+calculada en el servidor para cada simulación en la unidad activa. Agrupa
+tres bloques, cada uno con su propio botón **Exportar CSV**:
+
+### Curva de Saturación Teórica
+
+Solo se calcula para isótopos con semivida conocida y T<sub>irr</sub> > 0; si
+no se cumple, el bloque muestra "no aplicable (semivida desconocida o
+T<sub>irr</sub> = 0)". Superpone sobre la gráfica de evolución (punto 3 del
+informe) la curva teórica
+
+```
+A_teo(t) = A_sat · (1 − e^(−λt))       con   A_sat = A_ACAB(T_irr) / (1 − e^(−λ·T_irr))
+```
+
+es decir, la curva de saturación de primer orden anclada exactamente al valor
+que ACAB calculó al final de la irradiación. Debajo, una tabla por simulación
+indica en qué instante t<sub>x</sub> se alcanzaría el 50 %, 75 %, 90 % y 95 %
+de la saturación teórica, con una columna "¿Cabe en T<sub>irr</sub>?" que
+marca si ese instante cae dentro de la irradiación realmente simulada.
+
+**Interpretación física:** si el 90-95 % de saturación cae muy por delante
+del T<sub>irr</sub> simulado, alargar la irradiación seguiría aportando
+actividad de forma apreciable; si cae muy por detrás, el blanco ya está casi
+saturado y seguir irradiando aporta poco.
+
+### Rendimiento de Producción
+
+Compara, por simulación, el **rendimiento medio** A<sub>pico</sub>/T<sub>irr</sub>
+frente a la **ganancia marginal** del último 10 % del tramo de irradiación,
+`(A(T_irr) − A(0.9·T_irr)) / (0.1·T_irr)`. La columna "¿Compensa seguir
+irradiando?" muestra **Sí** cuando la ganancia marginal es igual o mayor que
+el rendimiento medio, y **No** en caso contrario. Si la simulación no tiene
+T<sub>irr</sub> > 0 el bloque indica "sin T_irr > 0.".
+
+> **Aviso de interpretación.** Este indicador es significativo cuando el pico
+> de actividad ocurre al final de la irradiación. Para isótopos de producción
+> **indirecta** (como ¹³¹I, cuyo pico suele ocurrir ya en enfriamiento, tras
+> el decaimiento del precursor ¹³¹Te), o en pulsos cortos con crecimiento por
+> precursor, esta comparación puede no ser representativa — trátalo como
+> orientativo, no como criterio único.
+
+### Pureza Radionucleídica en el Pico
+
+Calcula `P = A(isótopo objetivo) / Σ A(isótopos considerados)` en el instante
+del pico, en %. El **criterio por defecto** son los isótopos del mismo
+elemento presentes en ese `fort.6` (para ¹³¹I: ¹³⁰I, ¹³²I, ¹³³I… los que
+existan en la simulación) — asume que, tras la separación radioquímica, el
+producto contiene solo ese elemento.
+
+Debajo de la descripción hay una lista de casillas con todos los isótopos
+disponibles en el informe; marca o desmarca las que quieras incluir como
+"impurezas" y pulsa **"Recalcular pureza"** para volver a pedir el informe al
+servidor con ese criterio. El resultado por simulación muestra una insignia
+`P = valor %` y una tabla de contribuciones (isótopo, actividad y porcentaje)
+ordenada de mayor a menor.
+
+> El criterio por defecto (mismo elemento) es el único validado hasta la
+> fecha; si necesitas otro criterio para un análisis puntual, la casilla te
+> permite ajustarlo, pero no lo tomes como recomendación general sin
+> revisarlo con tu tutor.
+
+---
+
+## 9. Superponer datos experimentales
+
+Desde el punto 3 del Informe Isótopo ("Evolución de Actividad"), el botón
+**"Cargar datos experimentales"** abre el modal **"Importar datos de
+referencia"**. Permite superponer sobre la curva ACAB puntos experimentales o
+computacionales de referencia digitalizados de un paper u otra fuente
+externa, en formato CSV (especificación completa en
+[`docs/SPEC_csv_datos_referencia.md`](SPEC_csv_datos_referencia.md)):
+
+```csv
+# tipo: experimental
+# descripcion: Fig. 6 - Actividad I-131 medida, cuarto experimento (MURR, TeO2)
+# fase: enfriamiento
+# isotopo: I131
+# unidad_t: h
+# unidad_A: MBq/g
+# fuente: digitalizado del paper de referencia
+t;A;A_err
+14,5975;7728,904;120,5
+16,2340;7866,102;118,2
+```
+
+Pasos:
+
+1. Pulsa **"Elegir fichero…"** y selecciona el CSV. El delimitador (`;`, `,`
+   o tabulador) y el separador decimal (`,` o `.`) se detectan
+   automáticamente; las líneas `#` y las filas vacías se ignoran, y el orden
+   de las filas es libre (se reordenan por t).
+2. El modal muestra una **vista previa** de las 5 primeras filas, con un
+   selector de rol por columna (**t (tiempo)**, **A (actividad)**,
+   **A_err (incertidumbre)** o **Ignorar**). La asignación se preselecciona
+   heurísticamente (la columna casi monótona se asume `t`), útil cuando un
+   fichero digitalizado trae las columnas invertidas — revísala antes de
+   importar.
+3. Completa o corrige los campos: **Tipo de serie**, **Fase**, **Isótopo**,
+   **Unidad de tiempo**, **Unidad de actividad**, **Simulación de
+   referencia**, **Etiqueta (leyenda)** y **Fuente (opcional)**. Si el CSV
+   trae metadatos en líneas `#`, estos campos se autorrellenan pero siguen
+   siendo editables.
+4. La **Simulación de referencia** es la que se usa para convertir la unidad
+   de actividad (con su densidad o volumen) y para calcular las métricas de
+   desviación.
+5. Pulsa **Importar**.
+
+**Tipo de serie:**
+
+- **Experimental** (puntos huecos en la gráfica) — entra en el cálculo de
+  métricas de desviación.
+- **Computacional de referencia** (puntos rellenos) — solo se dibuja, no
+  participa en las métricas.
+
+Puedes cargar varias series a la vez; cada una aparece en la lista **"Series
+de referencia cargadas"** con un botón ✕ para retirarla. Las series viven
+solo en memoria del navegador — no se guardan en disco ni en el servidor.
+
+### Métricas de desviación
+
+Solo para series de tipo **experimental**: para cada punto se interpola la
+curva ACAB de la simulación de referencia en su instante t y se calcula la
+desviación relativa `(A_ACAB − A_exp) / A_exp · 100`. Se muestran el sesgo
+medio, la desviación máxima y una tabla punto a punto, con su propio botón
+Exportar CSV.
+
+---
+
+## 10. Tablas Comparativas
+
+Pestaña **Tablas Comparativas**, activa tras seleccionar un isótopo. Muestra
+dos tablas cruzadas para todas las simulaciones, usando el isótopo
+seleccionado como **ancla de referencia**:
+
+| Tabla | Contenido |
+|---|---|
+| **Tabla 1** | Para cada simulación, el instante de pico del isótopo de referencia; lista la actividad de **todos** los demás isótopos en ese mismo instante, con su ratio respecto al pico de referencia |
+| **Tabla 2** | Para **cada isótopo**, su propio instante de pico de actividad, indicando cuál era la actividad del isótopo de referencia en ese mismo momento |
+
+Los encabezados de columna se adaptan dinámicamente al isótopo elegido (no
+son siempre "I-131"). Ambas tablas respetan la unidad de actividad activa.
+
+---
+
+## 11. Pestaña "Optimización" (barrido paramétrico)
+
+Esta pestaña solo se activa cuando la carpeta analizada contiene, en su
+raíz, un fichero `sweep_manifest.json` — generado por la pestaña "Barrido
+paramétrico" del **ACAB INP File Configurator** (barrido de flujo, masa,
+historial temporal o espectral). Si no existe ese fichero, la pestaña muestra
+el aviso: "Esta carpeta no contiene un barrido paramétrico (no se encontró
+`sweep_manifest.json` en la raíz analizada). Esta pestaña solo se activa con
+carpetas generadas por el barrido del INP File Configurator." — el resto de
+la aplicación funciona exactamente igual.
+
+Con un isótopo ya seleccionado, la pestaña combina los parámetros del
+manifest con el pico, la pureza y el rendimiento **ya calculados** en el
+Informe Isótopo (sección 8) — no repite ninguna fórmula física, solo agrupa
+datos.
+
+1. Selecciona el **Parámetro (eje X)** — la dimensión del barrido a
+   representar (p. ej. `XNORM`, `mass`, `t_irr_fin`…).
+2. Selecciona la **Variable (eje Y)**: **A pico** (por defecto), **t pico**,
+   **Pureza radionucleídica en t pico** o **Rendimiento (A pico / T_irr)**.
+3. La **gráfica** de Plotly dibuja Y frente al parámetro elegido; si el
+   barrido varía más de un parámetro numérico (p. ej. un barrido temporal con
+   tiempo final y número de pasos), las demás dimensiones se representan
+   como series de color distintas.
+4. Debajo, la **tabla** lista una fila por simulación del barrido con sus
+   columnas de parámetros, A<sub>pico</sub>, t<sub>pico</sub>, pureza y
+   rendimiento medio.
+5. La descripción y el tipo del barrido (campo `description`/`sweep_type` del
+   manifest) aparecen como subtítulo.
+6. Botón **Exportar CSV** con todas las columnas de la tabla, en la unidad
+   activa.
+
+---
+
+## 12. Errores y avisos frecuentes
+
+| Aviso / mensaje | Dónde aparece | Qué significa | Qué hacer |
+|---|---|---|---|
+| Insignia amarilla "Desactualizado" + banner agregado | Pestaña Simulaciones | El `inp.5` de esa subcarpeta se modificó después de generarse el `fort.6` que estás analizando | Los resultados pueden no corresponder a la configuración actual; vuelve a ejecutar ACAB desde el INP Configurator antes de fiarte del análisis |
+| "Sin YAML en carpeta — sin figuras configuradas (edítalas o carga un YAML)." | Panel lateral, tras analizar | No se encontró `figuras.yaml` (ni variantes legacy) en la carpeta ni en su padre | Carga un YAML con el selector o crea las figuras desde el editor (sección 6) |
+| Estado vacío en "Actividad por Isótopo" | Pestaña Actividad por Isótopo | `figuras` está vacío — sin YAML no hay figuras por defecto | Igual que arriba: cargar YAML o usar el editor |
+| "MBq/g no disponible: el fort.6 no incluye la sección CONCENTRATIONS(GRAM)." | Tarjeta Unidades | Esa simulación no tiene densidad calculable | Usa Bq/cm³ o actividad total (con volumen manual) para esa simulación |
+| "{sim}: sin densidad, omitida en MBq/g." | Gráficas/informe en modo MBq/g | Una simulación concreta del análisis no tiene densidad | El resto de simulaciones se muestran igual; esa serie se omite solo en MBq/g |
+| Sección "Espectro Gamma" ausente | Informe Isótopo | El isótopo seleccionado no es ¹³¹I — el espectro gamma solo está integrado para ese isótopo por ahora | Normal; no es un error. Está prevista una fase futura para soporte genérico (ver README) |
+| "no aplicable (semivida desconocida o T<sub>irr</sub> = 0)." | Bloque Saturación (Informe Isótopo) | El isótopo no tiene semivida conocida, o la simulación tiene T<sub>irr</sub> = 0 | Revisa que el isótopo tenga entrada en `DECAY.dat`/YAML `semividas`, o que la simulación incluya irradiación |
+| "sin T_irr > 0." | Bloque Rendimiento | La simulación no tiene fase de irradiación | Normal para simulaciones de solo enfriamiento; ese bloque no aplica |
+| "sin t<sub>pico</sub> o actividad total nula." | Bloque Pureza | El isótopo objetivo no alcanza actividad significativa en esa simulación | Revisa que el isótopo esté realmente presente en esa simulación |
+| "Asigna una columna a t y otra a A antes de importar." | Modal Importar datos de referencia | El diálogo de mapeo de columnas no tiene asignado rol `t` ni `A` | Corrige los desplegables de rol de columna en la vista previa |
+| "Completa fase, unidad de tiempo, unidad de actividad e isótopo antes de importar." | Modal Importar datos de referencia | Faltan campos obligatorios del formulario | Rellena los campos marcados; si el CSV traía metadatos `#` revisa que se hayan interpretado bien |
+| "Esta serie usa MBq/g pero la simulación de referencia no tiene densidad…" | Modal Importar datos de referencia | La simulación de referencia elegida no tiene `CONCENTRATIONS(GRAM)` | Elige otra simulación de referencia, o cambia la unidad de actividad de la serie importada |
+| "Esta serie usa actividad total pero no hay un volumen válido configurado…" | Modal Importar datos de referencia | Falta el campo Volumen en la tarjeta Unidades | Rellena el volumen en la tarjeta Unidades (sección 5) antes de importar |
+| "Esta carpeta no contiene un barrido paramétrico…" | Pestaña Optimización | No hay `sweep_manifest.json` en la raíz de la carpeta analizada | Normal si no analizas un barrido; genera uno desde el INP Configurator si lo necesitas |
+| "Ninguna de las simulaciones analizadas tiene una entrada en el manifest del barrido." | Pestaña Optimización | Las carpetas analizadas no coinciden con las del manifest (p. ej. se analizó una subcarpeta suelta) | Analiza la carpeta **raíz** del barrido, no una subcarpeta individual |
+| "El manifest del barrido no tiene parámetros numéricos con los que graficar." | Pestaña Optimización | El barrido no varía ningún parámetro numérico reconocible | Revisa el `sweep_manifest.json`; puede indicar un barrido mal formado |
+| "No se pudo abrir el selector de carpeta." | Botón Examinar (panel lateral) | El selector nativo (tkinter) falló, típico en instalaciones Python sin tkinter | Escribe la ruta manualmente en el campo de carpeta |
+| "Ya existe un figuras.yaml en la carpeta analizada. ¿Sobrescribirlo?" | Editor de Figuras → Guardar en carpeta analizada | Ya hay un `figuras.yaml` en esa carpeta | Confirma si quieres sobrescribirlo, o usa "Descargar YAML" y guárdalo en otra ubicación |
+| "{n} simulación(es) con errores. Ver panel de resultados." | Tras Analizar | Alguna subcarpeta falló al parsear (p. ej. `fort.6` corrupto o incompleto) | Revisa el panel de errores sobre las pestañas de resultados, que detalla la subcarpeta y el motivo |
+
+> **Sobre los resultados desactualizados.** Este es el único aviso que cruza
+> información entre aplicaciones de la suite: el Fort Analyzer detecta la
+> inconsistencia, pero solo el INP File Configurator puede volver a ejecutar
+> ACAB y regenerar el `fort.6`.
