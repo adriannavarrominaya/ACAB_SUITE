@@ -327,7 +327,6 @@
     "pureza_desc": "P = A(target isotope) / Σ A(isotopes considered) at the peak instant, expressed in %. By default the isotopes of the same element present in the fort.6 are considered (after radiochemical separation the product contains only that element).",
     "pureza_tooltip": "Default criterion: isotopes of the same target element (e.g. for I131: I130, I132, I133… whichever are present in the fort.6). Editable via the checklist below.",
     "pureza_na": "no t<sub>peak</sub> or total activity is zero.",
-    "pureza_badge": "P = {v} %",
     "pureza_th_iso": "Isotope",
     "pureza_th_a": "A [{unit}]",
     "pureza_th_pct": "Contribution",

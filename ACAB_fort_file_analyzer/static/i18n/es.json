@@ -327,7 +327,6 @@
     "pureza_desc": "P = A(isótopo objetivo) / Σ A(isótopos considerados) en el instante del pico, expresada en %. Por defecto se consideran los isótopos del mismo elemento presentes en el fort.6 (tras la separación radioquímica el producto contiene solo ese elemento).",
     "pureza_tooltip": "Criterio por defecto: mismos isótopos del elemento objetivo (p. ej. para I131: I130, I132, I133… los presentes en el fort.6). Editable con la lista de casillas.",
     "pureza_na": "sin t<sub>pico</sub> o actividad total nula.",
-    "pureza_badge": "P = {v} %",
     "pureza_th_iso": "Isótopo",
     "pureza_th_a": "A [{unit}]",
     "pureza_th_pct": "Contribución",

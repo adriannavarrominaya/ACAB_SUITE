@@ -1753,8 +1753,7 @@ function _renderMetricasOptimizacion(iso, simulations, report) {
       </tr>`).join('');
     return `
       <div class="mb-3">
-        <div class="mb-1">${dot}<small class="fw-semibold">${escHtml(name)}</small>
-          <span class="badge bg-warning text-dark ms-1">${t('metrics.pureza_badge', { v: p.P_pct != null ? p.P_pct.toFixed(2) : '—' })}</span></div>
+        <div class="mb-1">${dot}<small class="fw-semibold">${escHtml(name)}</small></div>
         <table class="table table-sm mb-0" style="font-size:0.8rem;max-width:420px">
           <thead><tr><th>${t('metrics.pureza_th_iso')}</th><th>${t('metrics.pureza_th_a', { unit: uL })}</th><th>${t('metrics.pureza_th_pct')}</th></tr></thead>
           <tbody>${rows}</tbody>
