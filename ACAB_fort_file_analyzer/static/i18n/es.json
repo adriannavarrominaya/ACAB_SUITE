@@ -355,6 +355,7 @@
     "th_rendimiento": "Rendimiento [{unit}/h]",
     "type_flux": "barrido de flujo",
     "type_mass": "barrido de masa",
-    "type_time": "barrido temporal"
+    "type_time": "barrido temporal",
+    "type_spectrum": "barrido espectral"
   }
 }

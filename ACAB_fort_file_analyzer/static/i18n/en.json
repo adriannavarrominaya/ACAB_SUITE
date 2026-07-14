@@ -355,6 +355,7 @@
     "th_rendimiento": "Yield [{unit}/h]",
     "type_flux": "flux sweep",
     "type_mass": "mass sweep",
-    "type_time": "time sweep"
+    "type_time": "time sweep",
+    "type_spectrum": "spectral sweep"
   }
 }
