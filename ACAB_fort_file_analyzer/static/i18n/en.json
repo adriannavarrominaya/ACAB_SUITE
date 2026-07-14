@@ -331,7 +331,18 @@
     "pureza_th_iso": "Isotope",
     "pureza_th_a": "A [{unit}]",
     "pureza_th_pct": "Contribution",
-    "pureza_recalc": "Recalculate purity"
+    "pureza_recalc": "Recalculate purity",
+    "pureza_serie_title": "Purity P(t) During Cooling",
+    "pureza_serie_desc": "P(t) = A({label}, t) / Σ A(isotopes considered, t) at each cooling step (t = 0 = end of irradiation), with the 99.9 % pharmaceutical threshold and the instant it is crossed. Uses the same isotope list as the section above.",
+    "pureza_serie_na": "no cooling data.",
+    "pureza_serie_ax_p": "Purity P(t) [%]",
+    "pureza_serie_umbral_label": "99.9 % threshold (pharmaceutical quality)",
+    "pureza_serie_cruce_label": "Minimum cooling time for pharmaceutical quality",
+    "pureza_serie_cruce_estimado": "estimated, interpolated",
+    "pureza_serie_no_alcanzado": "Threshold not reached within the simulated cooling window",
+    "pureza_serie_aviso_no_monotono": "Warning: P(t) drops back below the threshold at t = {t} h (P = {p} %).",
+    "pureza_serie_th_tcruce": "t<sub>cross</sub>",
+    "pureza_serie_th_frac": "of the peak"
   },
 
   "optim": {

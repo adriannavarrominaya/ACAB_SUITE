@@ -331,7 +331,18 @@
     "pureza_th_iso": "Isótopo",
     "pureza_th_a": "A [{unit}]",
     "pureza_th_pct": "Contribución",
-    "pureza_recalc": "Recalcular pureza"
+    "pureza_recalc": "Recalcular pureza",
+    "pureza_serie_title": "Pureza P(t) durante el Enfriamiento",
+    "pureza_serie_desc": "P(t) = A({label}, t) / Σ A(isótopos considerados, t) en cada paso de enfriamiento (t = 0 = fin de irradiación), con el umbral farmacéutico del 99,9 % y el instante en que se cruza. Usa la misma lista de isótopos de la sección anterior.",
+    "pureza_serie_na": "sin datos de enfriamiento.",
+    "pureza_serie_ax_p": "Pureza P(t) [%]",
+    "pureza_serie_umbral_label": "Umbral 99,9 % (calidad farmacéutica)",
+    "pureza_serie_cruce_label": "Tiempo mínimo de enfriamiento para calidad farmacéutica",
+    "pureza_serie_cruce_estimado": "estimado, interpolado",
+    "pureza_serie_no_alcanzado": "Umbral no alcanzado en la ventana de enfriamiento simulada",
+    "pureza_serie_aviso_no_monotono": "Aviso: P(t) vuelve a bajar del umbral en t = {t} h (P = {p} %).",
+    "pureza_serie_th_tcruce": "t<sub>cruce</sub>",
+    "pureza_serie_th_frac": "del pico"
   },
 
   "optim": {

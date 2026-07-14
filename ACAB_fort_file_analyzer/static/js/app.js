@@ -1823,6 +1823,13 @@ function _renderMetricasOptimizacion(iso, simulations, report) {
           ${purBlocks}
         </div>
 
+        <div class="mt-4">
+          <div class="section-heading mb-0">${t('metrics.pureza_serie_title')}</div>
+          <p class="small text-muted mb-2">${t('metrics.pureza_serie_desc', { label })}</p>
+          <div id="pureza-serie-chart" class="plotly-chart-lg"></div>
+          <div id="pureza-serie-info" class="mt-2"></div>
+        </div>
+
       </div>
     </div>
   `;
@@ -1840,6 +1847,141 @@ function _renderMetricasOptimizacion(iso, simulations, report) {
       fetchIsotopoReport(iso, chosen);
     });
   }
+
+  // F1: gráfica P(t) durante el enfriamiento (calcular_pureza_serie en el
+  // servidor); vive en su propio contenedor, recién insertado arriba.
+  _renderPurezaSerieChart(iso, simulations, metricas);
+}
+
+/**
+ * F1 (runbook_F1_pureza_temporal.md): gráfica de pureza P(t) durante el
+ * enfriamiento, en dos paneles apilados que comparten eje temporal — P(t)
+ * arriba (con línea de umbral 99,9 % y el instante de cruce) y A(iso,t)
+ * abajo (para leer la ventana de administración: cuánta actividad queda
+ * cuando el producto alcanza calidad farmacéutica). Los datos ya vienen
+ * calculados por fort_analyzer.calcular_pureza_serie; aquí solo se
+ * preparan trazas/rango de eje (static/js/pureza_time_utils.js, puro) y se
+ * pinta con Plotly.
+ */
+function _renderPurezaSerieChart(iso, simulations, metricas) {
+  const chartDiv = document.getElementById('pureza-serie-chart');
+  const infoDiv  = document.getElementById('pureza-serie-info');
+  if (!chartDiv) return;
+  const label = isoLabel(iso);
+  const uL = unitLabel();
+  const entries = Object.entries(simulations);
+  const singleSim = entries.length === 1;
+
+  const traces = [];
+  const shapes = [];
+  const annotations = [];
+  let allRows = [];
+  let anyData = false;
+  let infoHtml = '';
+  let umbralPct = 99.9;
+
+  entries.forEach(([name, sim], i) => {
+    const color = PALETTE[i % PALETTE.length];
+    const dot = `<span class="sim-dot me-1" style="background:${color}"></span>`;
+    const serie = metricas[name] && metricas[name].pureza_serie;
+
+    if (!serie) {
+      infoHtml += `<div class="mb-2">${dot}<small class="fw-semibold">${escHtml(name)}</small>
+        <span class="text-muted small">— ${t('metrics.pureza_serie_na')}</span></div>`;
+      return;
+    }
+    anyData = true;
+    umbralPct = serie.umbral_pct;
+    allRows = allRows.concat(serie.serie);
+
+    traces.push({
+      x: serie.serie.map(p => p.t), y: serie.serie.map(p => p.P_pct),
+      name, mode: 'lines+markers', type: 'scatter',
+      line: { color, width: 2 }, marker: { size: 5 },
+      yaxis: 'y', legendgroup: name,
+      hovertemplate: `t = %{x:.3g} h<br>P = %{y:.6f} %<extra>` + escHtml(name) + '</extra>',
+    });
+
+    const factor = convFactor(sim);
+    if (factor !== null) {
+      traces.push({
+        x: sim.t_cool, y: (sim.datos_cool[iso] || []).map(v => v * factor),
+        name: `${name} (A)`, mode: 'lines+markers', type: 'scatter',
+        line: { color, width: 2, dash: 'dot' }, marker: { size: 4, symbol: 'circle-open' },
+        yaxis: 'y2', legendgroup: name, showlegend: false,
+        hovertemplate: `t = %{x:.3g} h<br>A = %{y:.3e} ${uL}<extra>` + escHtml(name) + '</extra>',
+      });
+    }
+
+    if (serie.t_cruce) {
+      const tc = serie.t_cruce.t_h;
+      shapes.push({
+        type: 'line', x0: tc, x1: tc, y0: 0, y1: 1, yref: 'paper',
+        line: { color, width: 1.5, dash: serie.t_cruce.estimado ? 'dot' : 'solid' },
+      });
+      if (singleSim) {
+        annotations.push({
+          x: tc, y: 1, yref: 'paper', yanchor: 'bottom', showarrow: false,
+          font: { size: 9 },
+          text: t('metrics.pureza_serie_cruce_label')
+            + (serie.t_cruce.estimado ? ` (${t('metrics.pureza_serie_cruce_estimado')})` : ''),
+        });
+      }
+    }
+
+    infoHtml += `<div class="mb-2">${dot}<small class="fw-semibold">${escHtml(name)}</small> `;
+    if (serie.estado === 'no_alcanzado') {
+      infoHtml += `<span class="badge ${ACABPurezaTime.estadoBadgeClass(serie.estado)}">${t('metrics.pureza_serie_no_alcanzado')}</span>`;
+    } else {
+      const tcLabel = serie.t_cruce.t_h.toFixed(4) + ' h'
+        + (serie.t_cruce.estimado ? ` (${t('metrics.pureza_serie_cruce_estimado')})` : '');
+      infoHtml += `<span class="badge ${ACABPurezaTime.estadoBadgeClass(serie.estado)}">${t('metrics.pureza_serie_th_tcruce')}: ${tcLabel}</span>`;
+      const vent = serie.ventana_administracion;
+      if (vent) {
+        infoHtml += ` <span class="text-muted small">A(${escHtml(label)}) = ${fmtA(vent.A_objetivo, sim)} ${uL}`
+          + ` (${ACABPurezaTime.formatFraccionPico(vent.fraccion_pico)} ${t('metrics.pureza_serie_th_frac')})</span>`;
+      }
+    }
+    if (serie.aviso_no_monotono) {
+      infoHtml += `<div class="small text-warning mt-1"><i class="bi bi-exclamation-triangle me-1"></i>`
+        + t('metrics.pureza_serie_aviso_no_monotono', {
+            t: serie.aviso_no_monotono.t_h.toFixed(3),
+            p: serie.aviso_no_monotono.P_pct != null ? serie.aviso_no_monotono.P_pct.toFixed(3) : '—',
+          }) + '</div>';
+    }
+    infoHtml += '</div>';
+  });
+
+  if (infoDiv) infoDiv.innerHTML = infoHtml;
+
+  if (!anyData) {
+    chartDiv.innerHTML = `<div class="alert alert-light small py-2 mb-0">${t('metrics.pureza_serie_na')}</div>`;
+    return;
+  }
+  chartDiv.innerHTML = '';
+
+  const [yLo, yHi] = ACABPurezaTime.purezaYRange(allRows);
+  shapes.push({
+    type: 'line', xref: 'paper', x0: 0, x1: 1, y0: umbralPct, y1: umbralPct, yref: 'y',
+    line: { color: '#c62828', width: 1, dash: 'dash' },
+  });
+  annotations.push({
+    xref: 'paper', x: 1, y: umbralPct, yref: 'y', xanchor: 'right', yanchor: 'bottom',
+    showarrow: false, font: { size: 9, color: '#c62828' },
+    text: t('metrics.pureza_serie_umbral_label'),
+  });
+
+  Plotly.newPlot(chartDiv, traces, {
+    xaxis:  { title: t('charts.ax_time_cool'), showgrid: true, gridcolor: '#eee', anchor: 'y2' },
+    yaxis:  { title: t('metrics.pureza_serie_ax_p'), domain: [0.55, 1], range: [yLo, yHi], showgrid: true, gridcolor: '#eee' },
+    yaxis2: { title: t('report.ax_activity', { label, unit: uL }), domain: [0, 0.42], anchor: 'x',
+              type: 'log', exponentformat: 'e', showgrid: true, gridcolor: '#eee' },
+    shapes, annotations,
+    legend: { orientation: 'h', yanchor: 'bottom', y: 1.08, xanchor: 'right', x: 1, font: { size: 9 } },
+    margin: { t: 30, b: 40, l: 80, r: 20 },
+    hovermode: 'closest',
+    plot_bgcolor: '#fafafa', paper_bgcolor: '#fff',
+  }, { responsive: true });
 }
 
 /** Export the saturation table (per sim: A_sat + t_x per % target, Fase 5). */
