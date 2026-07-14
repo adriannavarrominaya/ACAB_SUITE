@@ -31,7 +31,7 @@ App web Flask (monousuario, 127.0.0.1:5000) para crear, cargar, validar y genera
 - `docs/Block#*.md`, `docs/chainsCode.md`, `docs/inp.5.md` — manual del formato.
   **Fuente de verdad**: ante cualquier duda de formato o semántica de un parámetro, consultar aquí antes que suponer. Directorio de solo lectura: no editar.
 - `generador_acab.py` — [LEGACY] GUI Tkinter de mallas temporales; su lógica ya está extraída a static/js/sweep_utils.js (buildBlocks78) y el generador web de la pestaña temporal la usa. No invertir más en él.
-- `examples/` — ficheros inp.5 reales; casos oro de regresión. 
+- `examples/` — ficheros inp.5 reales; casos oro de regresión, organizados en subcarpetas (`Inp5/`, `Simulation/`, `Spectra/`). Los 4 patrones oro del round-trip están en `examples/Inp5/exp1.inp.5`…`exp4.inp.5`.
 - `tests/fixtures/spectra/` — espectros CONDERC de referencia para el barrido espectral: `112_MURR-G1.txt` (caso oro del parser: 112 grupos, energías en eV decrecientes, línea TOTAL como checksum), `sneg_2-6` (extremo grueso, 6 grupos: test del aviso direccional) y `br2-621` (extremo fino, 621 grupos).
 - `tests/fixtures/COLL.inp` — COLL.inp de referencia (211 grupos, NGROUP=-211)
   para el round-trip de `coll_writer.py`. Regla: los fixtures viven junto a los
@@ -41,8 +41,8 @@ App web Flask (monousuario, 127.0.0.1:5000) para crear, cargar, validar y genera
 ## Tests (obligatorio en verde antes de cada commit)
 
 ```bash
-python tools/regression_roundtrip.py "examples/exp1.inp.5" "examples/exp2.inp.5" "examples/exp3.inp.5" "examples/exp4.inp.5"
-python tools/test_parser_robustness.py "examples/exp1.inp.5"
+python tools/regression_roundtrip.py "examples/Inp5/exp1.inp.5" "examples/Inp5/exp2.inp.5" "examples/Inp5/exp3.inp.5" "examples/Inp5/exp4.inp.5"
+python tools/test_parser_robustness.py "examples/Inp5/exp1.inp.5"
 node tools/test_calc_utils.js
 node tools/test_validate_all.js
 node tools/test_sweep_utils.js
