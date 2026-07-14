@@ -105,6 +105,23 @@ def test_flujo_feliz(client) -> None:
     check(len(informe.get("gamma_spectrum", [])) > 0, "espectro gamma de I131 presente")
     check("tabla1" in rep and "tabla2" in rep, "tablas comparativas presentes")
 
+    # F1 Fase 2: la serie temporal de pureza (pureza_serie) viaja en metricas,
+    # junto al escalar `pureza` ya existente — mismo caso oro que Fase 1
+    # (verificado a mano en test_metricas.py: t_cruce=0, 19 puntos).
+    metricas_sim = next(iter(informe.get("metricas", {}).values()), {})
+    serie = metricas_sim.get("pureza_serie")
+    check(serie is not None, "pureza_serie presente en metricas del endpoint")
+    if serie is not None:
+        check(len(serie.get("serie", [])) == 19,
+              f"19 puntos de enfriamiento en la serie del endpoint (obtenido {len(serie.get('serie', []))})")
+        check(serie.get("estado") == "alcanzado_en_fin_irradiacion",
+              f"estado = alcanzado_en_fin_irradiacion (obtenido {serie.get('estado')})")
+        t_cruce = serie.get("t_cruce") or {}
+        check(t_cruce.get("t_h") == 0.0, f"t_cruce = 0 en la respuesta del endpoint (obtenido {t_cruce.get('t_h')})")
+        ventana = serie.get("ventana_administracion") or {}
+        check(15000 < (ventana.get("A_pico") or 0) < 18000,
+              f"ventana_administracion.A_pico en rango oro (obtenido {ventana.get('A_pico')})")
+
 
 def test_informe_folder_explicito(client) -> None:
     section("/api/isotopo_report — con folder explícito")
