@@ -35,6 +35,23 @@ Thumbs.db
 # Ejemplos
 simulaciones/
 
+# Logs de la suite
+acab_suite/logs/
+
+# Salidas de simulación (carpetas de trabajo de ACAB/COLLAPS)
+fort.6
+FLUX.inf
+XSECTION.dat
+XS.inf
+REACTIONS.dat
+XSZERO.dat
+run.log
+cpu_time.txt
+batch_results.json
+
+# Nunca ignorar los fixtures congelados de las suites de tests oro
+!**/tests/fixtures/**
+
 # Archivos temporales
 *.tmp
 *.bak
