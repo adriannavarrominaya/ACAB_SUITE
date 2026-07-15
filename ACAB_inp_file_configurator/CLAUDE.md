@@ -27,6 +27,7 @@ App web Flask (monousuario, 127.0.0.1:5000) para crear, cargar, validar y genera
 - `runner.py` — **común de la suite, mantener sincronizado** con la copia de   `COLLAPS_inp_file_configurator/runner.py`: motor de ejecución single/batch (Fase R3 del runbook runner v2). `app.py` expone `/api/run`, `/api/run/config`, `/api/run/status` (enriquecido con `output_exists`/`workdir` para single y `root` para batch, para el botón "Abrir en Fort Analyzer") y `/api/run/cancel`.
   Config de invocación (exe_name, required_files, output_file, timeout_s) en `acab_suite/README.md` §"Invocación de los códigos". Test: `tools/test_runner.py`,  `tools/test_run_endpoints.py`.
 - `/api/run/batch` (Fase R4 del runbook runner v2) — ejecución en cola de un barrido completo desde la pestaña "Barrido": body `{root, folders?, overwrite}`; si no se pasan `folders` los lee de `root/sweep_manifest.json` (404 si no existe). Cada subcarpeta lleva su propia copia del ejecutable (la sweep copia la carpeta base), así que el `cmd_template` pasado a `runner.start_batch` usa el marcador `{workdir}` para resolverse por-job; `batch_results.json` queda en la raíz. UI en `static/js/sweep.js` (panel tras generar + "Ejecutar un barrido existente"), pestaña Barrido en `index.html`. Test: `tools/test_run_batch_endpoint.py`.
+- `app.py` — `/api/browse-folder` (diálogo nativo de carpeta vía tkinter en subprocess, ya existía para la pestaña Barrido) y `/api/save-to-folder` (U2 del BACKLOG: escribe `<folder>/inp.5` con `_write_inp5`, 409 con `exists:true` si ya existe y `overwrite` no es `true`). Botón primario "Guardar en carpeta…" en la barra de navegación (`static/js/app.js`); recuerda la última carpeta usada en `localStorage` (`acab-inp-last-save-folder`) y la ofrece como valor inicial en el siguiente guardado y como prefijo del workdir de ejecución (U3: `loadRunConfig`, con prioridad sobre `default_workdir`). "Descargar" (antes "Guardar como…", incluyendo el flujo `showSaveFilePicker` en navegadores Chromium) queda como opción secundaria sin cambios de lógica. Test: `tools/test_save_to_folder.py` (no cubre `/api/browse-folder`, subprocess con tkinter — se verifica a mano, igual que en el resto de la suite).
 - `chains_handler.py` + `templates/chains.html` + `static/js/chains.js` — utilidad CHAINS.
 - `docs/Block#*.md`, `docs/chainsCode.md`, `docs/inp.5.md` — manual del formato.
   **Fuente de verdad**: ante cualquier duda de formato o semántica de un parámetro, consultar aquí antes que suponer. Directorio de solo lectura: no editar.
@@ -52,6 +53,7 @@ python tools/test_run_endpoints.py
 python tools/test_run_batch_endpoint.py
 node tools/test_conderc_import.js
 python tools/test_coll_writer.py
+python tools/test_save_to_folder.py
 ```
 
 Los tests nuevos se añaden en `tools/` siguiendo el estilo existente (scripts

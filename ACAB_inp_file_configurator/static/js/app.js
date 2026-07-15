@@ -68,6 +68,12 @@ function applyLang() {
 
 const appState = { data: null, filename: 'output.5', dirty: false };
 
+// Última carpeta usada en "Guardar en carpeta…" (U2 del BACKLOG), recordada
+// por app vía localStorage; se ofrece como valor inicial en el siguiente
+// guardado y como prefijo del workdir de ejecución (U3) si no hay uno más
+// reciente.
+const LAST_SAVE_FOLDER_KEY = 'acab-inp-last-save-folder';
+
 // ---------------------------------------------------------------------------
 // ACAB code search index
 // Each entry: { code, tabBtn, pillBtn|null, elementId, blockLabel, tabKey }
@@ -173,10 +179,11 @@ const ACAB_CODE_INDEX = [
 // ---------------------------------------------------------------------------
 // Bootstrap component references (initialised on DOMContentLoaded)
 // ---------------------------------------------------------------------------
-let saveAsModal, previewModal, validationModal, appToast, runModal;
+let saveAsModal, saveFolderModal, previewModal, validationModal, appToast, runModal;
 
 document.addEventListener('DOMContentLoaded', async () => {
   saveAsModal  = new bootstrap.Modal(document.getElementById('saveAsModal'));
+  saveFolderModal = new bootstrap.Modal(document.getElementById('saveFolderModal'));
   previewModal  = new bootstrap.Modal(document.getElementById('previewModal'));
   validationModal = new bootstrap.Modal(document.getElementById('validationModal'));
   appToast     = new bootstrap.Toast(document.getElementById('appToast'));
@@ -219,6 +226,27 @@ document.addEventListener('DOMContentLoaded', async () => {
       appState.filename = fname;
       saveAsModal.hide();
       handleSave(fname);
+    });
+
+  // ── Guardar en carpeta… (U2 del BACKLOG) ──────────────────────────────────
+  document.getElementById('btn-save-folder-open')
+    .addEventListener('click', e => {
+      e.preventDefault();
+      const lastFolder = localStorage.getItem(LAST_SAVE_FOLDER_KEY) || '';
+      document.getElementById('save-folder-input').value = lastFolder;
+      saveFolderModal.show();
+    });
+  document.getElementById('btn-save-folder-browse')
+    .addEventListener('click', e => {
+      browseIntoInput('save-folder-input', e.currentTarget, t('modal.save_folder_title'));
+    });
+  document.getElementById('btn-save-folder-confirm')
+    .addEventListener('click', () => handleSaveToFolder());
+
+  // Diálogo de carpeta para el workdir de ejecución (U3 del BACKLOG)
+  document.getElementById('btn-run-workdir-browse')
+    .addEventListener('click', e => {
+      browseIntoInput('run-workdir', e.currentTarget, t('run.workdir_lbl'));
     });
 
   // ── Preview button ───────────────────────────────────────────────────────
@@ -401,7 +429,12 @@ async function loadRunConfig() {
     const json = await res.json();
     if (!json.ok) return;
     const cfg = json.config;
-    document.getElementById('run-workdir').value = cfg.default_workdir || '';
+    // U3 del BACKLOG: la carpeta del último "Guardar en carpeta…" tiene
+    // prioridad sobre el workdir de la última ejecución; sin guardado previo,
+    // el comportamiento es el de siempre (default_workdir del runner, o
+    // vacío — el campo sigue editable y con el diálogo de carpeta a mano).
+    const lastSaveFolder = localStorage.getItem(LAST_SAVE_FOLDER_KEY) || '';
+    document.getElementById('run-workdir').value = lastSaveFolder || cfg.default_workdir || '';
     document.getElementById('run-exe').value     = cfg.exe_name || 'acab.exe';
     document.getElementById('run-timeout').value = cfg.timeout_s || 60;
   } catch (_) { /* backend no disponible: dejar los valores actuales */ }
@@ -721,6 +754,96 @@ async function handleSave(filename, fileHandle = null) {
   }
 
   await _doSave(filename, fileHandle);
+}
+
+// ── Selector de carpeta nativo (U2 del BACKLOG) ─────────────────────────────
+// Reutiliza el patrón ya existente en la pestaña Barrido: botón con icono
+// junto a un input de texto, con fallback manual (el usuario puede teclear
+// la ruta si el diálogo nativo no está disponible).
+async function browseIntoInput(inputId, btn, title) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const icon = btn.querySelector('i');
+  const prevIcon = icon ? icon.className : null;
+  btn.disabled = true;
+  if (icon) icon.className = 'bi bi-hourglass-split';
+  try {
+    const res  = await fetch('/api/browse-folder', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body:   JSON.stringify({ title }),
+    });
+    const json = await res.json();
+    if (json.folder) {
+      input.value = json.folder;
+    } else if (!json.error) {
+      showToast(t('toast.no_folder_selected'), 'secondary');
+    } else {
+      showToast(json.error, 'warning');
+    }
+  } catch (_) {
+    showToast(t('toast.browse_err'), 'warning');
+  } finally {
+    btn.disabled = false;
+    if (icon && prevIcon) icon.className = prevIcon;
+  }
+}
+
+// "Guardar en carpeta…" — escribe inp.5 directamente en la carpeta elegida
+// (POST /api/save-to-folder); pide confirmación y reintenta con overwrite
+// si el fichero ya existe (mismo patrón que figuras.yaml en el analyzer).
+async function handleSaveToFolder() {
+  const folder = document.getElementById('save-folder-input').value.trim();
+  if (!folder) { showToast(t('toast.no_folder_selected'), 'warning'); return; }
+
+  if (!appState.data) appState.data = {};
+  collectAll(appState.data);
+
+  const timeVal = validateTimesStrictlyIncreasing();
+  if (!timeVal.ok) {
+    showToast(`${t('toast.err_temporal')}: ${timeVal.errors[0]}`, 'danger');
+    return;
+  }
+
+  const valResult = validateAll();
+  if (valResult.errors.length > 0) {
+    showValidationModal(valResult, null);
+    return;
+  }
+  if (valResult.warnings.length > 0) {
+    showValidationModal(valResult, () => apiSaveToFolder(folder));
+    return;
+  }
+
+  await apiSaveToFolder(folder);
+}
+
+async function apiSaveToFolder(folder) {
+  async function attempt(overwrite) {
+    const res  = await fetch('/api/save-to-folder', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ data: appState.data, folder, overwrite }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.status === 409 && json.exists && !overwrite) {
+      return confirm(t('modal.save_confirm_overwrite')) ? attempt(true) : false;
+    }
+    if (!res.ok || !json.ok) {
+      showToast(json.error || `HTTP ${res.status}`, 'danger');
+      return false;
+    }
+    return true;
+  }
+
+  try {
+    if (!(await attempt(false))) return;
+    localStorage.setItem(LAST_SAVE_FOLDER_KEY, folder);
+    appState.filename = 'inp.5';
+    appState.dirty    = false;
+    setStatus(appState.filename, false);
+    showToast(t('toast.folder_saved').replace('{name}', appState.filename).replace('{folder}', folder));
+    saveFolderModal.hide();
+  } catch (e) { showToast(String(e), 'danger'); }
 }
 
 async function _doSave(filename, fileHandle = null) {

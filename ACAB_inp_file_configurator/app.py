@@ -115,6 +115,45 @@ def api_preview():
         return jsonify({'ok': False, 'error': str(exc)}), 422
 
 
+@app.route('/api/save-to-folder', methods=['POST'])
+def api_save_to_folder():
+    """Write the current inp.5 directly into a chosen folder (U2 del BACKLOG).
+
+    Body: {data, folder, overwrite}. 409 (con exists:true) si <folder>/inp.5
+    ya existe y overwrite no es true — el frontend pide confirmación y
+    reintenta con overwrite:true.
+    """
+    payload = request.get_json(force=True, silent=True) or {}
+    folder = (payload.get('folder') or '').strip()
+    overwrite = bool(payload.get('overwrite'))
+
+    if not folder:
+        return jsonify({'error': 'Debe especificar una carpeta.'}), 400
+
+    folder_path = Path(folder)
+    if not folder_path.is_dir():
+        return jsonify({'error': f'La carpeta no existe: {folder}'}), 422
+
+    try:
+        content = _write_inp5(payload.get('data', {}))
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+    target = folder_path / 'inp.5'
+    if target.exists() and not overwrite:
+        return jsonify({
+            'error': f"Ya existe '{target}'. Confirma para sobrescribir.",
+            'exists': True,
+        }), 409
+
+    try:
+        target.write_text(content, encoding='utf-8')
+    except OSError as exc:
+        return jsonify({'error': f"No se pudo escribir '{target}': {exc}"}), 500
+
+    return jsonify({'ok': True, 'path': str(target)})
+
+
 # ---------------------------------------------------------------------------
 # CHAINS routes
 # ---------------------------------------------------------------------------
