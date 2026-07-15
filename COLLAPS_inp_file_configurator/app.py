@@ -13,6 +13,8 @@ import argparse
 import io
 import json
 import os
+import subprocess
+import sys
 import tempfile
 import webbrowser
 from pathlib import Path
@@ -97,6 +99,79 @@ def api_preview():
         return jsonify({'ok': True, 'content': content})
     except Exception as exc:
         return jsonify({'ok': False, 'error': str(exc)}), 422
+
+
+@app.route('/api/browse-folder', methods=['POST'])
+def api_browse_folder():
+    """Open a native OS folder-picker dialog and return the selected path.
+
+    Flask and the browser run on the same machine, so we launch a tkinter
+    filedialog in a child process (avoids main-thread constraints of the
+    server). Common fragment of the suite (U2 del BACKLOG) — mantener
+    sincronizado con ACAB_inp_file_configurator/app.py.
+    """
+    payload = request.get_json(force=True, silent=True) or {}
+    title = (payload.get('title') or 'Seleccionar carpeta').strip() or 'Seleccionar carpeta'
+    try:
+        script = (
+            "import os, sys; sys.stdout.reconfigure(encoding='utf-8'); "
+            "import tkinter as tk; from tkinter import filedialog; "
+            "root=tk.Tk(); root.attributes('-topmost',1); root.withdraw(); "
+            "p=filedialog.askdirectory(parent=root, "
+            "title=os.environ.get('ACAB_PICK_TITLE','Seleccionar carpeta')); "
+            "root.destroy(); print(p or '', end='')"
+        )
+        env = os.environ.copy()
+        env['PYTHONIOENCODING'] = 'utf-8'
+        env['ACAB_PICK_TITLE'] = title
+        result = subprocess.run(
+            [sys.executable, '-c', script],
+            capture_output=True, text=True, timeout=120,
+            encoding='utf-8', env=env,
+        )
+        folder = (result.stdout or '').strip()
+        return jsonify({'ok': True, 'folder': folder or None})
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({'error': str(exc)}), 500
+
+
+@app.route('/api/save-to-folder', methods=['POST'])
+def api_save_to_folder():
+    """Write the current COLL.inp directly into a chosen folder (U2 del BACKLOG).
+
+    Body: {data, folder, overwrite}. 409 (con exists:true) si <folder>/COLL.inp
+    ya existe y overwrite no es true — el frontend pide confirmación y
+    reintenta con overwrite:true.
+    """
+    payload = request.get_json(force=True, silent=True) or {}
+    folder = (payload.get('folder') or '').strip()
+    overwrite = bool(payload.get('overwrite'))
+
+    if not folder:
+        return jsonify({'error': 'Debe especificar una carpeta.'}), 400
+
+    folder_path = Path(folder)
+    if not folder_path.is_dir():
+        return jsonify({'error': f'La carpeta no existe: {folder}'}), 422
+
+    try:
+        content = _write_coll_inp(payload.get('data', {}))
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+    target = folder_path / 'COLL.inp'
+    if target.exists() and not overwrite:
+        return jsonify({
+            'error': f"Ya existe '{target}'. Confirma para sobrescribir.",
+            'exists': True,
+        }), 409
+
+    try:
+        target.write_text(content, encoding='utf-8')
+    except OSError as exc:
+        return jsonify({'error': f"No se pudo escribir '{target}': {exc}"}), 500
+
+    return jsonify({'ok': True, 'path': str(target)})
 
 
 # ---------------------------------------------------------------------------

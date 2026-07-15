@@ -24,6 +24,7 @@ App web Flask (monousuario, 127.0.0.1:5002) para crear, cargar, validar y genera
 - `docs/COLLAPS.md` — manual del formato. **Fuente de verdad** ante cualquier duda de semántica; solo lectura, no editar.
 - `runner.py` — núcleo de ejecución (single + batch/cola) sin dependencias de Flask, instancia única a nivel de módulo (`start`, `start_batch`, `status`, `cancel`). **Común de la suite — mantener sincronizado con `ACAB_inp_file_configurator/runner.py`.**
 - `app.py` también expone los endpoints del runner (Fase R2 del runbook runner v2): `GET/POST /api/run/config`, `POST /api/run`, `GET /api/run/status`, `POST /api/run/cancel`. Panel de ejecución correspondiente en `templates/index.html`.
+- `app.py` — `/api/browse-folder` (diálogo nativo de carpeta vía tkinter en subprocess) y `/api/save-to-folder` (U2 del BACKLOG: escribe `<folder>/COLL.inp` con `_write_coll_inp`, 409 con `exists:true` si ya existe y `overwrite` no es `true`). Botón primario "Guardar en carpeta…" en la barra de navegación (`static/js/app.js`); recuerda la última carpeta usada en `localStorage` (`collaps-last-save-folder`) y la ofrece como valor inicial en el siguiente guardado y como prefijo del workdir de ejecución (U3: `loadRunConfig`, con prioridad sobre `default_workdir`). "Descargar" (antes "Guardar como…") queda como opción secundaria sin cambios de lógica. Test: `tools/test_save_to_folder.py` (no cubre `/api/browse-folder`, subprocess con tkinter — se verifica a mano, igual que en el resto de la suite).
 
 ## Semántica del formato (no violar)
 
@@ -35,6 +36,7 @@ App web Flask (monousuario, 127.0.0.1:5002) para crear, cargar, validar y genera
 
 - `C:\venv\acab-venv\Scripts\python.exe tools/test_runner.py` — Fase R1 del runbook runner v2: `runner.py` (single feliz/rechazo de slot ocupado/timeout/cancel; batch con job fallido que no para la cola; cancelación a mitad; log_tail).
 - `C:\venv\acab-venv\Scripts\python.exe tools/test_run_endpoints.py` — Fase R2: endpoints `/api/run`, `/api/run/config`, `/api/run/status`, `/api/run/cancel` vía test_client de Flask (422/409/camino feliz; `runner.start` mockeado).
+- `C:\venv\acab-venv\Scripts\python.exe tools/test_save_to_folder.py` — U2 del BACKLOG: `/api/save-to-folder` (construcción de ruta `<folder>/COLL.inp`, 400/422 de entrada inválida, 409+overwrite).
 
 Regla: cualquier cambio en parser o writer va acompañado de tests en `tools/` al estilo de los anteriores (scripts autocontenidos, sin framework), incluyendo un round-trip (parsear → regenerar → re-parsear → comparar) con un COLL.inp de referencia, cubriendo los cuatro casos: ISFIS=0/≠0 × IESF=5/≠5.
 

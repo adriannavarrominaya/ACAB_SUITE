@@ -59,6 +59,12 @@ function applyLang() {
 
 const appState = { data: null, filename: 'COLL.inp', dirty: false };
 
+// Última carpeta usada en "Guardar en carpeta…" (U2 del BACKLOG), recordada
+// por app vía localStorage; se ofrece como valor inicial en el siguiente
+// guardado y como prefijo del workdir de ejecución (U3) si no hay uno más
+// reciente.
+const LAST_SAVE_FOLDER_KEY = 'collaps-last-save-folder';
+
 // ── Conditional-panel helpers ────────────────────────────────────────────────
 
 function updateCard4Visibility() {
@@ -513,6 +519,73 @@ async function apiSave(filename) {
   } catch (e) { showToast(String(e), 'danger'); }
 }
 
+// ── Selector de carpeta nativo (U2 del BACKLOG) ─────────────────────────────
+// Reutiliza el patrón del analyzer/inp-conf: botón con icono junto a un input
+// de texto, con fallback manual (el usuario puede teclear la ruta si el
+// diálogo nativo no está disponible).
+async function browseIntoInput(inputId, btn, title) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const icon = btn.querySelector('i');
+  const prevIcon = icon ? icon.className : null;
+  btn.disabled = true;
+  if (icon) icon.className = 'bi bi-hourglass-split';
+  try {
+    const res  = await fetch('/api/browse-folder', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body:   JSON.stringify({ title }),
+    });
+    const json = await res.json();
+    if (json.folder) {
+      input.value = json.folder;
+    } else if (!json.error) {
+      showToast(t('toast.no_folder_selected'), 'secondary');
+    } else {
+      showToast(json.error, 'warning');
+    }
+  } catch (_) {
+    showToast(t('toast.browse_err'), 'warning');
+  } finally {
+    btn.disabled = false;
+    if (icon && prevIcon) icon.className = prevIcon;
+  }
+}
+
+// "Guardar en carpeta…" — escribe COLL.inp directamente en la carpeta
+// elegida (POST /api/save-to-folder); pide confirmación y reintenta con
+// overwrite si el fichero ya existe (mismo patrón que figuras.yaml en el
+// analyzer).
+async function apiSaveToFolder(folder) {
+  const data = collectUI();
+
+  async function attempt(overwrite) {
+    const res  = await fetch('/api/save-to-folder', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ data, folder, overwrite }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.status === 409 && json.exists && !overwrite) {
+      return confirm(t('modal.save_confirm_overwrite')) ? attempt(true) : false;
+    }
+    if (!res.ok || !json.ok) {
+      showToast(json.error || `HTTP ${res.status}`, 'danger');
+      return false;
+    }
+    return true;
+  }
+
+  try {
+    if (!(await attempt(false))) return;
+    localStorage.setItem(LAST_SAVE_FOLDER_KEY, folder);
+    appState.filename = 'COLL.inp';
+    appState.dirty    = false;
+    setStatus(appState.filename, false);
+    showToast(t('toast.folder_saved').replace('{name}', appState.filename).replace('{folder}', folder));
+    bootstrap.Modal.getInstance(document.getElementById('saveFolderModal'))?.hide();
+  } catch (e) { showToast(String(e), 'danger'); }
+}
+
 async function apiPreview() {
   const data = collectUI();
   const el   = document.getElementById('preview-content');
@@ -546,7 +619,12 @@ async function loadRunConfig() {
     const json = await res.json();
     if (!json.ok) return;
     const cfg = json.config;
-    document.getElementById('run-workdir').value = cfg.default_workdir || '';
+    // U3 del BACKLOG: la carpeta del último "Guardar en carpeta…" tiene
+    // prioridad sobre el workdir de la última ejecución; sin guardado previo,
+    // el comportamiento es el de siempre (default_workdir del runner, o
+    // vacío — el campo sigue editable y con el diálogo de carpeta a mano).
+    const lastSaveFolder = localStorage.getItem(LAST_SAVE_FOLDER_KEY) || '';
+    document.getElementById('run-workdir').value = lastSaveFolder || cfg.default_workdir || '';
     document.getElementById('run-exe').value     = cfg.exe_name || 'collaps.exe';
     document.getElementById('run-timeout').value = cfg.timeout_s || 60;
   } catch (_) { /* backend no disponible: dejar los valores actuales */ }
@@ -757,6 +835,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   document.getElementById('saveas-filename').addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('btn-saveas-confirm').click();
+  });
+
+  // Guardar en carpeta… (U2 del BACKLOG) — prefija con la última carpeta usada
+  document.getElementById('btn-save-folder-open').addEventListener('click', e => {
+    e.preventDefault();
+    const lastFolder = localStorage.getItem(LAST_SAVE_FOLDER_KEY) || '';
+    document.getElementById('save-folder-input').value = lastFolder;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('saveFolderModal')).show();
+  });
+  document.getElementById('btn-save-folder-browse').addEventListener('click', e => {
+    browseIntoInput('save-folder-input', e.currentTarget, t('modal.save_folder_title'));
+  });
+  document.getElementById('btn-save-folder-confirm').addEventListener('click', () => {
+    const folder = document.getElementById('save-folder-input').value.trim();
+    if (!folder) { showToast(t('toast.no_folder_selected'), 'warning'); return; }
+    const result = validateAll();
+    if (result.errors.length > 0 || result.warnings.length > 0) {
+      showValidationModal(result, () => apiSaveToFolder(folder));
+    } else {
+      apiSaveToFolder(folder);
+    }
+  });
+
+  // Diálogo de carpeta para el workdir de ejecución (U3 del BACKLOG)
+  document.getElementById('btn-run-workdir-browse').addEventListener('click', e => {
+    browseIntoInput('run-workdir', e.currentTarget, t('run.workdir_lbl'));
   });
 
   // Preview
