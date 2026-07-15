@@ -24,6 +24,7 @@ from acab_parser import ACABParser
 from chains_handler import (
     default_chains_data, is_chains_file, read_chains_inp, write_chains_inp,
 )
+from sweep_manifest_view import ManifestCorruptError, build_manifest_view
 from sweep_writer import SweepError, generate_sweep, preview_sweep
 
 app = Flask(__name__)
@@ -258,6 +259,31 @@ def api_sweep_preview():
         return jsonify({'ok': False, 'error': str(exc)}), exc.status
     except Exception as exc:  # noqa: BLE001
         return jsonify({'ok': False, 'error': str(exc)}), 500
+
+
+@app.route('/api/sweep/manifest', methods=['GET'])
+def api_sweep_manifest():
+    """Vista de solo lectura de un barrido ya generado (U6 del BACKLOG):
+    NO escribe nada, solo lee sweep_manifest.json (+ batch_results.json si
+    existe) de `root`. Unifica el flujo de "cargar un barrido" con el de
+    "ejecutarlo": cargar siempre muestra el contenido; ejecutar es una
+    acción posterior sobre lo ya cargado (ver static/js/sweep.js)."""
+    root = (request.args.get('root') or '').strip()
+    if not root:
+        return jsonify({'ok': False, 'error': 'Falta la carpeta raíz del barrido.'}), 422
+    root_p = Path(root)
+    if not root_p.is_dir():
+        return jsonify({'ok': False, 'error': f'La carpeta no existe: {root}'}), 422
+    try:
+        view = build_manifest_view(root_p)
+    except FileNotFoundError:
+        return jsonify({'ok': False, 'error':
+            'Esta carpeta no contiene un barrido generado por la suite '
+            '(no se encontró sweep_manifest.json).'}), 404
+    except ManifestCorruptError as exc:
+        return jsonify({'ok': False, 'error':
+            f'sweep_manifest.json no se pudo leer (JSON inválido): {exc}'}), 422
+    return jsonify({'ok': True, **view})
 
 
 @app.route('/api/sweep', methods=['POST'])

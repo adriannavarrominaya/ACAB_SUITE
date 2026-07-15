@@ -2354,22 +2354,69 @@
           </div>
         </div>
 
-        <!-- Ejecutar un barrido existente (Fase R4) -->
+        <!-- Cargar/consultar un barrido ya generado (U6): cargar SIEMPRE
+             muestra el contenido (solo lectura); "Ejecutar" es una acción
+             sobre el barrido ya cargado, no un segundo camino de carga. -->
         <div class="card mb-3 block-card">
-          <div class="card-header block-card-header" data-i18n="sweep.run_existing_h">Ejecutar un barrido existente</div>
+          <div class="card-header block-card-header" data-i18n="sweep.load_h">Cargar un barrido generado</div>
           <div class="card-body">
-            <label class="form-label small" for="sweep-run-existing-root" data-i18n="sweep.run_existing_hint">
-              Selecciona la carpeta raíz de un barrido ya generado (con su sweep_manifest.json) para ejecutarlo.
+            <label class="form-label small" for="sweep-load-root" data-i18n="sweep.load_hint">
+              Selecciona la carpeta raíz de un barrido ya generado por la suite para consultar su contenido.
             </label>
-            <div class="input-group input-group-sm" style="max-width:36rem">
-              <input id="sweep-run-existing-root" type="text" class="form-control font-monospace"
+            <div class="input-group input-group-sm mb-2" style="max-width:36rem">
+              <input id="sweep-load-root" type="text" class="form-control font-monospace"
                      placeholder="C:\TFG\barridos\flujo_1">
               <button class="btn btn-outline-secondary sweep-browse-btn" type="button"
-                      data-target="sweep-run-existing-root" data-i18n-title="sweep.browse" title="Examinar…">
+                      data-target="sweep-load-root" data-i18n-title="sweep.browse" title="Examinar…">
                 <i class="bi bi-folder2-open"></i>
               </button>
-              <button class="btn btn-primary" type="button" id="btn-sweep-run-existing">
-                <i class="bi bi-play-fill me-1"></i><span data-i18n="sweep.run_existing_btn">Ejecutar</span>
+              <button class="btn btn-primary" type="button" id="btn-sweep-load">
+                <i class="bi bi-folder-symlink me-1"></i><span data-i18n="sweep.load_btn">Cargar</span>
+              </button>
+            </div>
+            <div id="sweep-load-msg" class="alert d-none py-2 small"></div>
+
+            <!-- Vista de solo lectura del barrido cargado -->
+            <div id="sweep-loaded-view" class="d-none">
+              <p class="mb-2 small">
+                <span data-i18n="sweep.loaded_type_lbl">Tipo de barrido:</span>
+                <span id="sweep-loaded-type" class="badge bg-secondary"></span>
+                &nbsp;·&nbsp;
+                <span id="sweep-loaded-desc" class="fst-italic"></span>
+              </p>
+
+              <div class="row g-3 mb-2">
+                <div class="col-md-6">
+                  <div class="small fw-semibold mb-1" data-i18n="sweep.loaded_fixed_h">Datos de la base</div>
+                  <ul id="sweep-loaded-fixed" class="small font-monospace mb-0 ps-3"></ul>
+                </div>
+                <div class="col-md-6">
+                  <div class="small fw-semibold mb-1" data-i18n="sweep.loaded_excluded_h">Ficheros excluidos de la copia</div>
+                  <ul id="sweep-loaded-excluded" class="small font-monospace mb-0 ps-3"></ul>
+                </div>
+              </div>
+
+              <div id="sweep-loaded-not-run" class="alert alert-secondary py-2 small d-none" data-i18n="sweep.loaded_not_run">
+                Este barrido todavía no se ha ejecutado.
+              </div>
+              <div id="sweep-loaded-batch-summary" class="small text-muted mb-2"></div>
+
+              <div class="table-responsive mb-2">
+                <table class="table table-sm table-bordered align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th data-i18n="sweep.loaded_col_folder">Carpeta</th>
+                      <th data-i18n="sweep.loaded_col_value">Valor</th>
+                      <th data-i18n="sweep.loaded_col_output">fort.6</th>
+                      <th data-i18n="sweep.loaded_col_state">Estado de ejecución</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sweep-loaded-tbody"></tbody>
+                </table>
+              </div>
+
+              <button type="button" class="btn btn-success btn-sm" id="btn-sweep-loaded-run">
+                <i class="bi bi-play-fill me-1"></i><span data-i18n="sweep.run_start_btn">Ejecutar barrido</span>
               </button>
             </div>
           </div>

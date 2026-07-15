@@ -10,7 +10,10 @@
 (function () {
   'use strict';
 
-  const LS_KEYS = { root: 'acab-sweep-root', base: 'acab-sweep-base', prefix: 'acab-sweep-prefix' };
+  const LS_KEYS = {
+    root: 'acab-sweep-root', base: 'acab-sweep-base', prefix: 'acab-sweep-prefix',
+    loadRoot: 'acab-sweep-load-root',
+  };
   let _lastPatches = [];        // [{params, patch, suffix}] tras "Previsualizar"
   let _lastFluxGuardrail = [];  // U5(c): [{value, xnorm}] sospechosos del último buildPatches (solo tipo 'flux')
 
@@ -770,12 +773,109 @@
     } catch (_) { /* servidor no disponible todavía: ignorar */ }
   }
 
+  // ── Cargar/consultar un barrido ya generado (U6) ─────────────────────────
+  // Unifica el flujo de carga: cargar SIEMPRE muestra el contenido del
+  // barrido (solo lectura, vía /api/sweep/manifest); "Ejecutar" es una
+  // acción sobre lo ya cargado, reutilizando startSweepBatchRun/el panel de
+  // ejecución de la Fase R4 -- no hay un segundo camino de carga.
+  const loadedSweepState = { root: null, folders: null };
+
+  function setLoadMsg(kind, text) {
+    const el = $('sweep-load-msg');
+    if (!el) return;
+    el.className = `alert alert-${kind} py-2 small`;
+    el.textContent = text;
+    el.classList.remove('d-none');
+  }
+  function clearLoadMsg() { const el = $('sweep-load-msg'); if (el) el.classList.add('d-none'); }
+
+  function hideLoadedSweepView() {
+    $('sweep-loaded-view')?.classList.add('d-none');
+    loadedSweepState.root = null;
+    loadedSweepState.folders = null;
+  }
+
+  async function loadSweepManifest() {
+    clearLoadMsg();
+    hideLoadedSweepView();
+    const root = getVal('sweep-load-root').trim();
+    if (!root) { setLoadMsg('danger', t('sweep.load_no_root')); return; }
+    localStorage.setItem(LS_KEYS.loadRoot, root);
+
+    let res;
+    try {
+      const r = await fetch('/api/sweep/manifest?root=' + encodeURIComponent(root));
+      res = await r.json();
+      if (!r.ok || !res.ok) throw new Error(res.error || 'error');
+    } catch (e) {
+      setLoadMsg('danger', e.message);
+      return;
+    }
+    renderLoadedSweepView(res);
+  }
+
+  function renderLoadedSweepView(view) {
+    loadedSweepState.root = view.root;
+    loadedSweepState.folders = view.simulations.map(s => s.folder);
+
+    $('sweep-loaded-type').textContent = view.sweep_type
+      ? t('sweep.type_' + view.sweep_type) : '—';
+    $('sweep-loaded-desc').textContent = view.description || '';
+
+    const fixedEl = $('sweep-loaded-fixed');
+    const fixedEntries = Object.entries(view.fixed_params || {});
+    fixedEl.innerHTML = fixedEntries.length
+      ? fixedEntries.map(([k, v]) => `<li>${k}: ${v}</li>`).join('')
+      : `<li class="text-muted">${t('sweep.loaded_fixed_empty')}</li>`;
+
+    const excludedEl = $('sweep-loaded-excluded');
+    const excluded = view.excluded_base_files || [];
+    excludedEl.innerHTML = excluded.length
+      ? excluded.map(f => `<li>${f}</li>`).join('')
+      : `<li class="text-muted">${t('sweep.loaded_excluded_empty')}</li>`;
+
+    $('sweep-loaded-not-run').classList.toggle('d-none', !!view.has_batch_results);
+    const summaryEl = $('sweep-loaded-batch-summary');
+    if (view.has_batch_results && view.batch_summary) {
+      const s = view.batch_summary;
+      summaryEl.textContent = t('sweep.loaded_batch_summary')
+        .replace('{ok}', s.ok).replace('{fail}', s.fallos).replace('{total}', s.total);
+    } else {
+      summaryEl.textContent = '';
+    }
+
+    const tb = $('sweep-loaded-tbody');
+    tb.innerHTML = view.simulations.map(sim => {
+      const value = sim.value_label != null ? sim.value_label : sim.folder;
+      const outBadge = sim.fort6_exists
+        ? `<span class="badge bg-success">${t('sweep.loaded_output_yes')}</span>`
+        : `<span class="badge bg-secondary">${t('sweep.loaded_output_no')}</span>`;
+      let stateBadge = `<span class="text-muted small">${t('sweep.loaded_not_run_badge')}</span>`;
+      if (sim.estado) {
+        const variant = SWEEP_STATE_VARIANT[sim.estado] || 'secondary';
+        const icon = SWEEP_STATE_ICON[sim.estado] || 'bi-question-circle';
+        stateBadge = `<span class="badge bg-${variant}"><i class="bi ${icon} me-1"></i>`
+          + `${t('sweep.run_state_' + sim.estado)}</span>`;
+      }
+      return `
+        <tr>
+          <td class="font-monospace small">${sim.folder}</td>
+          <td class="font-monospace small">${value}</td>
+          <td class="text-center">${outBadge}</td>
+          <td>${stateBadge}</td>
+        </tr>`;
+    }).join('');
+
+    $('sweep-loaded-view').classList.remove('d-none');
+  }
+
   // ── Persistencia localStorage ────────────────────────────────────────────
   function loadPersisted() {
     const set = (id, key) => { const v = localStorage.getItem(key); if (v) setVal(id, v); };
     set('sweep-root', LS_KEYS.root);
     set('sweep-base', LS_KEYS.base);
     set('sweep-prefix', LS_KEYS.prefix);
+    set('sweep-load-root', LS_KEYS.loadRoot);
   }
   function persist() {
     localStorage.setItem(LS_KEYS.root, getVal('sweep-root'));
@@ -793,8 +893,9 @@
     btn.disabled = true;
     if (icon) icon.className = 'bi bi-hourglass-split';
     try {
-      const title = targetId === 'sweep-base'
-        ? t('sweep.base_lbl') : t('sweep.root_lbl');
+      const title = targetId === 'sweep-base' ? t('sweep.base_lbl')
+        : targetId === 'sweep-load-root' ? t('sweep.load_h')
+        : t('sweep.root_lbl');
       const res = await fetch('/api/browse-folder', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title }),
@@ -802,8 +903,13 @@
       const json = await res.json();
       if (json.folder) {
         input.value = json.folder;
-        persist();
-        hidePreview();
+        if (targetId === 'sweep-load-root') {
+          localStorage.setItem(LS_KEYS.loadRoot, json.folder);
+          hideLoadedSweepView();
+        } else {
+          persist();
+          hidePreview();
+        }
       } else if (!json.error) {
         showToast(t('sweep.browse_none'), 'secondary');
       } else {
@@ -870,10 +976,12 @@
     $('btn-sweep-run-cancel')?.addEventListener('click', async () => {
       try { await fetch('/api/run/cancel', { method: 'POST' }); } catch (_) { /* ignorar */ }
     });
-    $('btn-sweep-run-existing')?.addEventListener('click', () => {
-      const root = getVal('sweep-run-existing-root').trim();
-      if (!root) { showToast(t('sweep.run_no_root'), 'danger'); return; }
-      startSweepBatchRun(root, null, false);
+    // ── Cargar/consultar un barrido ya generado (U6) ──────────────────────
+    $('btn-sweep-load')?.addEventListener('click', loadSweepManifest);
+    $('sweep-load-root')?.addEventListener('change', hideLoadedSweepView);
+    $('btn-sweep-loaded-run')?.addEventListener('click', () => {
+      if (!loadedSweepState.root) return;
+      startSweepBatchRun(loadedSweepState.root, loadedSweepState.folders, false);
     });
     resyncSweepBatchState();
   });
