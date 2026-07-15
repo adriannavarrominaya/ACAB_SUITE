@@ -13,6 +13,7 @@ const path = require('path');
 const {
   calcularVectorTiempos, buildBlocks78, parseSweepValues, proposeSuffix,
   buildFluxPatches, fluxBaseTotal, buildMassPatches, buildTimePatches,
+  fluxValuesPlaceholder, fluxSweepGuardrail,
 } = require('../static/js/sweep_utils.js');
 
 const atomic = JSON.parse(fs.readFileSync(
@@ -103,6 +104,30 @@ try { buildFluxPatches([1e14], 'phi', 0); } catch (e) { threw = true; }
 check('buildFluxPatches phi: rechaza φ_base = 0', threw);
 check('fluxBaseTotal: Σ FLUX × XNORM',
   relDiff(fluxBaseTotal({ FLUX: [1e14, 1e14] }, { XNORM: 1 }), 2e14) < 1e-12);
+
+// ── fluxValuesPlaceholder (U5a) ──────────────────────────────────────────────
+check("fluxValuesPlaceholder xnorm: ejemplos de factores fijos",
+  fluxValuesPlaceholder('xnorm', 2e14) === '0.5, 0.75, 1.0, 1.5');
+check("fluxValuesPlaceholder xnorm: ignora φ_base ausente",
+  fluxValuesPlaceholder('xnorm', undefined) === '0.5, 0.75, 1.0, 1.5');
+check("fluxValuesPlaceholder phi: ejemplos ×0.5/×1/×2 de φ_base",
+  fluxValuesPlaceholder('phi', 2e14) === '1.00e+14, 2.00e+14, 4.00e+14');
+check("fluxValuesPlaceholder phi: sin φ_base (sin fichero) → null, nunca el placeholder de factores",
+  fluxValuesPlaceholder('phi', undefined) === null && fluxValuesPlaceholder('phi', 0) === null);
+
+// ── fluxSweepGuardrail (U5c) ─────────────────────────────────────────────────
+// Modo phi: factor introducido por error como si fuera flujo → XNORM ~1e-14
+const guardPhiBad = fluxSweepGuardrail([1.0], 'phi', 2e14);
+check("fluxSweepGuardrail phi: factor 1.0 en modo flujo (φ_base=2e14) → XNORM≈5e-15, fuera de rango",
+  guardPhiBad.length === 1 && relDiff(guardPhiBad[0].xnorm, 1.0 / 2e14) < 1e-9);
+const guardPhiOk = fluxSweepGuardrail([1e14, 2e14], 'phi', 2e14);
+check("fluxSweepGuardrail phi: flujos objetivo razonables no disparan aviso", guardPhiOk.length === 0);
+// Modo xnorm: flujo absoluto introducido por error como si fuera factor
+const guardXnormBad = fluxSweepGuardrail([2e14], 'xnorm', 2e14);
+check("fluxSweepGuardrail xnorm: valor 2e14 como factor XNORM directo, fuera de rango",
+  guardXnormBad.length === 1 && guardXnormBad[0].xnorm === 2e14);
+const guardXnormOk = fluxSweepGuardrail([0.5, 0.75, 1.0, 1.5], 'xnorm', 2e14);
+check("fluxSweepGuardrail xnorm: factores razonables no disparan aviso", guardXnormOk.length === 0);
 
 // ── parseSweepValues ────────────────────────────────────────────────────────
 check('parseSweepValues coma/espacio', JSON.stringify(parseSweepValues('0.5, 0.75 1')) === '[0.5,0.75,1]');

@@ -165,6 +165,45 @@ function fluxBaseTotal(block3, block9) {
   return sum * xnorm;
 }
 
+// ── U5: placeholder dinámico y guardarraíl de confusión flujo/factor ──────
+/**
+ * Placeholder del campo de valores del barrido de flujo.
+ * Modo 'xnorm' → ejemplos de factores (estáticos, sin unidades).
+ * Modo 'phi'   → ejemplos ×0.5/×1/×2 derivados del φ_base REAL del fichero
+ *                cargado; si no hay φ_base (sin fichero cargado o φ_base ≤ 0)
+ *                devuelve null — el llamador debe usar un texto genérico con
+ *                la unidad, NUNCA el placeholder de factores del otro modo.
+ * @returns {string|null}
+ */
+function fluxValuesPlaceholder(modo, phiBase) {
+  if (modo === 'phi') {
+    if (!(phiBase > 0)) return null;
+    return [0.5, 1, 2].map(f => (phiBase * f).toExponential(2)).join(', ');
+  }
+  return '0.5, 0.75, 1.0, 1.5';
+}
+
+/**
+ * Guardarraíl de confusión flujo total ⇄ factor XNORM: devuelve los valores
+ * introducidos cuyo XNORM cae fuera del rango habitual [1e-3, 1e3].
+ * Modo 'phi'   → XNORM resultante = valor / φ_base (mismo cálculo que
+ *                buildFluxPatches); fuera de rango ⇒ ¿el valor es en
+ *                realidad un factor, no un flujo?
+ * Modo 'xnorm' → el valor introducido SE USA directamente como XNORM; fuera
+ *                de rango (típicamente por ser enorme, ~escala de flujo real)
+ *                ⇒ ¿el valor es en realidad un flujo absoluto, no un factor?
+ * @returns {{value:number, xnorm:number}[]} valores sospechosos
+ */
+function fluxSweepGuardrail(valores, modo, phiBase) {
+  const LO = 1e-3, HI = 1e3;
+  const out = [];
+  for (const v of valores) {
+    const xnorm = modo === 'phi' ? (phiBase > 0 ? v / phiBase : NaN) : v;
+    if (Number.isFinite(xnorm) && (xnorm < LO || xnorm > HI)) out.push({ value: v, xnorm });
+  }
+  return out;
+}
+
 // ── Barrido de masa (XCOMP de una zona) ────────────────────────────────────
 /**
  * Recalcula XCOMP de la zona `zoneIdx` para cada masa, conservando INUCL y el
@@ -241,5 +280,6 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     calcularVectorTiempos, buildBlocks78, parseSweepValues, proposeSuffix,
     buildFluxPatches, fluxBaseTotal, buildMassPatches, buildTimePatches,
+    fluxValuesPlaceholder, fluxSweepGuardrail,
   };
 }

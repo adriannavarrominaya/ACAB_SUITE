@@ -11,7 +11,8 @@
   'use strict';
 
   const LS_KEYS = { root: 'acab-sweep-root', base: 'acab-sweep-base', prefix: 'acab-sweep-prefix' };
-  let _lastPatches = [];   // [{params, patch, suffix}] tras "Previsualizar"
+  let _lastPatches = [];        // [{params, patch, suffix}] tras "Previsualizar"
+  let _lastFluxGuardrail = [];  // U5(c): [{value, xnorm}] sospechosos del último buildPatches (solo tipo 'flux')
 
   // ── Barrido espectral (Fase P3 del RUNBOOK_barrido_espectral.md) ─────────
   const XSBL_LIBRARY_NGROUP = 211;   // D5: constante de configuración (grupos de la librería XSBL)
@@ -83,12 +84,34 @@
     hidePreview();
   }
 
+  function fluxMode() {
+    const el = document.querySelector('input[name="sweep-flux-mode"]:checked');
+    return el ? el.value : 'xnorm';
+  }
+
+  // U5(a)+(b): placeholder y etiqueta del campo de valores dependen del modo
+  // (factores XNORM vs. flujo total objetivo) y, en modo flujo, del φ_base
+  // REAL del fichero cargado — nunca se mezcla el placeholder de un modo con
+  // la etiqueta del otro.
+  function refreshFluxValuesUI(phi) {
+    const label = $('sweep-flux-values-lbl');
+    const input = $('sweep-flux-values');
+    if (!label || !input) return;
+    const mode = fluxMode();
+    const labelKey = mode === 'phi' ? 'sweep.flux_values_lbl_phi' : 'sweep.flux_values_lbl_xnorm';
+    label.dataset.i18n = labelKey;
+    label.textContent = t(labelKey);
+    const ph = fluxValuesPlaceholder(mode, phi);
+    input.placeholder = ph != null ? ph : t('sweep.flux_values_ph_phi_generic');
+  }
+
   function refreshFluxInfo() {
     if (!appState.data) appState.data = {};
     collectAll(appState.data);
     const phi = fluxBaseTotal(appState.data.block3, appState.data.block9);
     const el = $('sweep-flux-phibase');
     if (el) el.textContent = Number.isFinite(phi) && phi > 0 ? phi.toExponential(4) : '—';
+    refreshFluxValuesUI(phi);
   }
 
   function refreshMassPanel() {
@@ -336,12 +359,14 @@
     const type = currentType();
     if (!appState.data) appState.data = {};
     collectAll(appState.data);
+    _lastFluxGuardrail = [];
 
     if (type === 'flux') {
       const mode = document.querySelector('input[name="sweep-flux-mode"]:checked')?.value || 'xnorm';
       const vals = parseSweepValues(getVal('sweep-flux-values'));
       const phi  = fluxBaseTotal(appState.data.block3, appState.data.block9);
       const list = buildFluxPatches(vals, mode, phi);
+      _lastFluxGuardrail = fluxSweepGuardrail(vals, mode, phi);
       return list.map(p => ({ ...p, suffix: proposeSuffix('flux', p.patch.block9.XNORM) }));
     }
 
@@ -460,6 +485,11 @@
       warns.push(t('sweep.warn_collisions').replace('{list}', res.collisions.join(', ')));
     if (res.est_disk > 2 * 1024 * 1024 * 1024)
       warns.push(t('sweep.warn_disk').replace('{size}', humanBytes(res.est_disk)));
+    if (currentType() === 'flux' && _lastFluxGuardrail.length) {
+      const list = _lastFluxGuardrail.map(g => g.value).join(', ');
+      const key = fluxMode() === 'phi' ? 'sweep.warn_flux_mode_confusion_phi' : 'sweep.warn_flux_mode_confusion_xnorm';
+      warns.push(t(key).replace('{list}', list));
+    }
     if (warns.length) {
       warnEl.innerHTML = warns.map(w => `<div>${w}</div>`).join('');
       warnEl.classList.remove('d-none');
@@ -802,7 +832,7 @@
     document.querySelectorAll('input[name="sweep-type"]').forEach(r =>
       r.addEventListener('change', syncTypePanels));
     document.querySelectorAll('input[name="sweep-flux-mode"]').forEach(r =>
-      r.addEventListener('change', hidePreview));
+      r.addEventListener('change', () => { refreshFluxInfo(); hidePreview(); }));
 
     ['sweep-root', 'sweep-base', 'sweep-prefix'].forEach(id => {
       const el = $(id);
