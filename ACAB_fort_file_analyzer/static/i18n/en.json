@@ -366,6 +366,8 @@
     "type_flux": "flux sweep",
     "type_mass": "mass sweep",
     "type_time": "time sweep",
-    "type_spectrum": "spectral sweep"
+    "type_spectrum": "spectral sweep",
+    "th_espectro": "Spectrum",
+    "spectrum_axis_x": "Spectrum"
   }
 }

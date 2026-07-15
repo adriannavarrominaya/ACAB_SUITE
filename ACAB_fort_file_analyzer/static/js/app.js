@@ -2598,6 +2598,15 @@ function renderOptimizacion() {
     return;
   }
 
+  // U4 del BACKLOG: el barrido espectral tiene su propio render (una sola
+  // serie, nombre del espectro como identificador) -- paramKeys() recogería
+  // aquí n_grupos/frac_termica/frac_epitermica/frac_rapida (todos numéricos)
+  // y produciría una leyenda con el volcado de parámetros que U4 corrige.
+  if (ACABOptim.isSpectrumSweep(manifest)) {
+    renderOptimizacionSpectrum(container, iso, manifest, sims, rows);
+    return;
+  }
+
   const keys = ACABOptim.paramKeys(rows);
   if (!keys.length) {
     container.innerHTML = `<div class="alert alert-warning mt-3">${t('optim.no_numeric_params')}</div>`;
@@ -2703,6 +2712,157 @@ function renderOptimizacion() {
   });
   const btnExport = document.getElementById('btn-export-optim');
   if (btnExport) btnExport.addEventListener('click', exportOptimizacionCSV);
+}
+
+/** Barrido espectral (U4 del BACKLOG): una SOLA serie por métrica, con el
+ * nombre del espectro (ACABOptim.spectrumRowLabel) como identificador de
+ * cada punto -- nunca el volcado de fracciones espectrales/n_grupos que
+ * producía groupByOtherParams al tratarlos como dimensiones de color. */
+function renderOptimizacionSpectrum(container, iso, manifest, sims, rows) {
+  const label = isoLabel(iso);
+  const uL    = unitLabel();
+  const yVar  = _state.optimYVar;
+
+  const sortedRows = rows.slice().sort((a, b) =>
+    ACABOptim.spectrumRowLabel(a).localeCompare(ACABOptim.spectrumRowLabel(b)));
+
+  const yVarOptions = OPTIM_YVARS.map(v =>
+    `<option value="${v}" ${v === yVar ? 'selected' : ''}>${escHtml(_optimYLabel(v))}</option>`).join('');
+
+  const tableRows = sortedRows.map((r, i) => {
+    const sim = sims[r.name];
+    const Ap = r.A_pico != null && r.A_pico > 0 ? fmtA(r.A_pico, sim) : '—';
+    const tp = r.t_pico != null ? r.t_pico.toFixed(3) : '—';
+    const pp = r.P_pct != null ? r.P_pct.toFixed(2) + ' %' : '—';
+    const rm = r.rendimiento_medio != null ? fmtA(r.rendimiento_medio, sim) : '—';
+    return `
+      <tr>
+        <td><span class="sim-dot me-1" style="background:${PALETTE[i % PALETTE.length]}"></span><small class="fw-semibold">${escHtml(ACABOptim.spectrumRowLabel(r))}</small></td>
+        <td class="font-monospace small text-danger fw-bold">${Ap}</td>
+        <td class="font-monospace small">${tp}</td>
+        <td class="font-monospace small">${pp}</td>
+        <td class="font-monospace small">${rm}</td>
+      </tr>`;
+  }).join('');
+
+  const typeLabel = t('optim.type_spectrum');
+  const subtitle = `
+    <p class="text-muted small mb-2">
+      ${manifest.description ? escHtml(manifest.description) : ''}
+      <span class="badge bg-secondary ms-1">${escHtml(typeLabel)}</span>
+    </p>`;
+
+  container.innerHTML = `
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-1">
+      <h5 class="mb-0">${t('optim.title', { label })}</h5>
+      <button class="btn btn-outline-secondary btn-sm" id="btn-export-optim">
+        <i class="bi bi-download me-1"></i>${t('export.csv')}
+      </button>
+    </div>
+    ${subtitle}
+    <p class="small text-muted">${t('optim.desc')}</p>
+
+    <div class="d-flex flex-wrap gap-3 align-items-end mb-3">
+      <div>
+        <label class="form-label small mb-1" for="optim-y-select">${t('optim.yvar_label')}</label>
+        <select class="form-select form-select-sm" id="optim-y-select">${yVarOptions}</select>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body p-2">
+        <div id="optim-chart" class="plotly-chart-lg"></div>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0" style="font-size:0.82rem">
+        <thead class="table-dark">
+          <tr>
+            <th>${t('optim.th_espectro')}</th>
+            <th>${t('optim.th_apico', { unit: uL })}</th>
+            <th>${t('optim.th_tpico')}</th>
+            <th>${t('optim.th_pureza')}</th>
+            <th>${t('optim.th_rendimiento', { unit: uL })}</th>
+          </tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+  `;
+
+  _renderSpectrumOptimChart(sortedRows, yVar, sims);
+
+  const ySel = document.getElementById('optim-y-select');
+  if (ySel) ySel.addEventListener('change', e => {
+    _state.optimYVar = e.target.value;
+    renderOptimizacion();
+  });
+  const btnExport = document.getElementById('btn-export-optim');
+  if (btnExport) btnExport.addEventListener('click', exportOptimizacionSpectrumCSV);
+}
+
+/** Plotly bar: una sola serie con el nombre del espectro en el eje X
+ * (categórico -- sin orden natural entre espectros, a diferencia del resto
+ * de tipos de barrido, así que barras en vez de líneas). */
+function _renderSpectrumOptimChart(sortedRows, yVar, sims) {
+  const div = document.getElementById('optim-chart');
+  if (!div) return;
+
+  const x = [], y = [];
+  sortedRows.forEach(r => {
+    const yv = _optimYDisplay(r, yVar, sims[r.name]);
+    if (yv === null) return;
+    x.push(ACABOptim.spectrumRowLabel(r));
+    y.push(yv);
+  });
+
+  const trace = {
+    x, y, type: 'bar',
+    marker: { color: PALETTE[0] },
+    name: _optimYLabel(yVar),
+  };
+  const layout = {
+    margin: { t: 20, r: 20, b: 70, l: 60 },
+    xaxis:  { title: t('optim.spectrum_axis_x'), type: 'category' },
+    yaxis:  { title: `${_optimYLabel(yVar)} [${_optimYUnit(yVar)}]` },
+    showlegend: false,
+  };
+  Plotly.newPlot(div, [trace], layout, { responsive: true, displayModeBar: true });
+}
+
+/** Export de la tabla del barrido espectral (folder→espectro × métricas). */
+function exportOptimizacionSpectrumCSV() {
+  const iso      = _state.selectedIsotopo;
+  const json     = _state.isotopoReport;
+  const manifest = _state.analysisData && _state.analysisData.sweep_manifest;
+  if (!iso || !json || !manifest || !_state.analysisData) return;
+
+  const sims = _state.analysisData.simulations;
+  const simNames = Object.keys(sims);
+  const rows = ACABOptim.mergeSweepRows(
+    manifest, simNames, json.informe.simulations, json.informe.metricas);
+  if (!rows.length) return;
+
+  const sortedRows = rows.slice().sort((a, b) =>
+    ACABOptim.spectrumRowLabel(a).localeCompare(ACABOptim.spectrumRowLabel(b)));
+
+  const uL = unitLabel();
+  const csvRows = sortedRows.map(r => {
+    const sim = sims[r.name];
+    return [
+      ACABOptim.spectrumRowLabel(r),
+      r.A_pico != null ? conv(r.A_pico, sim) : null,
+      r.t_pico,
+      r.P_pct,
+      r.rendimiento_medio != null ? conv(r.rendimiento_medio, sim) : null,
+    ];
+  });
+  const headers = [
+    t('optim.th_espectro'),
+    `A_pico [${uL}]`, 't_pico [h]', 'pureza [%]', `rendimiento_medio [${uL}/h]`,
+  ];
+  emitCSV(`${ACABExport.slug(iso)}_optimizacion_${unitSlug()}_${folderSlug()}.csv`, iso, csvRows, headers);
 }
 
 /** Plotly scatter/line: variable Y elegida vs. parámetro elegido, una serie

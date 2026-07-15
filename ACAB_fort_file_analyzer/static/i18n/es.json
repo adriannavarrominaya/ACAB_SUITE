@@ -366,6 +366,8 @@
     "type_flux": "barrido de flujo",
     "type_mass": "barrido de masa",
     "type_time": "barrido temporal",
-    "type_spectrum": "barrido espectral"
+    "type_spectrum": "barrido espectral",
+    "th_espectro": "Espectro",
+    "spectrum_axis_x": "Espectro"
   }
 }

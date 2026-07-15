@@ -120,6 +120,34 @@ section('yRawValue / yNeedsUnitConv');
   eq(O.yNeedsUnitConv('pureza'), false, 'pureza (%) es invariante de unidad');
 }
 
+section('isSpectrumSweep / spectrumRowLabel (U4 del BACKLOG)');
+{
+  eq(O.isSpectrumSweep({ sweep_type: 'spectrum' }), true, "sweep_type='spectrum' -> true");
+  eq(O.isSpectrumSweep({ sweep_type: 'flux' }), false, "sweep_type='flux' -> false");
+  eq(O.isSpectrumSweep(null), false, 'manifest ausente -> false');
+  eq(O.isSpectrumSweep({}), false, 'sin sweep_type -> false');
+
+  // Manifest espectral real (runbook espectral escribe 'espectro' en params).
+  const specManifest = {
+    sweep_type: 'spectrum',
+    simulations: [
+      { folder: 'S_MURR', params: { espectro: 'MURR-G1', n_grupos: 112, frac_termica: 0.32 } },
+      { folder: 'S_TRIGA', params: { espectro: 'TRIGA', n_grupos: 47, frac_termica: 0.55 } },
+      // Manifest viejo sin 'espectro' -> degrada al identificador de carpeta,
+      // NUNCA a un volcado de n_grupos/frac_termica.
+      { folder: 'S_OLD', params: { n_grupos: 30, frac_termica: 0.4 } },
+    ],
+  };
+  const specRows = O.mergeSweepRows(specManifest, ['S_MURR', 'S_TRIGA', 'S_OLD'], {}, {});
+  eq(O.spectrumRowLabel(specRows[0]), 'MURR-G1', "espectro='MURR-G1' -> etiqueta = nombre del espectro");
+  eq(O.spectrumRowLabel(specRows[1]), 'TRIGA', "espectro='TRIGA' -> etiqueta = nombre del espectro");
+  eq(O.spectrumRowLabel(specRows[2]), 'S_OLD', 'sin espectro (manifest viejo) -> degrada al folder, nunca a params');
+
+  eq(O.spectrumRowLabel({ params: { espectro: '   ' }, name: 'S_BLANK' }), 'S_BLANK',
+     "espectro en blanco -> degrada al folder");
+  eq(O.spectrumRowLabel({ params: {}, name: 'S_NONE' }), 'S_NONE', 'sin params.espectro -> degrada al folder');
+}
+
 console.log('\n' + '-'.repeat(50));
 console.log(`Resultado: ${passed} pasados, ${failed} fallidos`);
 process.exit(failed === 0 ? 0 : 1);

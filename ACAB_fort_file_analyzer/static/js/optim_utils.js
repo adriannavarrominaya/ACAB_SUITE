@@ -105,11 +105,31 @@
     return yVar === 'a_pico' || yVar === 'rendimiento' || !yVar;
   }
 
+  /** ¿Es un barrido espectral? (U4 del BACKLOG: una sola serie por métrica,
+   * nunca agrupada por las fracciones espectrales -- ver groupByOtherParams). */
+  function isSpectrumSweep(manifest) {
+    return !!(manifest && manifest.sweep_type === 'spectrum');
+  }
+
+  /** Etiqueta legible de una fila de barrido espectral: el NOMBRE del
+   * espectro (`row.params.espectro`, escrito por el runbook espectral desde
+   * sweep_manifest.json). Si un manifest viejo no lo trae, degrada al
+   * identificador de carpeta (`row.name`) -- NUNCA a un volcado de
+   * parámetros (frac_termica/n_grupos/...); criterio compartido con la
+   * vista de "consultar un barrido" del INP configurator (U6). */
+  function spectrumRowLabel(row) {
+    const esp = row && row.params && row.params.espectro;
+    if (typeof esp === 'string' && esp.trim()) return esp;
+    return (row && row.name) || '';
+  }
+
   return {
     mergeSweepRows,
     paramKeys,
     groupByOtherParams,
     yRawValue,
     yNeedsUnitConv,
+    isSpectrumSweep,
+    spectrumRowLabel,
   };
 });
