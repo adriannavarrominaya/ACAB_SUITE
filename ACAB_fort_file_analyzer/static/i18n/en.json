@@ -368,6 +368,9 @@
     "type_time": "time sweep",
     "type_spectrum": "spectral sweep",
     "th_espectro": "Spectrum",
-    "spectrum_axis_x": "Spectrum"
+    "spectrum_axis_x": "Spectrum",
+    "spectrum_x_categorical": "Spectrum (categorical)",
+    "spectrum_x_key_disabled": "Not available: this sweep's manifest does not include this spectral fraction",
+    "spectrum_x_all_disabled": "This sweep's manifest has no spectral fractions (generated with an older version); only the spectrum-name view is available."
   }
 }

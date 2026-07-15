@@ -148,6 +148,43 @@ section('isSpectrumSweep / spectrumRowLabel (U4 del BACKLOG)');
   eq(O.spectrumRowLabel({ params: {}, name: 'S_NONE' }), 'S_NONE', 'sin params.espectro -> degrada al folder');
 }
 
+section('spectrumNumericKeys (U4b del BACKLOG)');
+{
+  const rowsWithFracs = [
+    { params: { espectro: 'A', n_grupos: 10, frac_termica: 0.3, frac_epitermica: 0.2, frac_rapida: 0.5 } },
+    { params: { espectro: 'B', n_grupos: 20, frac_termica: 0.6, frac_epitermica: 0.1, frac_rapida: 0.3 } },
+  ];
+  eq(O.spectrumNumericKeys(rowsWithFracs), ['frac_termica', 'frac_epitermica', 'frac_rapida'],
+     'manifest con las 3 fracciones -> las 3 disponibles, en orden fijo (nunca n_grupos)');
+
+  const rowsPartial = [
+    { params: { espectro: 'A', n_grupos: 10, frac_termica: 0.3 } },
+  ];
+  eq(O.spectrumNumericKeys(rowsPartial), ['frac_termica'],
+     'manifest con una sola fracción -> solo esa disponible');
+
+  const rowsOld = [
+    { params: { espectro: 'A', n_grupos: 10 } },
+  ];
+  eq(O.spectrumNumericKeys(rowsOld), [],
+     'manifest viejo sin fracciones espectrales -> ninguna disponible (no rompe)');
+}
+
+section('spectrumTextPositions (U4b del BACKLOG)');
+{
+  eq(O.spectrumTextPositions([]), [], 'sin puntos -> sin posiciones');
+  eq(O.spectrumTextPositions([0.5]), ['top center'], 'un solo punto -> posición por defecto');
+
+  // 9 reactores reales: 4 muy próximos entre sí (< 4% del rango) + uno aislado.
+  const xs = [0.30, 0.31, 0.32, 0.33, 0.90];
+  eq(O.spectrumTextPositions(xs),
+     ['top center', 'bottom center', 'top center', 'bottom center', 'top center'],
+     'puntos próximos alternan arriba/abajo; el punto aislado se queda arriba');
+
+  eq(O.spectrumTextPositions([0.1, 0.1, 0.1]), ['top center', 'top center', 'top center'],
+     'rango nulo (todos los valores iguales) -> sin desplazamiento, posición por defecto');
+}
+
 console.log('\n' + '-'.repeat(50));
 console.log(`Resultado: ${passed} pasados, ${failed} fallidos`);
 process.exit(failed === 0 ? 0 : 1);

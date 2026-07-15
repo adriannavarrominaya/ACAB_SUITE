@@ -368,6 +368,9 @@
     "type_time": "barrido temporal",
     "type_spectrum": "barrido espectral",
     "th_espectro": "Espectro",
-    "spectrum_axis_x": "Espectro"
+    "spectrum_axis_x": "Espectro",
+    "spectrum_x_categorical": "Espectro (categórico)",
+    "spectrum_x_key_disabled": "No disponible: este barrido no incluye esta fracción espectral en el manifest",
+    "spectrum_x_all_disabled": "Este barrido no incluye fracciones espectrales en el manifest (generado con una versión anterior); solo está disponible la vista por nombre de espectro."
   }
 }

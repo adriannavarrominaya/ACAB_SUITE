@@ -2714,17 +2714,50 @@ function renderOptimizacion() {
   if (btnExport) btnExport.addEventListener('click', exportOptimizacionCSV);
 }
 
-/** Barrido espectral (U4 del BACKLOG): una SOLA serie por métrica, con el
- * nombre del espectro (ACABOptim.spectrumRowLabel) como identificador de
- * cada punto -- nunca el volcado de fracciones espectrales/n_grupos que
- * producía groupByOtherParams al tratarlos como dimensiones de color. */
+/** Barrido espectral (U4/U4b del BACKLOG): por defecto una SOLA serie por
+ * métrica con el nombre del espectro (ACABOptim.spectrumRowLabel) como
+ * identificador de cada punto -- nunca el volcado de fracciones
+ * espectrales/n_grupos que producía groupByOtherParams al tratarlos como
+ * dimensiones de color. U4b restaura el selector de eje X: "Espectro"
+ * (categórico, barras, comportamiento de U4 sin cambios) o una fracción
+ * espectral numérica (frac_termica/epitermica/rapida -- dispersión de una
+ * sola serie con el nombre del espectro como etiqueta de texto junto a cada
+ * punto, nunca como leyenda). */
+const SPECTRUM_X_CATEGORICAL = 'espectro';
+
 function renderOptimizacionSpectrum(container, iso, manifest, sims, rows) {
   const label = isoLabel(iso);
   const uL    = unitLabel();
   const yVar  = _state.optimYVar;
 
-  const sortedRows = rows.slice().sort((a, b) =>
-    ACABOptim.spectrumRowLabel(a).localeCompare(ACABOptim.spectrumRowLabel(b)));
+  const numericKeys = ACABOptim.spectrumNumericKeys(rows);
+  if (!_state.optimSpectrumXParam ||
+      (_state.optimSpectrumXParam !== SPECTRUM_X_CATEGORICAL &&
+       numericKeys.indexOf(_state.optimSpectrumXParam) === -1)) {
+    _state.optimSpectrumXParam = SPECTRUM_X_CATEGORICAL;
+  }
+  const xKey = _state.optimSpectrumXParam;
+  const isCategorical = xKey === SPECTRUM_X_CATEGORICAL;
+
+  const sortedRows = isCategorical
+    ? rows.slice().sort((a, b) =>
+        ACABOptim.spectrumRowLabel(a).localeCompare(ACABOptim.spectrumRowLabel(b)))
+    : rows.slice()
+        .filter(r => typeof r.params[xKey] === 'number' && isFinite(r.params[xKey]))
+        .sort((a, b) => a.params[xKey] - b.params[xKey]);
+
+  const xOptions = [
+    `<option value="${SPECTRUM_X_CATEGORICAL}" ${isCategorical ? 'selected' : ''}>${escHtml(t('optim.spectrum_x_categorical'))}</option>`,
+    ...ACABOptim.SPECTRUM_FRAC_KEYS.map(k => {
+      const available = numericKeys.indexOf(k) !== -1;
+      return available
+        ? `<option value="${escAttr(k)}" ${k === xKey ? 'selected' : ''}>${escHtml(k)}</option>`
+        : `<option value="${escAttr(k)}" disabled title="${escAttr(t('optim.spectrum_x_key_disabled'))}">${escHtml(k)}</option>`;
+    }),
+  ].join('');
+  const disabledNote = numericKeys.length === 0
+    ? `<p class="small text-muted mb-2"><i class="bi bi-info-circle me-1"></i>${t('optim.spectrum_x_all_disabled')}</p>`
+    : '';
 
   const yVarOptions = OPTIM_YVARS.map(v =>
     `<option value="${v}" ${v === yVar ? 'selected' : ''}>${escHtml(_optimYLabel(v))}</option>`).join('');
@@ -2762,12 +2795,17 @@ function renderOptimizacionSpectrum(container, iso, manifest, sims, rows) {
     ${subtitle}
     <p class="small text-muted">${t('optim.desc')}</p>
 
-    <div class="d-flex flex-wrap gap-3 align-items-end mb-3">
+    <div class="d-flex flex-wrap gap-3 align-items-end mb-1">
+      <div>
+        <label class="form-label small mb-1" for="optim-x-select">${t('optim.param_label')}</label>
+        <select class="form-select form-select-sm" id="optim-x-select">${xOptions}</select>
+      </div>
       <div>
         <label class="form-label small mb-1" for="optim-y-select">${t('optim.yvar_label')}</label>
         <select class="form-select form-select-sm" id="optim-y-select">${yVarOptions}</select>
       </div>
     </div>
+    ${disabledNote}
 
     <div class="card shadow-sm mb-3">
       <div class="card-body p-2">
@@ -2791,8 +2829,17 @@ function renderOptimizacionSpectrum(container, iso, manifest, sims, rows) {
     </div>
   `;
 
-  _renderSpectrumOptimChart(sortedRows, yVar, sims);
+  if (isCategorical) {
+    _renderSpectrumOptimChart(sortedRows, yVar, sims);
+  } else {
+    _renderSpectrumScatterChart(sortedRows, xKey, yVar, sims);
+  }
 
+  const xSel = document.getElementById('optim-x-select');
+  if (xSel) xSel.addEventListener('change', e => {
+    _state.optimSpectrumXParam = e.target.value;
+    renderOptimizacion();
+  });
   const ySel = document.getElementById('optim-y-select');
   if (ySel) ySel.addEventListener('change', e => {
     _state.optimYVar = e.target.value;
@@ -2825,6 +2872,42 @@ function _renderSpectrumOptimChart(sortedRows, yVar, sims) {
   const layout = {
     margin: { t: 20, r: 20, b: 70, l: 60 },
     xaxis:  { title: t('optim.spectrum_axis_x'), type: 'category' },
+    yaxis:  { title: `${_optimYLabel(yVar)} [${_optimYUnit(yVar)}]` },
+    showlegend: false,
+  };
+  Plotly.newPlot(div, [trace], layout, { responsive: true, displayModeBar: true });
+}
+
+/** Plotly scatter (U4b): eje X numérico (una fracción espectral), UNA sola
+ * serie -- nunca agrupada por parámetros (esa es la leyenda ilegible que U4
+ * eliminó). El nombre de cada espectro va como etiqueta de texto junto al
+ * punto (ACABOptim.spectrumTextPositions escalona arriba/abajo los puntos
+ * próximos en X, p. ej. los 9 reactores reales agrupados en frac_termica). */
+function _renderSpectrumScatterChart(sortedRows, xKey, yVar, sims) {
+  const div = document.getElementById('optim-chart');
+  if (!div) return;
+
+  const x = [], y = [], text = [];
+  sortedRows.forEach(r => {
+    const yv = _optimYDisplay(r, yVar, sims[r.name]);
+    if (yv === null) return;
+    x.push(r.params[xKey]);
+    y.push(yv);
+    text.push(ACABOptim.spectrumRowLabel(r));
+  });
+
+  const trace = {
+    x, y, text,
+    type: 'scatter',
+    mode: 'markers+text',
+    textposition: ACABOptim.spectrumTextPositions(x),
+    textfont: { size: 10 },
+    marker: { color: PALETTE[0], size: 9 },
+    name: _optimYLabel(yVar),
+  };
+  const layout = {
+    margin: { t: 20, r: 20, b: 50, l: 60 },
+    xaxis:  { title: xKey },
     yaxis:  { title: `${_optimYLabel(yVar)} [${_optimYUnit(yVar)}]` },
     showlegend: false,
   };

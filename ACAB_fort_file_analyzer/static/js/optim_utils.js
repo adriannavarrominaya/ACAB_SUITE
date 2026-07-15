@@ -123,6 +123,45 @@
     return (row && row.name) || '';
   }
 
+  /** Claves numéricas candidatas a eje X en un barrido espectral (U4b del
+   * BACKLOG), en el orden fijado por el diseño. Distinto de `paramKeys`
+   * (genérico, cualquier clave numérica): aquí solo interesan las fracciones
+   * espectrales, nunca `n_grupos` (sin significado físico como eje X). */
+  const SPECTRUM_FRAC_KEYS = ['frac_termica', 'frac_epitermica', 'frac_rapida'];
+
+  /** De `SPECTRUM_FRAC_KEYS`, las que están realmente presentes (numéricas)
+   * en `rows` -- un manifest viejo sin fracciones espectrales no las trae,
+   * y la UI debe poder distinguir "disponible" de "no disponible" por clave. */
+  function spectrumNumericKeys(rows) {
+    const present = paramKeys(rows);
+    return SPECTRUM_FRAC_KEYS.filter(k => present.indexOf(k) !== -1);
+  }
+
+  /** Posición de la etiqueta de texto junto a cada punto de la dispersión
+   * eje-X-numérico del barrido espectral (U4b): alterna arriba/abajo cuando
+   * dos puntos consecutivos (`xs` ya ordenado ascendente) caen a menos del
+   * 4 % del rango total -- desplazamiento simple para que los 9 reactores
+   * reales (agrupados en frac_termica) no se solapen todos en el mismo
+   * punto. Puntos aislados se quedan en la posición por defecto. */
+  function spectrumTextPositions(xs) {
+    const n = (xs || []).length;
+    const positions = new Array(n).fill('top center');
+    if (n < 2) return positions;
+
+    const finite = xs.filter(v => typeof v === 'number' && isFinite(v));
+    const range = finite.length ? (Math.max(...finite) - Math.min(...finite)) : 0;
+    if (!(range > 0)) return positions;
+
+    const threshold = range * 0.04;
+    for (let i = 1; i < n; i++) {
+      const close = Math.abs(xs[i] - xs[i - 1]) < threshold;
+      positions[i] = close
+        ? (positions[i - 1] === 'top center' ? 'bottom center' : 'top center')
+        : 'top center';
+    }
+    return positions;
+  }
+
   return {
     mergeSweepRows,
     paramKeys,
@@ -131,5 +170,8 @@
     yNeedsUnitConv,
     isSpectrumSweep,
     spectrumRowLabel,
+    SPECTRUM_FRAC_KEYS,
+    spectrumNumericKeys,
+    spectrumTextPositions,
   };
 });
