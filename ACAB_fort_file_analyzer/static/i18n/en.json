@@ -341,7 +341,13 @@
     "pureza_serie_no_alcanzado": "Threshold not reached within the simulated cooling window",
     "pureza_serie_aviso_no_monotono": "Warning: P(t) drops back below the threshold at t = {t} h (P = {p} %).",
     "pureza_serie_th_tcruce": "t<sub>cross</sub>",
-    "pureza_serie_th_frac": "of the peak"
+    "pureza_serie_th_frac": "of the peak",
+    "aesp_title": "Iodine Specific Activity A<sub>sp</sub>(t)",
+    "aesp_desc": "A(target, t) divided by the TOTAL mass of iodine present (stable + long-lived + radioactive, every iodine isotope in the fort.6). Stable I-127 and long-lived I-129 do not affect radionuclidic purity, but they dilute the product: the same becquerels spread over more grams of iodine. Same time domain as P(t).",
+    "aesp_na": "no cooling data, or not applicable to this isotope (iodine only).",
+    "aesp_ax_y": "A<sub>sp</sub>(iodine) [MBq/g]",
+    "aesp_destacado_label": "At purity t<sub>cross</sub>",
+    "aesp_sin_destacado": "no purity crossing instant to highlight."
   },
 
   "optim": {
@@ -358,6 +364,7 @@
     "yvar_tpico": "Peak time",
     "yvar_pureza": "Radionuclidic purity at peak time",
     "yvar_rendimiento": "Yield (peak activity / T_irr)",
+    "yvar_aesp_yodo": "Iodine specific activity (at purity t cross)",
     "series_default": "series",
     "th_apico": "A<sub>peak</sub> [{unit}]",
     "th_tpico": "t<sub>peak</sub> [h]",

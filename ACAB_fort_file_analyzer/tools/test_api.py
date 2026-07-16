@@ -122,6 +122,19 @@ def test_flujo_feliz(client) -> None:
         check(15000 < (ventana.get("A_pico") or 0) < 18000,
               f"ventana_administracion.A_pico en rango oro (obtenido {ventana.get('A_pico')})")
 
+    # F2: actividad específica del yodo (actividad_especifica_yodo_serie) viaja
+    # en metricas junto a pureza_serie — mismo caso oro verificado a mano en
+    # test_metricas.py (A_esp(t=0) ≈ 4.5e9 MBq/g, t_destacado_h = t_cruce = 0).
+    aesp = metricas_sim.get("actividad_especifica_yodo_serie")
+    check(aesp is not None, "actividad_especifica_yodo_serie presente en metricas del endpoint")
+    if aesp is not None:
+        check(len(aesp.get("serie", [])) == 19,
+              f"19 puntos de enfriamiento en la serie de A_esp del endpoint (obtenido {len(aesp.get('serie', []))})")
+        check(aesp.get("t_destacado_h") == 0.0,
+              f"t_destacado_h = t_cruce de pureza = 0 (obtenido {aesp.get('t_destacado_h')})")
+        v = aesp.get("valor_destacado_MBq_g") or 0
+        check(4e9 < v < 5e9, f"valor_destacado_MBq_g en rango oro (~4.5e9, obtenido {v})")
+
 
 def test_informe_folder_explicito(client) -> None:
     section("/api/isotopo_report — con folder explícito")

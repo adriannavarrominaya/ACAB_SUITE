@@ -37,11 +37,16 @@
       const met  = (reportMetricas && reportMetricas[name]) || {};
       rows.push({
         name,
-        params:            bySimName[name],
-        A_pico:            pico.A_pico != null ? pico.A_pico : null,
-        t_pico:            pico.t_pico != null ? pico.t_pico : null,
-        P_pct:             met.pureza ? met.pureza.P_pct : null,
-        rendimiento_medio: met.rendimiento ? met.rendimiento.rendimiento_medio : null,
+        params:              bySimName[name],
+        A_pico:              pico.A_pico != null ? pico.A_pico : null,
+        t_pico:              pico.t_pico != null ? pico.t_pico : null,
+        P_pct:               met.pureza ? met.pureza.P_pct : null,
+        rendimiento_medio:   met.rendimiento ? met.rendimiento.rendimiento_medio : null,
+        // F2 del BACKLOG: valor destacado (en t_cruce de pureza) de la
+        // actividad específica del yodo -- null si el isótopo no es yodo o
+        // no hay instante de cruce que destacar.
+        A_esp_yodo_t_cruce: met.actividad_especifica_yodo_serie
+          ? met.actividad_especifica_yodo_serie.valor_destacado_MBq_g : null,
       });
     });
     return rows;
@@ -96,11 +101,15 @@
     if (yVar === 't_pico')      return row.t_pico;
     if (yVar === 'pureza')      return row.P_pct;
     if (yVar === 'rendimiento') return row.rendimiento_medio;
+    if (yVar === 'a_esp_yodo')  return row.A_esp_yodo_t_cruce;
     return row.A_pico; // 'a_pico', valor por defecto
   }
 
   /** ¿La variable Y es una actividad (Bq/cm³) que necesita convertirse a la
-   * unidad activa? t_pico [h] y pureza [%] son invariantes de unidad. */
+   * unidad activa? t_pico [h] y pureza [%] son invariantes de unidad;
+   * a_esp_yodo también lo es -- ya viene en MBq/g de YODO del servidor
+   * (fort_analyzer.calcular_actividad_especifica_yodo_serie), un eje de
+   * unidad distinto del selector Bq/cm³↔MBq/g↔MBq↔mCi del target (F2). */
   function yNeedsUnitConv(yVar) {
     return yVar === 'a_pico' || yVar === 'rendimiento' || !yVar;
   }

@@ -352,6 +352,105 @@ def test_pureza_serie_casos_borde_sinteticos() -> None:
           "sin datos de enfriamiento → calcular_pureza_serie devuelve None")
 
 
+def test_actividad_especifica_yodo_ref_sim() -> None:
+    section("calcular_actividad_especifica_yodo_serie — caso oro (ref_sim, F2 del BACKLOG)")
+
+    t12 = fa.leer_decay_dat(DECAY)
+    all_data, errors = fa.analizar_carpeta(str(REF_SIM), t12)
+    check(len(errors) == 0, f"análisis de ref_sim sin errores (errores={errors})")
+    sim_name = next(iter(all_data))
+    sim = all_data[sim_name]
+
+    serie = fa.calcular_actividad_especifica_yodo_serie(sim, "I131", t12)
+    check(serie is not None, "serie calculada para ref_sim")
+    assert serie is not None
+    check(len(serie["serie"]) == 19, f"19 puntos de enfriamiento (obtenido {len(serie['serie'])})")
+
+    # Valor oro en RESTART (t=0 h), comprobado a mano contra el fort.6
+    # congelado: masa total de yodo = suma sobre TODOS los isótopos de yodo
+    # presentes de N_iso(0)/N_A·A_iso -- el único estable (I127) constante
+    # desde el fin de irradiación (1.531e5 átomos/cm³, datos_irr_atomos), el
+    # resto (I129 de vida larga incluido) vía N=A(0)/λ con la propia
+    # actividad de RESTART. A(I131,0)=38.42 Bq/cm³ (ya verificado en F1).
+    # masa_total(0) = 8.52732707105363e-15 g/cm³ -> A_esp = 38.42/masa_total.
+    p0 = serie["serie"][0]
+    check_close(p0["t"], 0.0, "primer punto = RESTART")
+    check_close(p0["A_esp_MBq_g"], 4505514996.653325,
+                "A_esp(t=0) = A(I131,0)/masa_total_yodo(0), a mano del fort.6 (MBq/g)",
+                rtol=1e-6)
+
+    # "el valor destacado en t_cruce de pureza" (diseño F2, punto 2): en
+    # ref_sim el cruce del umbral de pureza ya está en t=0 (F1), así que el
+    # valor destacado debe coincidir con A_esp(t=0).
+    informe = fa.calcular_informe_isotopo(all_data, "I131", t12)
+    aesp_informe = informe["metricas"][sim_name]["actividad_especifica_yodo_serie"]
+    assert aesp_informe is not None
+    check_close(aesp_informe["t_destacado_h"], 0.0, "t_destacado_h = t_cruce de pureza (=0 en ref_sim)")
+    check_close(aesp_informe["valor_destacado_MBq_g"], p0["A_esp_MBq_g"],
+                "valor_destacado_MBq_g en t_cruce coincide con A_esp(t=0)", rtol=1e-9)
+
+
+def test_actividad_especifica_yodo_casos_borde() -> None:
+    section("calcular_actividad_especifica_yodo_serie — casos borde (F2 del BACKLOG)")
+
+    # ── Caso "solo I131" (sin ningún otro isótopo de yodo) ──────────────────
+    # N(t) se recupera exactamente de A(t)/λ para el propio I131 (nada más
+    # que diluya), así que A_esp(t) = A(t)/m(t) se simplifica analíticamente
+    # a la actividad específica del isótopo PURO (λ·N_A/masa_atómica),
+    # constante en el tiempo pese a que A(t) varía.
+    lam_i131 = fa.lam(693200.0)  # T½ I131 real, s
+    A_esp_puro_MBq_g = lam_i131 * fa.N_A / 131 / 1e6
+
+    sim_solo = {
+        "t_cool": [0.0, 1.0, 2.0, 3.0],
+        "datos_cool": {"I131": [38.42, 5000.0, 12000.0, 16500.0]},
+        "datos_irr_atomos": {},
+    }
+    serie_solo = fa.calcular_actividad_especifica_yodo_serie(sim_solo, "I131", {"I131": 693200.0})
+    check(serie_solo is not None, "serie calculada (solo I131 presente)")
+    assert serie_solo is not None
+    for p in serie_solo["serie"]:
+        check_close(p["A_esp_MBq_g"], A_esp_puro_MBq_g,
+                    f"t={p['t']}: A_esp constante = actividad específica del I131 puro (sin diluyentes)",
+                    rtol=1e-9)
+
+    # ── "sin yodo estable presente" (I131 + I129 de vida larga, sin I127) ───
+    # Todas las contribuciones vienen de A/λ (nunca del fallback de átomos de
+    # irradiación, que solo se usa para isótopos ausentes/estables en
+    # datos_cool); el I129 diluye el I131 y A_esp < A_esp_puro.
+    sim_sin_estable = {
+        "t_cool": [0.0],
+        "datos_cool": {"I131": [1000.0], "I129": [1e-9]},
+        "datos_irr_atomos": {"I131": [0.0, 1000.0], "I129": [0.0, 700000.0]},
+    }
+    t12_ie = {"I131": 693200.0, "I129": 5.081e14}
+    serie_ie = fa.calcular_actividad_especifica_yodo_serie(sim_sin_estable, "I131", t12_ie)
+    check(serie_ie is not None, "serie calculada (I131+I129, sin I127 estable)")
+    assert serie_ie is not None
+    check(serie_ie["serie"][0]["A_esp_MBq_g"] < A_esp_puro_MBq_g,
+          "I129 diluye el I131 -> A_esp < actividad específica del I131 puro")
+
+    # ── No aplica a isótopos que no son de yodo ─────────────────────────────
+    check(fa.calcular_actividad_especifica_yodo_serie(sim_solo, "TE131", {"I131": 693200.0}) is None,
+          "iso_key no es de yodo -> None")
+
+    # ── Sin datos de enfriamiento / sin ningún isótopo de yodo -> None ──────
+    sim_sin_cool = {"t_cool": [], "datos_cool": {}, "datos_irr_atomos": {}}
+    check(fa.calcular_actividad_especifica_yodo_serie(sim_sin_cool, "I131", {}) is None,
+          "sin datos de enfriamiento -> None")
+
+    sim_sin_yodo = {"t_cool": [0.0, 1.0], "datos_cool": {"TE131": [10.0, 5.0]}, "datos_irr_atomos": {}}
+    check(fa.calcular_actividad_especifica_yodo_serie(sim_sin_yodo, "I131", {}) is None,
+          "sin ningún isótopo de yodo detectado en el fort.6 -> None")
+
+    # ── valor_destacado_MBq_g interpola en t_destacado_h ────────────────────
+    serie_dest = fa.calcular_actividad_especifica_yodo_serie(
+        sim_solo, "I131", {"I131": 693200.0}, t_destacado_h=1.5)
+    assert serie_dest is not None
+    check_close(serie_dest["valor_destacado_MBq_g"], A_esp_puro_MBq_g,
+                "valor_destacado_MBq_g en t=1.5h (interpolado) = A_esp constante", rtol=1e-9)
+
+
 def test_informe_isotopo_incluye_metricas() -> None:
     section("calcular_informe_isotopo — métricas Fase 5 integradas por simulación")
 
@@ -380,6 +479,9 @@ def test_informe_isotopo_incluye_metricas() -> None:
     check("pureza_serie" in m, "clave pureza_serie (F1) presente en el informe")
     check(m["pureza_serie"] is None,
           "sin datos de enfriamiento en este fixture → pureza_serie = None (coherente)")
+    check("actividad_especifica_yodo_serie" in m, "clave actividad_especifica_yodo_serie (F2) presente en el informe")
+    check(m["actividad_especifica_yodo_serie"] is None,
+          "sin datos de enfriamiento en este fixture → actividad_especifica_yodo_serie = None (coherente)")
     check(informe["isotopos_impureza_default"] == ["I130", "I131"],
           f"impurezas por defecto = mismo elemento (obtenido {informe['isotopos_impureza_default']})")
 
@@ -398,6 +500,8 @@ def main() -> int:
     test_pureza_dos_isotopos()
     test_pureza_serie_ref_sim_tres_timesteps()
     test_pureza_serie_casos_borde_sinteticos()
+    test_actividad_especifica_yodo_ref_sim()
+    test_actividad_especifica_yodo_casos_borde()
     test_informe_isotopo_incluye_metricas()
 
     print(f"\n{'-' * 50}")

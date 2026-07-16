@@ -700,11 +700,16 @@ def analizar_carpeta(
             conc = leer_fort6_concentraciones(fort6_path)
             densidad_g_cm3 = conc["total_g_cm3"] if conc else None
 
-            # Convert atoms/cm³ → Bq/cm³  (A = λ·N)
+            # Convert atoms/cm³ → Bq/cm³  (A = λ·N). datos_irr_atomos keeps the
+            # raw atom counts too (F2 del BACKLOG: stable isotopes have λ=0,
+            # so datos_irr_Bq alone loses their population — needed for the
+            # iodine specific-activity dilution metric).
             datos_irr_Bq: dict[str, list[float]] = {}
+            datos_irr_atomos: dict[str, list[float]] = {}
             for iso, N in datos_irr.items():
                 t12 = t12_dict.get(iso, math.inf)
                 datos_irr_Bq[iso] = (lam(t12) * N).tolist()
+                datos_irr_atomos[iso] = N.tolist()
 
             # Fase R5: mtime de fort.6 y de inp.5 (si existe), para detectar
             # resultados desactualizados (inp.5 editado después de generar el fort.6).
@@ -735,6 +740,7 @@ def analizar_carpeta(
             all_data[sim_name] = {
                 "t_irr":        t_irr_arr.tolist(),
                 "datos_irr_Bq": datos_irr_Bq,
+                "datos_irr_atomos": datos_irr_atomos,
                 "t_cool":       t_cool_arr.tolist(),
                 "datos_cool":   {iso: arr.tolist() for iso, arr in datos_cool.items()},
                 "T_IRR_h":      float(T_IRR_h),
@@ -1092,6 +1098,98 @@ def calcular_pureza_serie(
     }
 
 
+def calcular_actividad_especifica_yodo_serie(
+    sim: dict,
+    iso_key: str,
+    t12_dict: dict[str, float],
+    t_destacado_h: Optional[float] = None,
+) -> Optional[dict]:
+    """Iodine specific activity A_esp(t) = A(iso_key,t) / m(yodo_total,t) [MBq/g],
+    through the whole cooling phase (F2 del BACKLOG, criterio del tutor,
+    2026-07-09). Same domain/family as ``calcular_pureza_serie`` (F1).
+
+    Stable ¹²⁷I and long-lived ¹²⁹I do not spoil radionuclidic purity (they
+    share no activity with the impurity isotopes counted by
+    ``calcular_pureza``), but they DILUTE the product: the same becquerels of
+    the target isotope spread over more grams of total iodine. m(yodo_total,t)
+    sums every iodine isotope present in the fort.6:
+
+      - Isotopes with a cooling activity series and λ > 0 (I131, I129...):
+        N(t) = A(t)/λ, exact recovery of ACAB's internal atom population —
+        no approximation, correctly reflects feeding from parent decay.
+      - Isotopes without one (stable, e.g. I127 — the cooling table reports
+        0 Bq for them, never atoms): held constant at their end-of-irradiation
+        atom count (``datos_irr_atomos``), the only data point fort.6 gives
+        for them past that instant.
+
+    Atoms → grams uses the mass number as an approximate molar mass (error
+    < 0.1 %, documented). ``leer_fort6_concentraciones``/CONCENTRATIONS(GRAM)
+    is never usable here: it only reports the target's own starting elements
+    (O, Te for TeO2), never a decay product like iodine.
+
+    *t_destacado_h*, if given (normally ``pureza_serie``'s ``t_cruce``),
+    highlights A_esp interpolated at that instant — "what specific activity
+    does the product have when it reaches pharmaceutical purity". Returns
+    None if iso_key is not an iodine isotope, there is no cooling data, or no
+    iodine isotope at all is present in the fort.6.
+    """
+    m_key = _ELEM_RE.match(iso_key.upper())
+    if not m_key or m_key.group(1) != "I":
+        return None
+
+    t_cool = np.asarray(sim["t_cool"], dtype=float)
+    if len(t_cool) == 0:
+        return None
+
+    datos_cool = sim.get("datos_cool", {})
+    datos_irr_atomos = sim.get("datos_irr_atomos", {})
+
+    iodine_isos = {
+        iso for iso in set(datos_cool) | set(datos_irr_atomos)
+        if (mk := _ELEM_RE.match(iso.upper())) and mk.group(1) == "I"
+    }
+    if not iodine_isos:
+        return None
+
+    masa_total = np.zeros(len(t_cool))
+    for iso in iodine_isos:
+        mk = _ELEM_RE.match(iso.upper())
+        A_num = int(mk.group(2))
+        lam_iso = lam(t12_dict.get(iso, math.inf))
+
+        if iso in datos_cool and lam_iso > 0:
+            N_t = np.asarray(datos_cool[iso], dtype=float) / lam_iso
+        else:
+            atomos_irr = datos_irr_atomos.get(iso)
+            n0 = float(atomos_irr[-1]) if atomos_irr else 0.0
+            N_t = np.full(len(t_cool), n0)
+
+        masa_total += N_t / N_A * A_num
+
+    A_obj = np.asarray(datos_cool.get(iso_key, np.zeros(len(t_cool))), dtype=float)
+    aesp_vals: list[Optional[float]] = [
+        (float(a) / float(m) / 1e6) if m > 0 else None
+        for a, m in zip(A_obj, masa_total)
+    ]
+    serie = [
+        {"t": float(t), "A_esp_MBq_g": _safe_val(v)}
+        for t, v in zip(t_cool, aesp_vals)
+    ]
+
+    valor_destacado: Optional[float] = None
+    if t_destacado_h is not None and serie and all(p["A_esp_MBq_g"] is not None for p in serie):
+        ts = [p["t"] for p in serie]
+        vs = [p["A_esp_MBq_g"] for p in serie]
+        valor_destacado = _safe_val(float(np.interp(t_destacado_h, ts, vs)))
+
+    return {
+        "serie":                serie,
+        "unidad":               "MBq/g",
+        "t_destacado_h":        _safe_val(t_destacado_h),
+        "valor_destacado_MBq_g": valor_destacado,
+    }
+
+
 def calcular_informe_isotopo(
     all_data: dict,
     isotopo_key: str,
@@ -1125,11 +1223,16 @@ def calcular_informe_isotopo(
     for sim_name, sim in all_data.items():
         pico = calcular_pico(sim, isotopo_key)
         sim_reports[sim_name] = pico
+        pureza_serie = calcular_pureza_serie(sim, isotopo_key, impureza_list)
+        t_cruce_h = (pureza_serie["t_cruce"]["t_h"]
+                     if pureza_serie and pureza_serie.get("t_cruce") else None)
         metricas[sim_name] = {
             "saturacion":   calcular_saturacion(sim, isotopo_key, t12_dict),
             "rendimiento":  calcular_rendimiento(sim, isotopo_key),
             "pureza":       calcular_pureza(sim, isotopo_key, pico["t_pico"], impureza_list),
-            "pureza_serie": calcular_pureza_serie(sim, isotopo_key, impureza_list),
+            "pureza_serie": pureza_serie,
+            "actividad_especifica_yodo_serie": calcular_actividad_especifica_yodo_serie(
+                sim, isotopo_key, t12_dict, t_cruce_h),
         }
 
     return {

@@ -41,8 +41,14 @@ const reportSimulations = {
   'TeO2_x1.00': { A_pico: 16500, t_pico: 3.75, fase: 'enfriamiento' },
 };
 const reportMetricas = {
-  'TeO2_x0.50': { pureza: { P_pct: 99.1 }, rendimiento: { rendimiento_medio: 343.75 } },
-  'TeO2_x1.00': { pureza: { P_pct: 99.2 }, rendimiento: { rendimiento_medio: 687.5 } },
+  'TeO2_x0.50': {
+    pureza: { P_pct: 99.1 }, rendimiento: { rendimiento_medio: 343.75 },
+    actividad_especifica_yodo_serie: { valor_destacado_MBq_g: 4.5e9 },
+  },
+  'TeO2_x1.00': {
+    pureza: { P_pct: 99.2 }, rendimiento: { rendimiento_medio: 687.5 },
+    actividad_especifica_yodo_serie: { valor_destacado_MBq_g: 4.6e9 },
+  },
 };
 
 section('mergeSweepRows');
@@ -52,7 +58,8 @@ section('mergeSweepRows');
   eq(rows[0], {
     name: 'TeO2_x0.50', params: { XNORM: 0.5 },
     A_pico: 8250, t_pico: 3.75, P_pct: 99.1, rendimiento_medio: 343.75,
-  }, 'fila combinada: params + A_pico/t_pico + pureza/rendimiento');
+    A_esp_yodo_t_cruce: 4.5e9,
+  }, 'fila combinada: params + A_pico/t_pico + pureza/rendimiento/A_esp_yodo (F2)');
 
   // Simulación analizada pero SIN entrada en el manifest (p. ej. carpeta
   // suelta añadida a mano dentro de la raíz del barrido) → se omite.
@@ -64,6 +71,8 @@ section('mergeSweepRows');
   const rowsNoMet = O.mergeSweepRows(manifest, ['TeO2_x0.50'], reportSimulations, {});
   eq(rowsNoMet[0].P_pct, null, 'pureza ausente → P_pct null');
   eq(rowsNoMet[0].rendimiento_medio, null, 'rendimiento ausente → null');
+  eq(rowsNoMet[0].A_esp_yodo_t_cruce, null,
+     'actividad_especifica_yodo_serie ausente (isótopo no yodo o sin cruce) → A_esp_yodo_t_cruce null');
 }
 
 section('paramKeys');
@@ -107,15 +116,21 @@ section('groupByOtherParams');
 
 section('yRawValue / yNeedsUnitConv');
 {
-  const row = { A_pico: 16500, t_pico: 3.75, P_pct: 99.2, rendimiento_medio: 687.5 };
+  const row = {
+    A_pico: 16500, t_pico: 3.75, P_pct: 99.2, rendimiento_medio: 687.5,
+    A_esp_yodo_t_cruce: 4.5e9,
+  };
   eq(O.yRawValue(row, 'a_pico'), 16500, "yVar='a_pico' → A_pico");
   eq(O.yRawValue(row, undefined), 16500, 'yVar por defecto (undefined) → A_pico');
   eq(O.yRawValue(row, 't_pico'), 3.75, "yVar='t_pico' → t_pico");
   eq(O.yRawValue(row, 'pureza'), 99.2, "yVar='pureza' → P_pct");
   eq(O.yRawValue(row, 'rendimiento'), 687.5, "yVar='rendimiento' → rendimiento_medio");
+  eq(O.yRawValue(row, 'a_esp_yodo'), 4.5e9, "yVar='a_esp_yodo' → A_esp_yodo_t_cruce (F2)");
 
   eq(O.yNeedsUnitConv('a_pico'), true, 'a_pico necesita conversión de unidad');
   eq(O.yNeedsUnitConv('rendimiento'), true, 'rendimiento necesita conversión de unidad');
+  eq(O.yNeedsUnitConv('a_esp_yodo'), false,
+     'a_esp_yodo ya viene en MBq/g de yodo del servidor -- no usa el selector de unidad del target (F2)');
   eq(O.yNeedsUnitConv('t_pico'), false, 't_pico es invariante de unidad');
   eq(O.yNeedsUnitConv('pureza'), false, 'pureza (%) es invariante de unidad');
 }

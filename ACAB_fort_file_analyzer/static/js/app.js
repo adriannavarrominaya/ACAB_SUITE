@@ -1829,6 +1829,13 @@ function _renderMetricasOptimizacion(iso, simulations, report) {
           <div id="pureza-serie-info" class="mt-2"></div>
         </div>
 
+        <div class="mt-4" id="aesp-yodo-section" style="display:none">
+          <div class="section-heading mb-0">${t('metrics.aesp_title')}</div>
+          <p class="small text-muted mb-2">${t('metrics.aesp_desc')}</p>
+          <div id="aesp-yodo-chart" class="plotly-chart-lg"></div>
+          <div id="aesp-yodo-info" class="mt-2"></div>
+        </div>
+
       </div>
     </div>
   `;
@@ -1850,6 +1857,12 @@ function _renderMetricasOptimizacion(iso, simulations, report) {
   // F1: gráfica P(t) durante el enfriamiento (calcular_pureza_serie en el
   // servidor); vive en su propio contenedor, recién insertado arriba.
   _renderPurezaSerieChart(iso, simulations, metricas);
+
+  // F2: gráfica A_esp(t) del yodo (calcular_actividad_especifica_yodo_serie
+  // en el servidor) -- solo aplica cuando el isótopo seleccionado es yodo;
+  // el servidor devuelve null en todas las sims si no, y la sección entera
+  // se oculta (ninguna otra pestaña del informe distingue por elemento así).
+  _renderActividadEspecificaYodoChart(iso, simulations, metricas);
 }
 
 /**
@@ -1976,6 +1989,84 @@ function _renderPurezaSerieChart(iso, simulations, metricas) {
     yaxis2: { title: t('report.ax_activity', { label, unit: uL }), domain: [0, 0.42], anchor: 'x',
               type: 'log', exponentformat: 'e', showgrid: true, gridcolor: '#eee' },
     shapes, annotations,
+    legend: { orientation: 'h', yanchor: 'bottom', y: 1.08, xanchor: 'right', x: 1, font: { size: 9 } },
+    margin: { t: 30, b: 40, l: 80, r: 20 },
+    hovermode: 'closest',
+    plot_bgcolor: '#fafafa', paper_bgcolor: '#fff',
+  }, { responsive: true });
+}
+
+/**
+ * F2 del BACKLOG: gráfica A_esp(t) = A(iso,t)/masa_total_yodo(t) [MBq/g]
+ * durante el enfriamiento -- mismo dominio temporal que P(t) (F1), pero un
+ * solo panel (sin umbral ni semáforos: "fuera de alcance" del diseño F2).
+ * Los datos ya vienen calculados por fort_analyzer.calcular_actividad_
+ * especifica_yodo_serie; aquí solo se pinta con Plotly, destacando el valor
+ * en t_destacado_h (t_cruce de pureza, ya resuelto por el servidor). Oculta
+ * la sección entera si NINGUNA sim tiene el dato (isótopo no es yodo).
+ */
+function _renderActividadEspecificaYodoChart(iso, simulations, metricas) {
+  const section  = document.getElementById('aesp-yodo-section');
+  const chartDiv = document.getElementById('aesp-yodo-chart');
+  const infoDiv  = document.getElementById('aesp-yodo-info');
+  if (!section || !chartDiv) return;
+
+  const entries = Object.entries(simulations);
+  const anyAplica = entries.some(([name]) => metricas[name] && metricas[name].actividad_especifica_yodo_serie);
+  if (!anyAplica) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = '';
+
+  const traces = [];
+  const shapes = [];
+  let infoHtml = '';
+
+  entries.forEach(([name], i) => {
+    const color = PALETTE[i % PALETTE.length];
+    const dot = `<span class="sim-dot me-1" style="background:${color}"></span>`;
+    const serie = metricas[name] && metricas[name].actividad_especifica_yodo_serie;
+
+    if (!serie) {
+      infoHtml += `<div class="mb-2">${dot}<small class="fw-semibold">${escHtml(name)}</small>
+        <span class="text-muted small">— ${t('metrics.aesp_na')}</span></div>`;
+      return;
+    }
+
+    traces.push({
+      x: serie.serie.map(p => p.t), y: serie.serie.map(p => p.A_esp_MBq_g),
+      name, mode: 'lines+markers', type: 'scatter',
+      line: { color, width: 2 }, marker: { size: 5 },
+      hovertemplate: `t = %{x:.3g} h<br>A_esp = %{y:.4e} MBq/g<extra>` + escHtml(name) + '</extra>',
+    });
+
+    infoHtml += `<div class="mb-2">${dot}<small class="fw-semibold">${escHtml(name)}</small> `;
+    if (serie.t_destacado_h != null && serie.valor_destacado_MBq_g != null) {
+      shapes.push({
+        type: 'line', x0: serie.t_destacado_h, x1: serie.t_destacado_h, y0: 0, y1: 1, yref: 'paper',
+        line: { color, width: 1.5, dash: 'dash' },
+      });
+      infoHtml += `<span class="badge bg-secondary">${t('metrics.aesp_destacado_label')}: `
+        + `${serie.valor_destacado_MBq_g.toExponential(3)} MBq/g (t = ${serie.t_destacado_h.toFixed(4)} h)</span>`;
+    } else {
+      infoHtml += `<span class="text-muted small">${t('metrics.aesp_sin_destacado')}</span>`;
+    }
+    infoHtml += '</div>';
+  });
+
+  if (infoDiv) infoDiv.innerHTML = infoHtml;
+
+  if (!traces.length) {
+    chartDiv.innerHTML = `<div class="alert alert-light small py-2 mb-0">${t('metrics.aesp_na')}</div>`;
+    return;
+  }
+  chartDiv.innerHTML = '';
+
+  Plotly.newPlot(chartDiv, traces, {
+    xaxis:  { title: t('charts.ax_time_cool'), showgrid: true, gridcolor: '#eee' },
+    yaxis:  { title: t('metrics.aesp_ax_y'), showgrid: true, gridcolor: '#eee', exponentformat: 'e' },
+    shapes,
     legend: { orientation: 'h', yanchor: 'bottom', y: 1.08, xanchor: 'right', x: 1, font: { size: 9 } },
     margin: { t: 30, b: 40, l: 80, r: 20 },
     hovermode: 'closest',
@@ -2549,12 +2640,13 @@ function renderTables() {
 // fmtA/conv/unitLabel — ninguna fórmula física se repite.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const OPTIM_YVARS = ['a_pico', 't_pico', 'pureza', 'rendimiento'];
+const OPTIM_YVARS = ['a_pico', 't_pico', 'pureza', 'rendimiento', 'a_esp_yodo'];
 
 function _optimYLabel(yVar) {
   if (yVar === 't_pico')      return t('optim.yvar_tpico');
   if (yVar === 'pureza')      return t('optim.yvar_pureza');
   if (yVar === 'rendimiento') return t('optim.yvar_rendimiento');
+  if (yVar === 'a_esp_yodo')  return t('optim.yvar_aesp_yodo');
   return t('optim.yvar_apico');
 }
 
@@ -2563,6 +2655,7 @@ function _optimYUnit(yVar) {
   if (yVar === 't_pico')      return 'h';
   if (yVar === 'pureza')      return '%';
   if (yVar === 'rendimiento') return `${unitLabel()}/h`;
+  if (yVar === 'a_esp_yodo')  return 'MBq/g';
   return unitLabel();
 }
 

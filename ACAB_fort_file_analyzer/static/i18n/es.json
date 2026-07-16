@@ -341,7 +341,13 @@
     "pureza_serie_no_alcanzado": "Umbral no alcanzado en la ventana de enfriamiento simulada",
     "pureza_serie_aviso_no_monotono": "Aviso: P(t) vuelve a bajar del umbral en t = {t} h (P = {p} %).",
     "pureza_serie_th_tcruce": "t<sub>cruce</sub>",
-    "pureza_serie_th_frac": "del pico"
+    "pureza_serie_th_frac": "del pico",
+    "aesp_title": "Actividad Específica del Yodo A<sub>esp</sub>(t)",
+    "aesp_desc": "A(objetivo, t) dividida entre la masa TOTAL de yodo presente (estable + vida larga + radiactivo, todos los isótopos de yodo del fort.6). El I-127 estable y el I-129 de vida larga no afectan a la pureza radionucleídica, pero diluyen el producto: los mismos becquerels repartidos entre más gramos de yodo. Mismo dominio temporal que P(t).",
+    "aesp_na": "sin datos de enfriamiento o no aplica a este isótopo (solo yodo).",
+    "aesp_ax_y": "A<sub>esp</sub>(yodo) [MBq/g]",
+    "aesp_destacado_label": "En t<sub>cruce</sub> de pureza",
+    "aesp_sin_destacado": "sin instante de cruce de pureza que destacar."
   },
 
   "optim": {
@@ -358,6 +364,7 @@
     "yvar_tpico": "t pico",
     "yvar_pureza": "Pureza radionucleídica en t pico",
     "yvar_rendimiento": "Rendimiento (A pico / T_irr)",
+    "yvar_aesp_yodo": "Actividad específica de yodo (en t cruce de pureza)",
     "series_default": "serie",
     "th_apico": "A<sub>pico</sub> [{unit}]",
     "th_tpico": "t<sub>pico</sub> [h]",
