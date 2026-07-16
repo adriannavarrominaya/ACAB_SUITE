@@ -39,7 +39,7 @@ components of array IRMAIFD is = 1}
 |-|---------|-----------|
 |1|NELFD|Number of elements for which the quantity (in atoms/barn) is given in the standard input unit. {if any of the components of array IRMAIFD is = 1}.
 
-# Card #6
+## Card #6
 
 |#|Parameter|Description|
 |-|---------|-----------|
@@ -103,7 +103,7 @@ The next two cards, **cards #14 and #15**, form a **subset** that must be provid
 
 |#|Parameter|Description|
 |-|---------|-----------|
-|1|ITSFDSET Timesteps in set i at which instantaneous fed is used [NFDSET(i)].  **Note:** Feed times are taken at the beginning times of the timesteps.|
+|1|ITSFDSET|Timesteps in set i at which instantaneous fed is used [NFDSET(i)].  **Note:** Feed times are taken at the beginning times of the timesteps.|
 
 ## Card #15
 

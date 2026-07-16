@@ -13,7 +13,6 @@ Sets may be grouped into a “unit” that gets repeated a specified number of t
 It consists of only one card, with 8 integer parameters in free-format.
 
 ### Card #1
-
 |#|Parameter|Description|
 |-|---------|-----------|
 |1|MMN|Number of irradiation timesteps on this card. [≤ 10].|
@@ -22,13 +21,8 @@ It consists of only one card, with 8 integer parameters in free-format.
 |4|MSUB|Timestep in last set considered as starting point of new set:<br>• No effect if there is no prior set, or sets are not grouped into a unit (that is, if parameter NOPUL of block #11 is equal to zero).<br>• Usually, MSUB is selected to point to the last timestep in the previous set. In the case of NOPUL not set to zero, MSUB for the first set of the unit must point to the last timestep on the last set of the unit (see block #11, card #3).
 |5|IUNIT|Physical unit of the timesteps:<br>&nbsp;&nbsp;&nbsp;1 Seconds<br>&nbsp;&nbsp;&nbsp;2 Minutes<br>&nbsp;&nbsp;&nbsp;3 Hours<br>&nbsp;&nbsp;&nbsp;4 Days<br>&nbsp;&nbsp;&nbsp;5 Years<br>&nbsp;&nbsp;&nbsp;6 Here it is not considered.<br>&nbsp;&nbsp;&nbsp;7 10<sup>3</sup> years<br>&nbsp;&nbsp;&nbsp;8 10<sup>6</sup> years<br>&nbsp;&nbsp;&nbsp;9 10<sup>9</sup> years|
 |6|MFEED|Continuous feed option:<br>&nbsp;&nbsp;&nbsp;0 No effect.<br>&nbsp;&nbsp;&nbsp;1 Continuous feed used in current set.|
-|7|IOUT|Output option (no effect if IUNC=1):
-0
-No effect.
-1
-Print output tables by spatial interval.|
-|8|IPLOT|Preparation of data for plotting -generation of unit 11 (no effect
-if IUNC=1):<br>&nbsp;&nbsp;&nbsp;0 No effect - unit 11 is not generated.<br>&nbsp;&nbsp;&nbsp;1 Output tables by interval.<br>&nbsp;&nbsp;&nbsp;2 Output tables by zone.|
+|7|IOUT|Output option (no effect if IUNC=1):<br>0 No effect.<br>1 Print output tables by spatial interval.|
+|8|IPLOT|Preparation of data for plotting -generation of unit 11 (no effect if IUNC=1):<br>&nbsp;&nbsp;&nbsp;0 No effect - unit 11 is not generated.<br>&nbsp;&nbsp;&nbsp;1 Output tables by interval.<br>&nbsp;&nbsp;&nbsp;2 Output tables by zone.|
 
 ## Block #8
 
