@@ -12,6 +12,7 @@ job que falla, cancelación) ya está cubierta por tools/test_runner.py.
 
 import json
 import shutil
+import stat
 import sys
 import tempfile
 import time
@@ -197,8 +198,9 @@ class RunBatchEndpointTestCase(unittest.TestCase):
 # ═══════════════════════════════════════════════════════════════════════
 # Barrido espectral (Fase P4, D7 del RUNBOOK_barrido_espectral.md): pipeline
 # real encadenado (collaps -> copy XSECTION.dat -> acab -> check_flux) con
-# ejecutables falsos .bat, SIN mockear runner.start_batch — verifica el
-# encadenado real, no solo la construcción de jobs.
+# ejecutables falsos Python multiplataforma (D1 del BACKLOG), SIN mockear
+# runner.start_batch — verifica el encadenado real, no solo la construcción
+# de jobs.
 # ═══════════════════════════════════════════════════════════════════════
 
 # Fixture de FLUX.inf (mismo formato que tools/test_runner.py): REAL TOTAL
@@ -211,33 +213,74 @@ _FLUX_INF_FIXTURE = """  ILIB,IESF =            2           5
 """
 
 # El falso collaps: crea XSECTION.dat y copia la plantilla de FLUX.inf.
-_COLLAPS_OK_BAT = (
-    '@echo off\r\n'
-    'echo fake-xsection > XSECTION.dat\r\n'
-    'copy /Y _flux_template.inf FLUX.inf >nul\r\n'
-    'exit /b 0\r\n'
+_COLLAPS_OK_PY = (
+    "with open('XSECTION.dat', 'w') as f:\n"
+    "    f.write('fake-xsection\\n')\n"
+    "import shutil\n"
+    "shutil.copyfile('_flux_template.inf', 'FLUX.inf')\n"
 )
 # El falso collaps que falla: no crea nada, sale con código != 0.
-_COLLAPS_FAIL_BAT = (
-    '@echo off\r\n'
-    'exit /b 1\r\n'
-)
+_COLLAPS_FAIL_PY = "import sys\nsys.exit(1)\n"
 # El falso acab: falla si XSECTION.dat no existe en su cwd; si existe, crea
 # fort.6 (verifica que el paso 'copy' del pipeline corrió antes).
-_ACAB_BAT = (
-    '@echo off\r\n'
-    'if not exist XSECTION.dat exit /b 1\r\n'
-    'echo fake-fort6 > fort.6\r\n'
-    'exit /b 0\r\n'
+_ACAB_PY = (
+    "import os, sys\n"
+    "if not os.path.exists('XSECTION.dat'):\n"
+    "    sys.exit(1)\n"
+    "with open('fort.6', 'w') as f:\n"
+    "    f.write('fake-fort6\\n')\n"
+    "sys.exit(0)\n"
 )
+
+
+def _fake_exe_name(name: str) -> str:
+    """Nombre de fichero del ejecutable falso *name* para el SO actual --
+    mismo criterio en `_write_fake_launcher` y en cualquier sitio que
+    necesite construir el nombre sin escribir el fichero (p. ej. patchear
+    `exe_name`/`_COLLAPS_EXE_NAME` o comprobar un mensaje de error)."""
+    return f'{name}.bat' if sys.platform == 'win32' else name
+
+
+def _write_fake_launcher(directory: Path, name: str, python_body: str) -> str:
+    """Escribe un ejecutable falso multiplataforma en *directory* (D1 del
+    BACKLOG). El runner invoca el ejecutable configurado directamente, sin
+    argumentos, con cwd=workdir (ver README, "Invocación de los códigos") —
+    ni un .bat ni un script Python son invocables así de forma nativa en
+    ambos SO, así que:
+
+      - Windows: `<name>.bat`, un lanzador mínimo (invocable directamente
+        por `subprocess.Popen(shell=False)` — Windows delega en cmd.exe
+        para .bat/.cmd) que delega en un script Python real escrito junto a
+        él (`%~dp0`, no depende del cwd de invocación) y propaga su código
+        de salida con `exit /b %ERRORLEVEL%`.
+      - POSIX: `<name>` (sin extensión), el propio script Python con
+        shebang `#!/usr/bin/env python3` y permiso de ejecución -- no hace
+        falta lanzador aparte, invocable directamente como `./<name>`.
+
+    Devuelve el nombre de fichero a usar como exe_name (ver `_fake_exe_name`).
+    """
+    if sys.platform == 'win32':
+        impl_name = f'_{name}_impl.py'
+        (directory / impl_name).write_text(python_body, encoding='utf-8')
+        (directory / f'{name}.bat').write_text(
+            '@echo off\r\n'
+            f'"{sys.executable}" "%~dp0{impl_name}" %*\r\n'
+            'exit /b %ERRORLEVEL%\r\n',
+            encoding='utf-8')
+    else:
+        script = directory / name
+        script.write_text('#!/usr/bin/env python3\n' + python_body, encoding='utf-8')
+        script.chmod(script.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+    return _fake_exe_name(name)
 
 
 def _make_spectrum_sim_folder(root: Path, folder: str, *, collaps_ok: bool = True) -> Path:
-    """Carpeta de sim del barrido espectral: acab.bat/inp.5/DECAY.dat en la
-    raíz + collaps/ con collaps.bat/COLL.inp/XSBL.dat (convención D6)."""
+    """Carpeta de sim del barrido espectral: ejecutable falso de acab/inp.5/
+    DECAY.dat en la raíz + collaps/ con ejecutable falso de collaps/COLL.inp/
+    XSBL.dat (convención D6)."""
     d = root / folder
     d.mkdir(parents=True)
-    (d / 'acab.bat').write_text(_ACAB_BAT, encoding='utf-8')
+    _write_fake_launcher(d, 'acab', _ACAB_PY)
     (d / 'inp.5').write_text('x', encoding='utf-8')
     (d / 'DECAY.dat').write_text('x', encoding='utf-8')
 
@@ -247,8 +290,7 @@ def _make_spectrum_sim_folder(root: Path, folder: str, *, collaps_ok: bool = Tru
     (collaps_dir / 'COLL.inp').write_text('x', encoding='utf-8')
     (collaps_dir / '_flux_template.inf').write_text(
         _FLUX_INF_FIXTURE, encoding='utf-8')
-    (collaps_dir / 'collaps.bat').write_text(
-        _COLLAPS_OK_BAT if collaps_ok else _COLLAPS_FAIL_BAT, encoding='utf-8')
+    _write_fake_launcher(collaps_dir, 'collaps', _COLLAPS_OK_PY if collaps_ok else _COLLAPS_FAIL_PY)
     return d
 
 
@@ -267,7 +309,9 @@ def _wait_batch_done(client, timeout: float = 20.0, poll: float = 0.1) -> dict:
 
 class TestSpectrumPipelineEndToEnd(unittest.TestCase):
     """Barrido espectral: no se mockea runner.start_batch, así que estos
-    tests lanzan de verdad los .bat falsos y esperan a que la cola acabe."""
+    tests lanzan de verdad los ejecutables falsos y esperan a que la cola
+    acabe (D1 del BACKLOG: fakes Python multiplataforma, ver
+    _write_fake_launcher)."""
 
     def setUp(self):
         self.client = app_module.app.test_client()
@@ -280,11 +324,11 @@ class TestSpectrumPipelineEndToEnd(unittest.TestCase):
             return_value=self.tmp / 'run_config.json')
         self._local_cfg_patch.start()
         # collaps.exe no es configurable en la app (constante de módulo, D7);
-        # se sustituye por un .bat falso solo para el test.
+        # se sustituye por un ejecutable falso solo para el test.
         self._collaps_exe_patch = patch.object(
-            app_module, '_COLLAPS_EXE_NAME', 'collaps.bat')
+            app_module, '_COLLAPS_EXE_NAME', _fake_exe_name('collaps'))
         self._collaps_exe_patch.start()
-        app_module._save_runner_config({'exe_name': 'acab.bat'})
+        app_module._save_runner_config({'exe_name': _fake_exe_name('acab')})
 
     def tearDown(self):
         self._collaps_exe_patch.stop()
@@ -359,15 +403,16 @@ class TestSpectrumPipelineEndToEnd(unittest.TestCase):
         _write_manifest(self.tmp, ['sim_0'], sweep_type='spectrum')
         d = self.tmp / 'sim_0'
         d.mkdir()
-        (d / 'acab.bat').write_text(_ACAB_BAT, encoding='utf-8')
+        _write_fake_launcher(d, 'acab', _ACAB_PY)
         (d / 'inp.5').write_text('x', encoding='utf-8')
         (d / 'DECAY.dat').write_text('x', encoding='utf-8')
-        # Sin subcarpeta collaps/: deben faltar collaps.bat, COLL.inp, XSBL.dat.
+        # Sin subcarpeta collaps/: deben faltar el ejecutable de collaps,
+        # COLL.inp, XSBL.dat.
 
         res = self.client.post('/api/run/batch', json={'root': str(self.tmp)})
         self.assertEqual(res.status_code, 422)
         err = res.get_json()['error']
-        self.assertIn('collaps/collaps.bat', err)
+        self.assertIn(f'collaps/{_fake_exe_name("collaps")}', err)
         self.assertIn('collaps/COLL.inp', err)
         self.assertIn('collaps/XSBL.dat', err)
 
