@@ -45,18 +45,13 @@ fueran flujos → XNORM ~1e-14 sin aviso). (a) Placeholder dinámico por modo, d
 | F3 | inp-conf | Modo geométrico opcional (rampa ×2) en el generador de mallas temporales, junto al lineal actual — recomendación del manual para transitorios rápidos al inicio de irradiaciones largas. Comentar con el tutor si algún caso lo pide. | Registrada | C / M |
 | F4 | inp-conf | Asistente manual FLUX.inf → Bloque #3 (leer REAL TOTAL FLUX de un FLUX.inf y volcarlo al inp.5): útil para espectros analíticos con magnitud física, FUERA de los barridos (en barridos el Bloque #3 es fijo por diseño, decisión D1). | Registrada | C / S |
 | F5 | analyzer | Badge "¿compensa seguir irradiando?" es artefacto en pulsos cortos con crecimiento por precursor (bases distintas pico-enfriamiento vs curva de irradiación). Documentado como limitación; decidir arreglo (ambos términos sobre la curva de irradiación) cuando se analice un caso de irradiación larga. | Registrada | C / S-M |
+| B1 | analyzer | Espectro gamma de la muestra desde PHOTON.dat (librería genérica de líneas gamma discretas de ACAB, ya no solo el ¹³¹I hardcodeado). **Desbloqueado (2026-07-21):** PHOTON.dat recibido y validado (¹³¹I verificado contra ENSDF: 364,5 keV al 81,2 %); plan de trabajo en `runbook_B1_espectro_gamma.md` (`acab_suite/`). **En curso:** Fase 1 (parser `leer_photon_dat`) ✅ — ver commit `analyzer:` correspondiente para la firma numérica. | Aprobada | A / M |
 
 ## Deuda técnica
 
 | # | Comp. | Ítem | Prio/Esf |
 |---|---|---|---|
 | D1 | inp-conf | Ejecutables falsos de los tests de P4 son `.bat` (solo Windows); migrar al patrón de la suite: falsos Python multiplataforma (R1). **✅ (2026-07-16):** commit `inp-conf:`. `test_run_batch_endpoint.py` (`TestSpectrumPipelineEndToEnd`, el único con `.bat`): `_write_fake_launcher` escribe en Windows un `.bat` lanzador mínimo que delega en un script Python real y propaga su código de salida; en POSIX el propio script Python con shebang y permiso de ejecución, sin lanzador aparte. El runner no cambia (sigue invocando el ejecutable configurado sin argumentos, con cwd); mismo comportamiento de los fakes (mismas salidas, mismos códigos de retorno), suite completa en verde sin modificar la lógica de aserciones. Sin verificación manual en Linux real en esta sesión (solo Windows disponible). | B / S |
-
-## Bloqueados por externos
-
-| # | Comp. | Ítem | Estado |
-|---|---|---|---|
-| B1 | analyzer | Fases 6 y 7b (espectro gamma genérico desde PHOTON.dat + cierre de docs). A la espera del fichero. **Fecha de decisión:** si no aparece, activar plan B (mini-librería ENSDF hardcodeada para los isótopos del problema: I-130…135, Te131m, Xe133 — una sesión, verificable contra NNDC). | ⏸ |
 
 ## Ideas registradas sin compromiso (del análisis inicial, no ejecutadas)
 
