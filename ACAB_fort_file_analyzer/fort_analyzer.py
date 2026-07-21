@@ -1098,6 +1098,22 @@ def calcular_pureza_serie(
     }
 
 
+#  I127 is stable (λ=0, DECAY.dat 531270 → T12=.inf) and I129 is long-lived
+#  (T12≈1.57e7 y, DECAY.dat 531290 / NNDC). Neither is safe to recover via
+#  N(t)=A(t)/λ: fort.6 prints activities with ~4-5 significant figures, and
+#  dividing a value that small by a λ that tiny (I129) — or by λ=0 at all
+#  (I127) — amplifies that print rounding into an atom count with no
+#  reliable precision (F2b del BACKLOG, bug confirmado 2026-07-21: en
+#  irradiaciones largas, donde Te127/Te129 alimentan I127/I129 durante
+#  horas, este error hace que el diluyente estable domine la masa de forma
+#  espuria). Held constant at the end-of-irradiation NUMBER OF ATOMS count
+#  instead (see below). Every other iodine isotope in ACAB's chain (I116-
+#  I137 except these two) has a half-life from ms to ~25 d — short enough
+#  that N(t)=A(t)/λ per cooling timestep is the exact, well-conditioned
+#  recovery of ACAB's internal population.
+IODINE_ESTABLE_O_VIDA_LARGA = {"I127", "I129"}
+
+
 def calcular_actividad_especifica_yodo_serie(
     sim: dict,
     iso_key: str,
@@ -1106,7 +1122,8 @@ def calcular_actividad_especifica_yodo_serie(
 ) -> Optional[dict]:
     """Iodine specific activity A_esp(t) = A(iso_key,t) / m(yodo_total,t) [MBq/g],
     through the whole cooling phase (F2 del BACKLOG, criterio del tutor,
-    2026-07-09). Same domain/family as ``calcular_pureza_serie`` (F1).
+    2026-07-09; denominador corregido en F2b, 2026-07-21). Same domain/family
+    as ``calcular_pureza_serie`` (F1).
 
     Stable ¹²⁷I and long-lived ¹²⁹I do not spoil radionuclidic purity (they
     share no activity with the impurity isotopes counted by
@@ -1114,13 +1131,18 @@ def calcular_actividad_especifica_yodo_serie(
     the target isotope spread over more grams of total iodine. m(yodo_total,t)
     sums every iodine isotope present in the fort.6:
 
-      - Isotopes with a cooling activity series and λ > 0 (I131, I129...):
-        N(t) = A(t)/λ, exact recovery of ACAB's internal atom population —
-        no approximation, correctly reflects feeding from parent decay.
-      - Isotopes without one (stable, e.g. I127 — the cooling table reports
-        0 Bq for them, never atoms): held constant at their end-of-irradiation
-        atom count (``datos_irr_atomos``), the only data point fort.6 gives
-        for them past that instant.
+      - ``IODINE_ESTABLE_O_VIDA_LARGA`` (I127, I129): read once from the
+        end-of-irradiation NUMBER OF ATOMS table (``datos_irr_atomos``) and
+        held CONSTANT through the whole cooling phase — their feeding from
+        precursor decay (Te127→I127, Te129→I129) during cooling is treated
+        as second-order (documented approximation; see F2b del BACKLOG for
+        the long-irradiation case where this stops being negligible).
+      - Every other iodine isotope with a cooling activity series and λ > 0
+        (I131, I128, I130, I130M, I132, I132M...): N(t) = A(t)/λ at each
+        timestep, exact recovery of ACAB's internal atom population — no
+        approximation, correctly reflects feeding from parent decay.
+      - Anything with neither (no cooling series and not in the atoms
+        table): contributes 0.
 
     Atoms → grams uses the mass number as an approximate molar mass (error
     < 0.1 %, documented). ``leer_fort6_concentraciones``/CONCENTRATIONS(GRAM)
@@ -1157,7 +1179,7 @@ def calcular_actividad_especifica_yodo_serie(
         A_num = int(mk.group(2))
         lam_iso = lam(t12_dict.get(iso, math.inf))
 
-        if iso in datos_cool and lam_iso > 0:
+        if iso not in IODINE_ESTABLE_O_VIDA_LARGA and iso in datos_cool and lam_iso > 0:
             N_t = np.asarray(datos_cool[iso], dtype=float) / lam_iso
         else:
             atomos_irr = datos_irr_atomos.get(iso)

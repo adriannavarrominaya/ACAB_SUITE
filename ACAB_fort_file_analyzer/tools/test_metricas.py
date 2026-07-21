@@ -367,16 +367,25 @@ def test_actividad_especifica_yodo_ref_sim() -> None:
     check(len(serie["serie"]) == 19, f"19 puntos de enfriamiento (obtenido {len(serie['serie'])})")
 
     # Valor oro en RESTART (t=0 h), comprobado a mano contra el fort.6
-    # congelado: masa total de yodo = suma sobre TODOS los isótopos de yodo
-    # presentes de N_iso(0)/N_A·A_iso -- el único estable (I127) constante
-    # desde el fin de irradiación (1.531e5 átomos/cm³, datos_irr_atomos), el
-    # resto (I129 de vida larga incluido) vía N=A(0)/λ con la propia
-    # actividad de RESTART. A(I131,0)=38.42 Bq/cm³ (ya verificado en F1).
-    # masa_total(0) = 8.52732707105363e-15 g/cm³ -> A_esp = 38.42/masa_total.
+    # congelado (fixture v.5 "info thesis" -- NO confundir con el fort.6 v.7
+    # usado para diagnosticar el bug de F2b, que es OTRA simulación con
+    # población de I127/I129 muy superior; cada fixture tiene su propia
+    # firma numérica, ver README.md de fixtures/). Masa total de yodo = suma
+    # sobre TODOS los isótopos de yodo presentes de N_iso(0)/N_A·A_iso. En
+    # t=0 (RESTART = fin de irradiación) da IGUAL leer I127/I129 de la tabla
+    # NUMBER OF ATOMS (I127=1.531e5, I129=6.387e5 átomos/cm³, F2b) que vía
+    # N=A(0)/λ (diseño pre-F2b): por definición A=λN, ambas fuentes
+    # coinciden en ese instante exacto salvo el redondeo de imprenta del
+    # fort.6 en cada tabla (~1e-5 relativo). El diseño viejo y F2b solo
+    # divergen de forma apreciable para t>0 (ver
+    # test_actividad_especifica_yodo_i129_congelado_vs_creciente). A(I131,0)
+    # =38.42 Bq/cm³ (ya verificado en F1).
     p0 = serie["serie"][0]
     check_close(p0["t"], 0.0, "primer punto = RESTART")
-    check_close(p0["A_esp_MBq_g"], 4505514996.653325,
-                "A_esp(t=0) = A(I131,0)/masa_total_yodo(0), a mano del fort.6 (MBq/g)",
+    check_close(p0["A_esp_MBq_g"], 4505547272.634922,
+                "A_esp(t=0) = A(I131,0)/masa_total_yodo(0), a mano del fort.6 (MBq/g) -- "
+                "F2b: I129 leído de NUMBER OF ATOMS en vez de A(0)/λ, residuo <1e-5 rel. "
+                "frente al valor pre-F2b (4505514996.653325)",
                 rtol=1e-6)
 
     # "el valor destacado en t_cruce de pureza" (diseño F2, punto 2): en
@@ -451,6 +460,93 @@ def test_actividad_especifica_yodo_casos_borde() -> None:
                 "valor_destacado_MBq_g en t=1.5h (interpolado) = A_esp constante", rtol=1e-9)
 
 
+def test_actividad_especifica_yodo_i129_congelado_vs_creciente() -> None:
+    section("calcular_actividad_especifica_yodo_serie — F2b: I129 congelado, no vía A(t)/λ")
+
+    # Escenario sintético tipo "irradiación larga" (el caso real donde el bug
+    # de F2b importa, per el diagnóstico del BACKLOG: Te127/Te129 alimentan
+    # I127/I129 durante horas de enfriamiento, y su actividad -- minúscula
+    # pero no cero -- crece varios órdenes de magnitud). Con λ(I129) diminuta,
+    # dividir esa actividad creciente por λ dispararía la masa de I129 muy por
+    # encima de su población real; el diseño F2b lo evita leyendo I129 de la
+    # tabla de átomos y manteniéndolo constante.
+    lam_i129 = fa.lam(5.081e14)  # T½ I129, s (DECAY.dat 531290)
+    lam_i131 = fa.lam(693200.0)  # T½ I131, s
+    t12 = {"I131": 693200.0, "I129": 5.081e14}
+
+    n_i129_final_atomos = 6.387e5  # NUMBER OF ATOMS al fin de irradiación (I129)
+    sim = {
+        "t_cool": [0.0, 1.0, 2.0, 3.0, 4.0],
+        "datos_cool": {
+            "I131": [38.42, 5000.0, 9000.0, 13000.0, 16500.0],
+            # actividad de I129 creciendo ~1000x durante el enfriamiento
+            # (alimentada por Te129, igual que en ref_sim pero exagerada)
+            "I129": [8.7e-10, 1e-8, 1e-7, 5e-7, 9.8e-7],
+        },
+        "datos_irr_atomos": {"I129": [0.0, n_i129_final_atomos]},
+    }
+    serie = fa.calcular_actividad_especifica_yodo_serie(sim, "I131", t12)
+    assert serie is not None
+
+    masa_i129_congelada_g = n_i129_final_atomos / fa.N_A * 129
+    masa_i129_via_a_sobre_lambda_ultimo_t_g = (sim["datos_cool"]["I129"][-1] / lam_i129) / fa.N_A * 129
+    # La masa "vía A/λ" en el último instante es MUCHO mayor que la congelada
+    # (confirma que el escenario ejercita de verdad la diferencia de diseño).
+    check(masa_i129_via_a_sobre_lambda_ultimo_t_g > 50 * masa_i129_congelada_g,
+          "escenario sintético: A(t)/λ de I129 habría dado una masa >>50x la congelada "
+          f"(congelada={masa_i129_congelada_g:.3e} g/cm³, A/λ={masa_i129_via_a_sobre_lambda_ultimo_t_g:.3e} g/cm³)")
+
+    for i, t in enumerate(sim["t_cool"]):
+        A_i131_t = sim["datos_cool"]["I131"][i]
+        N_i131_t = A_i131_t / lam_i131
+        masa_i131_t = N_i131_t / fa.N_A * 131
+        masa_esperada = masa_i131_t + masa_i129_congelada_g
+        a_esp_esperado = A_i131_t / masa_esperada / 1e6
+        check_close(serie["serie"][i]["A_esp_MBq_g"], a_esp_esperado,
+                    f"t={t}: A_esp usa I129 CONGELADO (masa={masa_i129_congelada_g:.4e} g/cm³), "
+                    "no A(t)/λ", rtol=1e-9)
+
+
+def test_actividad_especifica_yodo_techo_fisico() -> None:
+    section("calcular_actividad_especifica_yodo_serie — techo físico sin portador (F2b)")
+
+    # A_esp no puede superar la actividad específica del I131 puro (sin
+    # portador): λ(I131)·N_A/masa_atómica(I131) ≈ 4.596e9 MBq/g. Cualquier
+    # masa de yodo (portador incluido) solo puede DILUIR, nunca concentrar
+    # por encima de ese límite. Se comprueba en TODO instante t y en TODA
+    # simulación: ref_sim (datos reales) + los casos sintéticos ya definidos
+    # arriba (borde y congelado-vs-creciente).
+    lam_i131 = fa.lam(693200.0)
+    techo_MBq_g = lam_i131 * fa.N_A / 131 / 1e6
+
+    t12 = fa.leer_decay_dat(DECAY)
+    all_data, errors = fa.analizar_carpeta(str(REF_SIM), t12)
+    assert not errors
+    sim_ref = next(iter(all_data.values()))
+    serie_ref = fa.calcular_actividad_especifica_yodo_serie(sim_ref, "I131", t12)
+    assert serie_ref is not None
+    peores_ref = [p["A_esp_MBq_g"] for p in serie_ref["serie"] if p["A_esp_MBq_g"] is not None]
+    check(all(v <= techo_MBq_g * (1 + 1e-9) for v in peores_ref),
+          f"ref_sim: A_esp(t) <= techo físico ({techo_MBq_g:.6e} MBq/g) en los "
+          f"{len(peores_ref)} timesteps (máximo obtenido {max(peores_ref):.6e})")
+
+    lam_i129 = fa.lam(5.081e14)
+    sim_congelado = {
+        "t_cool": [0.0, 1.0, 2.0, 3.0, 4.0],
+        "datos_cool": {
+            "I131": [38.42, 5000.0, 9000.0, 13000.0, 16500.0],
+            "I129": [8.7e-10, 1e-8, 1e-7, 5e-7, 9.8e-7],
+        },
+        "datos_irr_atomos": {"I129": [0.0, 6.387e5]},
+    }
+    serie_congelado = fa.calcular_actividad_especifica_yodo_serie(sim_congelado, "I131", {"I131": 693200.0, "I129": 5.081e14})
+    assert serie_congelado is not None
+    valores_congelado = [p["A_esp_MBq_g"] for p in serie_congelado["serie"]]
+    check(all(v <= techo_MBq_g * (1 + 1e-9) for v in valores_congelado),
+          f"caso sintético congelado-vs-creciente: A_esp(t) <= techo físico en todo t "
+          f"(máximo obtenido {max(valores_congelado):.6e})")
+
+
 def test_informe_isotopo_incluye_metricas() -> None:
     section("calcular_informe_isotopo — métricas Fase 5 integradas por simulación")
 
@@ -502,6 +598,8 @@ def main() -> int:
     test_pureza_serie_casos_borde_sinteticos()
     test_actividad_especifica_yodo_ref_sim()
     test_actividad_especifica_yodo_casos_borde()
+    test_actividad_especifica_yodo_i129_congelado_vs_creciente()
+    test_actividad_especifica_yodo_techo_fisico()
     test_informe_isotopo_incluye_metricas()
 
     print(f"\n{'-' * 50}")
