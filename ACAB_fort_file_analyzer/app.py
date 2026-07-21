@@ -24,12 +24,21 @@ from fort_analyzer import (
     GAMMA_I131,
     analizar_carpeta,
     build_t12_dict,
+    calcular_espectro_gamma,
     calcular_informe_isotopo,
     calcular_tablas_comparativas,
     descubrir_simulaciones,
     leer_decay_dat,
+    leer_photon_dat,
     leer_sweep_manifest,
 )
+
+# B1 del BACKLOG: PHOTON.dat es dato de la distribución de ACAB, no de la app
+# (ver runbook_B1_espectro_gamma.md, decisión "ubicación del fichero"). Ruta
+# configurable vía variable de entorno como último recurso, si no se
+# autodescubre junto al DECAY.dat de la primera simulación ni se pasa
+# explícita en la petición.
+_PHOTON_DAT_ENV = "ACAB_PHOTON_DAT"
 
 app = Flask(__name__)
 
@@ -165,6 +174,29 @@ def api_analyze():
     else:
         base_t12 = build_t12_dict(DEFAULT_SEMIVIDAS)
 
+    # ── PHOTON.dat (B1 del BACKLOG): mismo patrón de autodescubrimiento que
+    # DECAY.dat (junto al fort.6 de la primera simulación), con override
+    # explícito en la petición y variable de entorno como último recurso.
+    photon_dat_path: Optional[str] = (data.get("photon_dat_path") or "").strip() or None
+    if not photon_dat_path and sims_preview:
+        candidate = Path(sims_preview[0][1]).parent / "PHOTON.dat"
+        if candidate.exists():
+            photon_dat_path = str(candidate)
+    if not photon_dat_path:
+        env_path = os.environ.get(_PHOTON_DAT_ENV)
+        if env_path and Path(env_path).exists():
+            photon_dat_path = env_path
+
+    libreria_gamma: dict = {}
+    photon_dat_used = False
+    if photon_dat_path and Path(photon_dat_path).exists():
+        try:
+            libreria_gamma = leer_photon_dat(photon_dat_path)
+            photon_dat_used = True
+        except Exception:
+            libreria_gamma = {}
+            photon_dat_path = None
+
     # YAML semividas override (only the keys explicitly listed in YAML win)
     yaml_semividas: dict = cfg.get("semividas", {}) if cfg else {}
     yaml_t12_overrides = build_t12_dict(yaml_semividas)
@@ -204,28 +236,33 @@ def api_analyze():
     global _last_folder_key
     folder_key = _norm_folder(folder)
     _analysis_cache[folder_key] = {
-        "all_data":       all_data,
-        "t12_dict":       t12_dict,
-        "semividas_keys": semividas_keys,
+        "all_data":        all_data,
+        "t12_dict":        t12_dict,
+        "semividas_keys":  semividas_keys,
+        "libreria_gamma":  libreria_gamma,
+        "photon_dat_used": photon_dat_used,
+        "photon_dat_path": photon_dat_path if photon_dat_used else None,
     }
     _last_folder_key = folder_key
 
     return jsonify(_sanitize_for_json({
-        "ok":             True,
-        "folder":         folder,
-        "yaml_used":      yaml_used,
-        "decay_dat_used": decay_dat_used,
-        "decay_dat_path": decay_dat_path,
-        "simulations":    all_data,
-        "errors":         errors,
-        "all_isotopes":   all_isotopes,
-        "semividas_keys": semividas_keys,
-        "figuras":        figuras,
+        "ok":              True,
+        "folder":          folder,
+        "yaml_used":       yaml_used,
+        "decay_dat_used":  decay_dat_used,
+        "decay_dat_path":  decay_dat_path,
+        "photon_dat_used": photon_dat_used,
+        "photon_dat_path": photon_dat_path if photon_dat_used else None,
+        "simulations":     all_data,
+        "errors":          errors,
+        "all_isotopes":    all_isotopes,
+        "semividas_keys":  semividas_keys,
+        "figuras":         figuras,
         # Full parsed YAML dict (or {} if none) so the frontend can round-trip
         # non-"figuras" top-level sections (e.g. "semividas") when saving/
         # downloading an edited figuras.yaml (decision 6 of RUNBOOK_figuras_yaml.md).
-        "yaml_config":    cfg,
-        "sweep_manifest": sweep_manifest,
+        "yaml_config":     cfg,
+        "sweep_manifest":  sweep_manifest,
     }))
 
 
@@ -260,6 +297,62 @@ def api_browse_folder():
 @app.route("/api/gamma-spectrum", methods=["GET"])
 def api_gamma_spectrum():
     return jsonify({"ok": True, "data": GAMMA_I131})
+
+
+@app.route("/api/espectro_gamma", methods=["POST"])
+def api_espectro_gamma():
+    """Espectro de emisión gamma en un instante (B1 del BACKLOG, pestaña
+    'Espectro gamma'). Requires a prior /api/analyze on the same folder.
+
+    Optional "photon_dat_path" lets the user (re)point the library to a
+    different PHOTON.dat without re-running the whole analysis — updates the
+    cached library for subsequent calls on the same folder too.
+    """
+    payload = request.get_json(force=True, silent=True) or {}
+    folder = (payload.get("folder") or "").strip()
+    sim_name = (payload.get("sim") or "").strip()
+    t_h = _safe_float(payload.get("t_h"))
+    photon_dat_path_override = (payload.get("photon_dat_path") or "").strip() or None
+
+    if not folder:
+        return jsonify({"error": "Debe especificar una carpeta."}), 400
+
+    entry = _analysis_cache.get(_norm_folder(folder))
+    if entry is None:
+        return jsonify({
+            "error": f"La carpeta '{folder}' no ha sido analizada. Ejecute el análisis primero."
+        }), 404
+
+    all_data = entry["all_data"]
+    if sim_name not in all_data:
+        sim_name = next(iter(all_data))
+    sim = all_data[sim_name]
+
+    if photon_dat_path_override:
+        candidate = Path(photon_dat_path_override)
+        if not candidate.exists():
+            return jsonify({"error": f"No se encontró el fichero '{photon_dat_path_override}'."}), 404
+        try:
+            entry["libreria_gamma"] = leer_photon_dat(str(candidate))
+        except Exception as exc:
+            return jsonify({"error": f"No se pudo leer PHOTON.dat: {exc}"}), 422
+        entry["photon_dat_path"] = str(candidate)
+        entry["photon_dat_used"] = True
+
+    libreria = entry.get("libreria_gamma") or {}
+    if t_h is None:
+        t_cool = sim.get("t_cool") or [0.0]
+        t_h = t_cool[0]
+
+    espectro = calcular_espectro_gamma(sim, t_h, libreria)
+
+    return jsonify(_sanitize_for_json({
+        "ok":              True,
+        "sim":             sim_name,
+        "photon_dat_used": entry.get("photon_dat_used", False),
+        "photon_dat_path": entry.get("photon_dat_path"),
+        "espectro":        espectro,
+    }))
 
 
 @app.route("/api/isotopo_report", methods=["POST"])

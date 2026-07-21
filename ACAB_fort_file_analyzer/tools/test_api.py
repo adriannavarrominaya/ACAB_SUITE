@@ -12,6 +12,7 @@ Devuelve código de salida 0 si todo pasa, 1 si algún test falla.
 from __future__ import annotations
 
 import json
+import math
 import shutil
 import sys
 import tempfile
@@ -52,6 +53,13 @@ def _fail(msg: str) -> None:
 
 def check(cond: bool, msg: str) -> None:
     _ok(msg) if cond else _fail(msg)
+
+
+def check_close_local(got, expected, msg: str, rtol: float = 1e-6) -> None:
+    try:
+        check(math.isclose(float(got), float(expected), rel_tol=rtol), msg)
+    except (TypeError, ValueError):
+        _fail(f"{msg}: valor no numérico {got!r}")
 
 
 def section(name: str) -> None:
@@ -253,6 +261,72 @@ def test_figuras_save(client) -> None:
               "figuras.yaml guardado se descubre automáticamente en el siguiente análisis")
 
 
+def test_espectro_gamma(client) -> None:
+    section("/api/espectro_gamma — B1 del BACKLOG (Fase 3)")
+
+    r = client.post("/api/analyze", json={"folder": str(REF_SIM)})
+    check(r.status_code == 200, f"/api/analyze responde 200 (obtenido {r.status_code})")
+    data = r.get_json()
+    check(data.get("photon_dat_used") is False,
+          "photon_dat_used = False sin PHOTON.dat junto al fort.6 de ref_sim "
+          "(el fixture se llama PHOTON_extract.dat, no PHOTON.dat)")
+    sim_name = next(iter(data.get("simulations", {})))
+
+    # Sin librería cargada aún: el endpoint responde ok, pero sin líneas.
+    r0 = client.post("/api/espectro_gamma", json={"folder": str(REF_SIM), "t_h": 4.5})
+    check(r0.status_code == 200, f"200 sin librería aún cargada (obtenido {r0.status_code})")
+    j0 = r0.get_json()
+    check(j0.get("photon_dat_used") is False, "photon_dat_used = False antes de cargar la librería")
+    check(j0.get("espectro", {}).get("lineas") == [], "sin líneas antes de cargar la librería")
+
+    # Override explícito de photon_dat_path -> carga el extracto congelado y
+    # calcula el espectro en t=4.5h (enfriamiento tardío, caso oro de
+    # test_photon.py: tasa(364 keV) = A(I131,4.5h) * 0.812).
+    photon_extract = str(REF_SIM / "PHOTON_extract.dat")
+    r1 = client.post("/api/espectro_gamma", json={
+        "folder": str(REF_SIM), "sim": sim_name, "t_h": 4.5,
+        "photon_dat_path": photon_extract,
+    })
+    check(r1.status_code == 200, f"200 con photon_dat_path override (obtenido {r1.status_code})")
+    j1 = r1.get_json()
+    check(bool(j1.get("ok")), "ok=True")
+    check(j1.get("photon_dat_used") is True, "photon_dat_used = True tras el override")
+    check(j1.get("sim") == sim_name, "sim devuelto = simulación de ref_sim")
+
+    espectro = j1.get("espectro", {})
+    check_close_local(espectro.get("t_h"), 4.5, "t_h del espectro = 4.5 (timestep real)")
+    lineas_364 = [l for l in espectro.get("lineas", [])
+                  if l.get("nucleido") == "I131" and abs(l.get("E_keV", 0) - 364.49) < 0.01]
+    check(len(lineas_364) == 1, "línea de 364,49 keV de I131 presente en la respuesta")
+    if lineas_364:
+        tasa = lineas_364[0].get("tasa_fotones_s_cm3")
+        check_close_local(tasa, 16490.0 * 0.812,
+                           f"tasa(364 keV) = A(I131,4.5h)*0,812 (obtenido {tasa})")
+    check("I130M" in espectro.get("nucleidos_sin_lineas", []),
+          "I130M en nucleidos_sin_lineas (presente en ref_sim, ausente del extracto)")
+
+    # La librería cargada por el override queda en cache: una llamada
+    # posterior SIN photon_dat_path la sigue usando (no hay que recargarla en
+    # cada petición de instante).
+    r2 = client.post("/api/espectro_gamma", json={"folder": str(REF_SIM), "sim": sim_name, "t_h": 0.0})
+    check(r2.status_code == 200, f"200 en la siguiente petición sin override (obtenido {r2.status_code})")
+    j2 = r2.get_json()
+    check(j2.get("photon_dat_used") is True, "photon_dat_used sigue True (librería cacheada)")
+    check(len(j2.get("espectro", {}).get("lineas", [])) > 0,
+          "espectro calculado en t=0 con la librería ya cacheada")
+
+    # Ruta de PHOTON.dat inexistente -> 404, sin romper la librería ya cacheada.
+    r3 = client.post("/api/espectro_gamma", json={
+        "folder": str(REF_SIM), "photon_dat_path": str(REF_SIM / "no_existe_PHOTON.dat"),
+    })
+    check(r3.status_code == 404, f"404 con ruta de PHOTON.dat inexistente (obtenido {r3.status_code})")
+
+    # Carpeta no analizada -> 404 (mismo criterio que /api/isotopo_report).
+    r4 = client.post("/api/espectro_gamma",
+                      json={"folder": str(REPO_ROOT / "carpeta_sin_analizar"), "t_h": 0.0})
+    check(r4.status_code == 404, f"404 para carpeta no analizada (obtenido {r4.status_code})")
+
+
 def test_carpeta_inexistente(client) -> None:
     section("/api/analyze — carpeta inexistente")
     r = client.post("/api/analyze", json={"folder": str(REPO_ROOT / "no_existe_xyz")})
@@ -296,6 +370,7 @@ def main() -> int:
     test_informe_folder_no_analizado(client)
     test_sweep_manifest(client)
     test_figuras_save(client)
+    test_espectro_gamma(client)
     test_isotopo_sin_analisis(client)
 
     print(f"\n{'-' * 50}")

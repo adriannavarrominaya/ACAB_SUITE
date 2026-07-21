@@ -82,6 +82,7 @@
     "overview": "Simulations",
     "charts": "Activity by Isotope",
     "report": "Isotope Report",
+    "espectro": "Gamma Spectrum",
     "tables": "Comparison Tables",
     "optim": "Optimisation"
   },
@@ -379,5 +380,35 @@
     "spectrum_x_categorical": "Spectrum (categorical)",
     "spectrum_x_key_disabled": "Not available: this sweep's manifest does not include this spectral fraction",
     "spectrum_x_all_disabled": "This sweep's manifest has no spectral fractions (generated with an older version); only the spectrum-name view is available."
+  },
+
+  "espectro": {
+    "placeholder": "Analyse a folder in the <strong>Simulations</strong> tab to see the gamma spectrum.",
+    "title": "Sample gamma emission spectrum",
+    "scope_note": "EMISSION spectrum (discrete lines × activity at the chosen instant). Does not include a real detector's response (resolution, efficiency, Compton effect) nor the beta/bremsstrahlung continuum — out of scope by design.",
+    "sim_label": "Simulation",
+    "t_label": "Cooling instant",
+    "emin_label": "Min E [keV]",
+    "emax_label": "Max E [keV]",
+    "no_limit": "no limit",
+    "tasamin_label": "Minimum rate [photons/s/cm³]",
+    "photon_path_label": "PHOTON.dat path",
+    "photon_path_placeholder": "Path to ACAB's distribution PHOTON.dat file",
+    "photon_path_load": "Load library",
+    "photon_path_required": "Enter a path to PHOTON.dat before loading.",
+    "photon_path_status_ok": "Library loaded: {path}",
+    "photon_path_status_none": "No PHOTON.dat library loaded.",
+    "loading": "Computing spectrum…",
+    "no_cooling": "This simulation has no cooling data.",
+    "no_library": "No PHOTON.dat has been found or loaded. Enter its path above and click \"Load library\".",
+    "no_lines_after_filter": "No line matches the current energy/rate filter.",
+    "ax_e": "Energy [keV]",
+    "ax_tasa": "Emission rate [photons/(s·cm³)]",
+    "table_title": "Main lines",
+    "th_e": "E [keV]",
+    "th_nucleido": "Nuclide",
+    "th_intensidad": "Intensity [%]",
+    "th_tasa": "Rate [photons/(s·cm³)]",
+    "sin_lineas_summary": "{n} nuclides present with no gamma lines in the library"
   }
 }

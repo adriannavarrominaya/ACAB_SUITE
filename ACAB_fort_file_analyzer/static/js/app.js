@@ -87,6 +87,7 @@ function refreshDynamicUI() {
     if (_state.tablesRendered) renderTables();
     if (_state.optimRendered) renderOptimizacion();
   }
+  if (_state.espectroRendered) renderEspectroGamma();
 }
 
 /** Translate the backend phase string ("irradiación"/"enfriamiento"/"n/a"). */
@@ -116,6 +117,15 @@ const _state = {
   optimXParam:     null,     // clave de parámetro elegida para el eje X (null = por defecto)
   figurasOriginal: null,   // copia profunda de data.figuras tal como se cargó (yaml/auto/upload); null si no hay YAML de partida
   yamlConfigLoaded: null,  // dict YAML completo tal como se cargó (para el round-trip al guardar/descargar, RUNBOOK_figuras_yaml.md)
+  // B1 del BACKLOG — pestaña "Espectro gamma": el espectro se pide al servidor
+  // bajo demanda (POST /api/espectro_gamma) por simulación+instante, no viaja
+  // entero en /api/analyze (podría ser enorme con un PHOTON.dat completo).
+  espectroRendered:    false,
+  espectroSim:         null,   // simulación elegida (null = primera)
+  espectroT:           null,   // instante de enfriamiento elegido [h] (null = último timestep)
+  espectroPhotonPath:  '',     // override manual de la ruta de PHOTON.dat
+  espectroData:        null,  // última respuesta de /api/espectro_gamma
+  espectroFiltros:     { eMinKeV: null, eMaxKeV: null, tasaMin: null }, // sobrevive a rebuilds (cambio de idioma, sim, t)
 };
 
 // Simulation colour palette (up to 10 simulations)
@@ -525,6 +535,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // Tab: gamma emission spectrum (B1 del BACKLOG) — solo depende de la carpeta
+  // analizada, no del isótopo seleccionado (a diferencia de Informe/Tablas/Optim).
+  document.getElementById('tab-espectro-btn').addEventListener('shown.bs.tab', () => {
+    if (_state.analysisData && !_state.espectroRendered) {
+      renderEspectroGamma();
+      _state.espectroRendered = true;
+    }
+  });
+
   // ── Figure editor (E1–E7) ─────────────────────────────────────────────────
   document.getElementById('btn-edit-figuras').addEventListener('click', openFigurasEditor);
   document.getElementById('btn-figuras-reset').addEventListener('click', resetFigurasToLoaded);
@@ -645,6 +664,11 @@ async function doAnalyze(opts = {}) {
   _state.refImportDraft  = null;
   _state.optimRendered   = false;
   _state.optimXParam     = null;
+  _state.espectroRendered = false;
+  _state.espectroSim      = null;
+  _state.espectroT        = null;
+  _state.espectroData     = null;
+  _state.espectroFiltros  = { eMinKeV: null, eMaxKeV: null, tasaMin: null };
 
   // Hide sidebar isotope summary card
   document.getElementById('i131-summary-card').classList.add('d-none');
@@ -1098,6 +1122,249 @@ function renderFigurasEmptyState(container) {
     ?.addEventListener('click', () => document.getElementById('figuras-yaml-file-input').click());
   document.getElementById('btn-empty-create-figuras')
     ?.addEventListener('click', openFigurasEditor);
+}
+
+/**
+ * B1 del BACKLOG (runbook_B1_espectro_gamma.md) — pestaña "Espectro gamma":
+ * espectro de EMISIÓN de la muestra (líneas discretas de PHOTON.dat x
+ * actividad del fort.6 en un instante, calculado en el servidor por
+ * fort_analyzer.calcular_espectro_gamma). No es la respuesta de un detector
+ * (sin resolución/eficiencia/Compton) ni incluye el continuo beta/
+ * bremsstrahlung — fuera de alcance por diseño (ver el aviso fijo en la UI).
+ *
+ * Construye el panel una vez (selectores de simulación/instante, filtros de
+ * energía/tasa mínima, ruta de PHOTON.dat) y pide el espectro al servidor
+ * bajo demanda (no viaja entero en /api/analyze: con una librería PHOTON.dat
+ * completa podría ser enorme). Los filtros solo recortan localmente lo ya
+ * recibido (fetchEspectroGamma no se vuelve a llamar al cambiarlos).
+ */
+function renderEspectroGamma() {
+  const container = document.getElementById('espectro-container');
+  const data = _state.analysisData;
+  if (!container || !data) return;
+
+  const sims = data.simulations;
+  const simNames = Object.keys(sims);
+  if (!_state.espectroSim || simNames.indexOf(_state.espectroSim) === -1) {
+    _state.espectroSim = simNames[0];
+  }
+  const sim = sims[_state.espectroSim];
+  const tCool = sim.t_cool || [];
+
+  if (!tCool.length) {
+    container.innerHTML = `<div class="alert alert-secondary mt-3">${t('espectro.no_cooling')}</div>`;
+    return;
+  }
+  if (_state.espectroT == null || tCool.indexOf(_state.espectroT) === -1) {
+    _state.espectroT = tCool[tCool.length - 1];
+  }
+
+  const simSelectorHtml = simNames.length > 1 ? `
+    <div class="col-auto">
+      <label class="form-label small mb-1" for="espectro-sim-select">${t('espectro.sim_label')}</label>
+      <select class="form-select form-select-sm" id="espectro-sim-select">
+        ${simNames.map(n => `<option value="${escAttr(n)}" ${n === _state.espectroSim ? 'selected' : ''}>${escHtml(n)}</option>`).join('')}
+      </select>
+    </div>` : '';
+
+  container.innerHTML = `
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+      <h5 class="mb-0">${t('espectro.title')}</h5>
+      <button class="btn btn-outline-secondary btn-sm" id="btn-export-espectro">
+        <i class="bi bi-download me-1"></i>${t('export.csv')}
+      </button>
+    </div>
+    <div class="alert alert-secondary small mb-3">
+      <i class="bi bi-info-circle me-1"></i>${t('espectro.scope_note')}
+    </div>
+    <div class="row g-2 align-items-end mb-2">
+      ${simSelectorHtml}
+      <div class="col-auto">
+        <label class="form-label small mb-1" for="espectro-t-select">${t('espectro.t_label')}</label>
+        <select class="form-select form-select-sm" id="espectro-t-select">
+          ${tCool.map(tv => `<option value="${tv}" ${tv === _state.espectroT ? 'selected' : ''}>${tv.toFixed(3)} h</option>`).join('')}
+        </select>
+      </div>
+      <div class="col-auto">
+        <label class="form-label small mb-1" for="espectro-emin">${t('espectro.emin_label')}</label>
+        <input type="number" class="form-control form-control-sm" id="espectro-emin" style="width:110px" min="0" placeholder="0"
+               value="${_state.espectroFiltros.eMinKeV != null ? _state.espectroFiltros.eMinKeV : ''}">
+      </div>
+      <div class="col-auto">
+        <label class="form-label small mb-1" for="espectro-emax">${t('espectro.emax_label')}</label>
+        <input type="number" class="form-control form-control-sm" id="espectro-emax" style="width:110px" min="0" placeholder="${t('espectro.no_limit')}"
+               value="${_state.espectroFiltros.eMaxKeV != null ? _state.espectroFiltros.eMaxKeV : ''}">
+      </div>
+      <div class="col-auto">
+        <label class="form-label small mb-1" for="espectro-tasa-min">${t('espectro.tasamin_label')}</label>
+        <input type="number" class="form-control form-control-sm" id="espectro-tasa-min" style="width:140px" min="0" placeholder="0"
+               value="${_state.espectroFiltros.tasaMin != null ? _state.espectroFiltros.tasaMin : ''}">
+      </div>
+    </div>
+    <div class="row g-2 align-items-end mb-3">
+      <div class="col-auto flex-grow-1" style="max-width:420px">
+        <label class="form-label small mb-1" for="espectro-photon-path">${t('espectro.photon_path_label')}</label>
+        <input type="text" class="form-control form-control-sm" id="espectro-photon-path"
+               placeholder="${escAttr(t('espectro.photon_path_placeholder'))}" value="${escAttr(_state.espectroPhotonPath || '')}">
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-outline-primary btn-sm" id="btn-espectro-load-photon">
+          <i class="bi bi-arrow-repeat me-1"></i>${t('espectro.photon_path_load')}
+        </button>
+      </div>
+      <div class="col-auto">
+        <span id="espectro-photon-status" class="small text-muted"></span>
+      </div>
+    </div>
+    <div id="espectro-chart" style="height:420px"></div>
+    <div id="espectro-sin-lineas" class="small text-muted mt-2"></div>
+    <h6 class="mt-4">${t('espectro.table_title')}</h6>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover">
+        <thead><tr>
+          <th>${t('espectro.th_e')}</th><th>${t('espectro.th_nucleido')}</th>
+          <th>${t('espectro.th_intensidad')}</th><th>${t('espectro.th_tasa')}</th>
+        </tr></thead>
+        <tbody id="espectro-table-body"></tbody>
+      </table>
+    </div>
+  `;
+
+  document.getElementById('espectro-sim-select')?.addEventListener('change', e => {
+    _state.espectroSim = e.target.value;
+    _state.espectroT = null; // t_cool puede diferir por simulación -> recalcula el último
+    renderEspectroGamma();
+  });
+  document.getElementById('espectro-t-select')?.addEventListener('change', e => {
+    _state.espectroT = parseFloat(e.target.value);
+    fetchEspectroGamma();
+  });
+  const FILTRO_INPUT_IDS = { 'espectro-emin': 'eMinKeV', 'espectro-emax': 'eMaxKeV', 'espectro-tasa-min': 'tasaMin' };
+  Object.entries(FILTRO_INPUT_IDS).forEach(([id, key]) => {
+    document.getElementById(id)?.addEventListener('input', e => {
+      _state.espectroFiltros[key] = parseFloatOrNull(e.target.value);
+      _renderEspectroChartAndTable();
+    });
+  });
+  document.getElementById('btn-espectro-load-photon')?.addEventListener('click', () => {
+    const p = document.getElementById('espectro-photon-path').value.trim();
+    if (!p) { showToast(t('espectro.photon_path_required'), 'warning'); return; }
+    _state.espectroPhotonPath = p;
+    fetchEspectroGamma(p);
+  });
+  document.getElementById('btn-export-espectro')?.addEventListener('click', exportEspectroCSV);
+
+  fetchEspectroGamma();
+}
+
+/** POST /api/espectro_gamma para (simulación, instante) actuales del estado. */
+async function fetchEspectroGamma(photonPathOverride) {
+  if (!_state.analysisData) return;
+  const chartDiv = document.getElementById('espectro-chart');
+  if (chartDiv) chartDiv.innerHTML = `<div class="text-muted small p-3">${t('espectro.loading')}</div>`;
+
+  try {
+    const res = await fetch('/api/espectro_gamma', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        folder:          _state.folder,
+        sim:             _state.espectroSim,
+        t_h:             _state.espectroT,
+        photon_dat_path: photonPathOverride || null,
+      }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) {
+      const msg = (json && json.error) || t('toast.unknown_err');
+      showToast(msg, 'danger');
+      if (chartDiv) chartDiv.innerHTML = `<div class="alert alert-danger small mb-0">${escHtml(msg)}</div>`;
+      return;
+    }
+    _state.espectroData = json;
+    const statusEl = document.getElementById('espectro-photon-status');
+    if (statusEl) {
+      statusEl.textContent = json.photon_dat_used
+        ? t('espectro.photon_path_status_ok', { path: json.photon_dat_path || '' })
+        : t('espectro.photon_path_status_none');
+    }
+    _renderEspectroChartAndTable();
+  } catch (err) {
+    showToast(t('toast.net_err', { msg: err.message }), 'danger');
+  }
+}
+
+/** Filtra (localmente) lo ya recibido de /api/espectro_gamma y pinta el stick plot + tabla. */
+function _renderEspectroChartAndTable() {
+  const json = _state.espectroData;
+  const chartDiv   = document.getElementById('espectro-chart');
+  const tbody      = document.getElementById('espectro-table-body');
+  const sinLineasDiv = document.getElementById('espectro-sin-lineas');
+  if (!json || !chartDiv) return;
+
+  const espectro = json.espectro || {};
+  const lineasTodas = espectro.lineas || [];
+
+  if (!json.photon_dat_used) {
+    chartDiv.innerHTML = `<div class="alert alert-secondary small mb-0">${t('espectro.no_library')}</div>`;
+    if (tbody) tbody.innerHTML = '';
+    if (sinLineasDiv) sinLineasDiv.innerHTML = '';
+    return;
+  }
+
+  const lineas = ACABEspectroGamma.filtrarLineas(lineasTodas, _state.espectroFiltros);
+
+  if (!lineas.length) {
+    chartDiv.innerHTML = `<div class="alert alert-warning small mb-0">${t('espectro.no_lines_after_filter')}</div>`;
+  } else {
+    chartDiv.innerHTML = '';
+    const nucleidos = ACABEspectroGamma.nucleidosOrdenados(lineas);
+    const colorFor = nucleido => PALETTE[nucleidos.indexOf(nucleido) % PALETTE.length];
+    const traces = ACABEspectroGamma.construirTrazasStick(lineas, colorFor);
+    Plotly.newPlot(chartDiv, traces, {
+      xaxis: { title: t('espectro.ax_e'), showgrid: true, gridcolor: '#eee' },
+      yaxis: { title: t('espectro.ax_tasa'), type: 'log', exponentformat: 'e', showgrid: true, gridcolor: '#eee' },
+      margin: { t: 20, b: 40, l: 70, r: 20 },
+      legend: { orientation: 'h', y: -0.25, font: { size: 9 } },
+      hovermode: 'closest',
+      plot_bgcolor: '#fafafa', paper_bgcolor: '#fff',
+    }, { responsive: true });
+  }
+
+  if (tbody) {
+    const top = ACABEspectroGamma.topLineas(lineas, 50);
+    tbody.innerHTML = top.length ? top.map(l => `
+      <tr>
+        <td>${l.E_keV.toFixed(2)}</td>
+        <td>${escHtml(isoLabel(l.nucleido))} (${escHtml(l.nucleido)})</td>
+        <td>${l.intensidad_pct.toFixed(3)}</td>
+        <td>${fmtSci(l.tasa_fotones_s_cm3)}</td>
+      </tr>`).join('')
+      : `<tr><td colspan="4" class="text-muted small">${t('espectro.no_lines_after_filter')}</td></tr>`;
+  }
+
+  const sinLineas = espectro.nucleidos_sin_lineas || [];
+  if (sinLineasDiv) {
+    sinLineasDiv.innerHTML = sinLineas.length ? `
+      <details>
+        <summary>${t('espectro.sin_lineas_summary', { n: sinLineas.length })}</summary>
+        <span class="font-monospace">${sinLineas.map(escHtml).join(', ')}</span>
+      </details>` : '';
+  }
+}
+
+/** Exporta la tabla de líneas (ya filtradas por energía/tasa) a CSV. */
+function exportEspectroCSV() {
+  const json = _state.espectroData;
+  if (!json || !json.espectro || !json.photon_dat_used) return;
+  const lineas = ACABEspectroGamma.filtrarLineas(json.espectro.lineas || [], _state.espectroFiltros);
+  if (!lineas.length) return;
+
+  const rows = ACABEspectroGamma.topLineas(lineas, null)
+    .map(l => [l.E_keV, l.nucleido, l.intensidad_pct, l.tasa_fotones_s_cm3]);
+  const headers = [t('espectro.th_e'), t('espectro.th_nucleido'), t('espectro.th_intensidad'), t('espectro.th_tasa')];
+  const title = `${json.sim} t=${json.espectro.t_h}h`;
+  emitCSV(`espectro_gamma_t${json.espectro.t_h}_${folderSlug()}.csv`, title, rows, headers);
 }
 
 function _renderActivityChart(divId, cfg, simulations) {

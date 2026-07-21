@@ -82,6 +82,7 @@
     "overview": "Simulaciones",
     "charts": "Actividad por Isótopo",
     "report": "Informe Isótopo",
+    "espectro": "Espectro gamma",
     "tables": "Tablas Comparativas",
     "optim": "Optimización"
   },
@@ -379,5 +380,35 @@
     "spectrum_x_categorical": "Espectro (categórico)",
     "spectrum_x_key_disabled": "No disponible: este barrido no incluye esta fracción espectral en el manifest",
     "spectrum_x_all_disabled": "Este barrido no incluye fracciones espectrales en el manifest (generado con una versión anterior); solo está disponible la vista por nombre de espectro."
+  },
+
+  "espectro": {
+    "placeholder": "Analiza una carpeta en la pestaña <strong>Simulaciones</strong> para ver el espectro gamma.",
+    "title": "Espectro gamma de emisión de la muestra",
+    "scope_note": "Espectro de EMISIÓN (líneas discretas × actividad en el instante elegido). No incluye la respuesta de un detector real (resolución, eficiencia, efecto Compton) ni el continuo beta/bremsstrahlung — fuera de alcance por diseño.",
+    "sim_label": "Simulación",
+    "t_label": "Instante de enfriamiento",
+    "emin_label": "E mín. [keV]",
+    "emax_label": "E máx. [keV]",
+    "no_limit": "sin límite",
+    "tasamin_label": "Tasa mínima [fotones/s/cm³]",
+    "photon_path_label": "Ruta de PHOTON.dat",
+    "photon_path_placeholder": "Ruta al fichero PHOTON.dat de la distribución de ACAB",
+    "photon_path_load": "Cargar librería",
+    "photon_path_required": "Introduce una ruta a PHOTON.dat antes de cargar.",
+    "photon_path_status_ok": "Librería cargada: {path}",
+    "photon_path_status_none": "Sin librería PHOTON.dat cargada.",
+    "loading": "Calculando espectro…",
+    "no_cooling": "Esta simulación no tiene datos de enfriamiento.",
+    "no_library": "No se ha encontrado ni cargado ningún PHOTON.dat. Indica su ruta arriba y pulsa «Cargar librería».",
+    "no_lines_after_filter": "Ninguna línea cumple el filtro de energía/tasa actual.",
+    "ax_e": "Energía [keV]",
+    "ax_tasa": "Tasa de emisión [fotones/(s·cm³)]",
+    "table_title": "Líneas principales",
+    "th_e": "E [keV]",
+    "th_nucleido": "Nucleido",
+    "th_intensidad": "Intensidad [%]",
+    "th_tasa": "Tasa [fotones/(s·cm³)]",
+    "sin_lineas_summary": "{n} nucleidos presentes sin líneas gamma en la librería"
   }
 }
