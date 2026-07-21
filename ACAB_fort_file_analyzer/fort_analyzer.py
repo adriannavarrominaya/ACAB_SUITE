@@ -227,6 +227,68 @@ def leer_decay_dat(filepath: str) -> dict[str, float]:
     return t12_dict
 
 
+# Header line of a PHOTON.dat block: Z (int), symbol+A with optional M
+# suffix, number of gamma lines. e.g. " 53   I132M        9".
+_PHOTON_HEADER_RE = re.compile(r"^\s*\d+\s+([A-Z]{1,2}\d{1,3}M?)\s+(\d+)\s*$")
+
+
+def leer_photon_dat(filepath: str) -> dict[str, list[list[float]]]:
+    """Parse an ACAB PHOTON.dat gamma-line library (B1 del BACKLOG).
+
+    File structure — blocks of one nuclide each:
+      Header:  Z  SYMBOL+A[M]  n_lineas
+      Data:    n_lineas pairs (E_MeV, intensidad_%_por_desintegracion),
+               3 pairs per text line (last line of a block may have fewer),
+               scientific notation. Line endings CRLF in the original
+               distribution file; the parser tolerates CRLF/LF either way
+               (universal newline mode).
+
+    Returns {acab_key: [[E_keV, intensidad_pct], ...]} — same shape as
+    ``GAMMA_I131`` (energies converted MeV→keV, the spectrometry
+    convention used everywhere else in the app; intensities left as-is,
+    % per decay). Isomers (e.g. "TE131M") are distinct keys from their
+    ground state ("TE131"), matching the ACAB naming convention used by
+    fort.6. A nuclide with 0 lines in the library (pure beta emitter,
+    stable) simply has no entry — callers list it as "sin líneas gamma en
+    la librería", never an error (decisión de diseño de B1).
+    """
+    lineas: dict[str, list[list[float]]] = {}
+
+    with open(filepath, "r", errors="ignore", newline=None) as f:
+        text = f.read()
+
+    key: Optional[str] = None
+    n_esperado = 0
+
+    for raw_line in text.splitlines():
+        m = _PHOTON_HEADER_RE.match(raw_line)
+        if m:
+            key = m.group(1)
+            n_esperado = int(m.group(2))
+            lineas[key] = []
+            continue
+
+        if key is None:
+            continue
+
+        pendientes = n_esperado - len(lineas[key])
+        if pendientes <= 0:
+            continue
+
+        tokens = raw_line.split()
+        for i in range(0, len(tokens) - 1, 2):
+            if len(lineas[key]) >= n_esperado:
+                break
+            try:
+                e_mev = float(tokens[i])
+                intensidad_pct = float(tokens[i + 1])
+            except ValueError:
+                continue
+            lineas[key].append([e_mev * 1000.0, intensidad_pct])
+
+    return lineas
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # inp.5 parser
 # ─────────────────────────────────────────────────────────────────────────────
