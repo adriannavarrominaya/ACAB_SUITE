@@ -1274,6 +1274,64 @@ def calcular_actividad_especifica_yodo_serie(
     }
 
 
+def calcular_espectro_gamma(sim: dict, t_h: float, libreria: dict[str, list[list[float]]]) -> dict:
+    """Emission line spectrum at a cooling instant (Fase 2 de B1, espectro
+    gamma de la muestra desde PHOTON.dat).
+
+    Combines the fort.6 cooling inventory (``datos_cool``, Bq/cm³) at the
+    real cooling timestep closest to *t_h* with the PHOTON.dat gamma-line
+    library (``leer_photon_dat``): for every nuclide present with nonzero
+    activity at that instant, each of its library lines contributes an
+    emission rate tasa = A_nuclido(t) × intensidad/100 [fotones/(s·cm³)] —
+    same internal per-cm³ unit as every activity in this module; converting
+    to per-gram is a frontend concern (``static/js/units.js``, como en F1),
+    not duplicated here.
+
+    Nuclides with activity but no entry in *libreria* (pure beta emitters,
+    stable, or simply missing from the library extract) are listed in
+    ``nucleidos_sin_lineas`` — an informational fact, never an error
+    (decisión de diseño B1: "sin líneas gamma en la librería").
+
+    Returns ``{"t_h": <timestep real más cercano>, "lineas": [...],
+    "nucleidos_sin_lineas": [...]}``. If the simulation has no cooling data,
+    all three come back empty/None.
+    """
+    t_cool = np.asarray(sim.get("t_cool", []), dtype=float)
+    if len(t_cool) == 0:
+        return {"t_h": None, "lineas": [], "nucleidos_sin_lineas": []}
+
+    idx = int(np.argmin(np.abs(t_cool - t_h)))
+    t_real = float(t_cool[idx])
+
+    datos_cool = sim.get("datos_cool", {})
+    lineas: list[dict] = []
+    sin_lineas: set[str] = set()
+
+    for iso, serie_iso in datos_cool.items():
+        if idx >= len(serie_iso):
+            continue
+        A_t = float(serie_iso[idx])
+        if A_t <= 0:
+            continue
+        entradas = libreria.get(iso)
+        if not entradas:
+            sin_lineas.add(iso)
+            continue
+        for e_kev, intensidad_pct in entradas:
+            lineas.append({
+                "E_keV":              e_kev,
+                "nucleido":           iso,
+                "intensidad_pct":     intensidad_pct,
+                "tasa_fotones_s_cm3": A_t * intensidad_pct / 100.0,
+            })
+
+    return {
+        "t_h":                 t_real,
+        "lineas":              lineas,
+        "nucleidos_sin_lineas": sorted(sin_lineas),
+    }
+
+
 def calcular_informe_isotopo(
     all_data: dict,
     isotopo_key: str,
