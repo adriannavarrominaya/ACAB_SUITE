@@ -449,12 +449,9 @@ la app).
 
 ### Ejecutar un barrido y abrir los resultados en el analyzer
 
-Tras generar un barrido aparece el panel **"Ejecución del barrido"** (también
-accesible más abajo en **"Ejecutar un barrido existente"**, indicando la
-carpeta raíz de un barrido ya generado con su `sweep_manifest.json`):
+Tras generar un barrido aparece el panel **"Ejecución del barrido"**:
 
-1. Pulsa **"Ejecutar barrido"** (o **"Ejecutar"** en el panel de barrido
-   existente).
+1. Pulsa **"Ejecutar barrido"**.
 2. La tabla muestra, por carpeta: **Estado** (Pendiente / En ejecución / OK /
    Fallo / Timeout / Cancelada), **Paso** actual (para el barrido espectral:
    `collaps` / `copiar` / `acab` / `comprobar flujo`) y **Duración**. Un
@@ -466,7 +463,45 @@ carpeta raíz de un barrido ya generado con su `sweep_manifest.json`):
    barrido) y cada subcarpeta tiene su `fort.6` — ábrelas desde el **Fort
    Analyzer** apuntando a la carpeta raíz del barrido para comparar todas las
    simulaciones a la vez (pestaña **Optimización** del analyzer: gráfica de
-   A_pico/t_pico/pureza/rendimiento frente al parámetro barrido).
+   A_pico/t_pico/pureza/rendimiento/actividad específica de yodo frente al
+   parámetro barrido).
+
+Este mismo panel de ejecución es el que se dispara desde la tarjeta
+**"Cargar un barrido generado"** de más abajo cuando pulsas **"Ejecutar
+barrido"** sobre un barrido ya cargado.
+
+### Consultar un barrido ya generado
+
+La tarjeta **"Cargar un barrido generado"**, al final de la pestaña Barrido,
+permite abrir **cualquier** barrido generado por la suite (en esta sesión o
+en una anterior) para ver de qué se compone, sin necesidad de regenerarlo.
+Es el único camino de carga: cargar una carpeta siempre muestra este
+resumen; **"Ejecutar"** es una acción posterior sobre lo ya cargado, no un
+segundo flujo independiente.
+
+1. Indica la **carpeta raíz** del barrido (la que contiene
+   `sweep_manifest.json`), escribiéndola o con el botón de examinar, y pulsa
+   **Cargar**.
+2. La app muestra una vista de **solo lectura** con:
+   - **Tipo de barrido** (uno de los 4 de la sección 9) y su **descripción**.
+   - **Datos de la base** — los parámetros que quedaron fijos en toda la
+     barrida.
+   - **Ficheros excluidos de la copia** — las salidas de ejecuciones previas
+     que se excluyeron al copiar la carpeta base a cada subcarpeta (según el
+     tipo de barrido, ver sección 9); "—" si el manifest es de una versión
+     anterior a esta mejora, sin romper la carga.
+   - Una tabla con una fila por simulación: **Carpeta**, **Valor** (el valor
+     concreto de esa simulación — en el barrido espectral, el **nombre del
+     espectro**, el mismo criterio que usa la pestaña Optimización del Fort
+     Analyzer), **fort.6** (Existe / No existe) y **Estado de ejecución**
+     (Pendiente / En ejecución / OK / Fallo / Timeout / Cancelada si ya
+     existe `batch_results.json`, o un guion si el barrido aún no se ha
+     ejecutado).
+   - Si ya se ejecutó, un resumen agregado (`k OK · f fallo(s) de n`); si no,
+     el aviso "Este barrido todavía no se ha ejecutado."
+3. **Editar queda fuera de esta vista a propósito**: para cambiar cualquier
+   parámetro del barrido, regenéralo (secciones anteriores) — cargar aquí es
+   solo para consultar y, si procede, ejecutar lo que ya existe en disco.
 
 ---
 
@@ -483,6 +518,8 @@ carpeta raíz de un barrido ya generado con su `sweep_manifest.json`):
 | Checksum de espectro KO | Barrido espectral, al importar un fichero CONDERC | La suma de `DATA` no coincide con la línea `TOTAL` del fichero (tolerancia 10⁻³) | El fichero CONDERC probablemente está truncado o corrupto; descárgalo de nuevo desde el OIEA |
 | Badge de aviso direccional | Tabla de espectros del barrido espectral | El espectro importado tiene menos grupos que la librería XSBL (211); expandirlo es la operación menos fiable de la transcripción | Informativo, no bloquea; ten en cuenta esta limitación al interpretar resultados de ese espectro en concreto |
 | E_min en keV en "Rango de energía" | Tabla de espectros del barrido espectral | El espectro es de rango parcial (típico de medidas EXFOR): no llega a la región térmica | No lo uses para comparar reactores entre sí — solo espectros de rango completo son comparables. El síntoma equivalente en los índices espectrales es una fracción térmica de 0,0 % en un reactor que debería ser térmico |
+| "Esta carpeta no contiene un barrido generado por la suite" (HTTP 404) | Cargar un barrido generado | La carpeta indicada no tiene `sweep_manifest.json` en su raíz | Indica la carpeta **raíz** del barrido (donde se generó), no una subcarpeta de simulación |
+| "sweep_manifest.json no se pudo leer (JSON inválido)" (HTTP 422) | Cargar un barrido generado | El manifest está corrupto o truncado | Revisa que la carpeta no se haya movido/editado a mano; regenera el barrido si no se puede recuperar |
 | Colisión de carpetas (HTTP 409) | Generar barrido | Ya existen subcarpetas con el mismo nombre en la carpeta raíz | Confirma sobrescribir si es intencionado, o cambia el prefijo/carpeta raíz |
 | Límite de simulaciones (HTTP 422) | Generar barrido | Se ha pedido generar más de 200 simulaciones | Reduce el rango de valores del barrido |
 | Aviso de coste en disco | Previsualizar barrido | El tamaño estimado (carpeta base × N simulaciones) supera 2 GB | Confirma si tienes espacio suficiente, o reduce N/el tamaño de la carpeta base |
