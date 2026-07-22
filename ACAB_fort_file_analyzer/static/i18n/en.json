@@ -281,7 +281,7 @@
     "field_etiqueta": "Label (legend)",
     "field_fuente": "Source (optional)",
     "field_refsim": "Reference simulation",
-    "field_refsim_hint": "Used to convert the activity unit and for the deviation metrics.",
+    "field_refsim_hint": "Used to convert the activity unit (density/volume). Deviation metrics use the target-simulation selector on the table, not this field.",
     "btn_choose_file": "Choose file…",
     "btn_import": "Import",
     "btn_cancel": "Cancel",
@@ -298,14 +298,18 @@
     "remove_title": "Remove this series",
     "badge_experimental": "experimental",
     "badge_computacional": "comp. ref.",
-    "metrics_title": "Deviation of {label} vs. {sim}",
+    "metrics_tipo_experimental": "experimental",
+    "metrics_tipo_computacional": "computational reference",
+    "metrics_title": "Deviation of {label} [{tipo}] vs. {sim}",
+    "metrics_csv_meta": "Type: {tipo} | Target simulation: {sim}",
     "metrics_mean": "Mean bias: {v} %",
     "metrics_max": "Max deviation: {v} %",
     "metrics_th_t": "t [h]",
-    "metrics_th_aexp": "A exp. [{unit}]",
+    "metrics_th_aserie": "A series [{unit}]",
     "metrics_th_ainterp": "A ACAB interp. [{unit}]",
     "metrics_th_dev": "Dev. [%]",
-    "metrics_export": "Export CSV"
+    "metrics_export": "Export CSV",
+    "target_sim_label": "Target simulation (interpolation):"
   },
 
   "metrics": {

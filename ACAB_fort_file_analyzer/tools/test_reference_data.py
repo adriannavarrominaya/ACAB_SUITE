@@ -193,6 +193,20 @@ def deviation_metrics(exp_points, curve_xs, curve_ys):
     return rows, mean_dev, max_abs_dev
 
 
+def series_for_metrics(series, iso):
+    """Mirror exacto de ACABRefData.seriesForMetrics (Fase 6 del BACKLOG)."""
+    return [s for s in (series or []) if s.get("isotopo") == iso]
+
+
+def resolve_target_sim_name(sim_names, requested_name):
+    """Mirror exacto de ACABRefData.resolveTargetSimName (Fase 6 del BACKLOG)."""
+    if not sim_names:
+        return None
+    if requested_name and requested_name in sim_names:
+        return requested_name
+    return sim_names[0]
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Tests
 # ─────────────────────────────────────────────────────────────────────────────
@@ -302,6 +316,42 @@ def test_deviation_metrics_legacy_11_points() -> None:
           f"desviación máxima equivalente al legacy (Δ={max_abs_dev - LEGACY_MAX:.2f} pp < 2 pp)")
 
 
+def test_series_for_metrics() -> None:
+    section("seriesForMetrics — ambos tipos entran en las métricas (Fase 6 del BACKLOG)")
+    exp_text = (FIXTURES_EXP / "fig6_exp4_experimental_normalizado.csv").read_text(encoding="utf-8")
+    comp_text = (FIXTURES_EXP / "fig6_exp4_computacional_normalizado.csv").read_text(encoding="utf-8")
+    exp_meta = parse_csv_oracle(exp_text)["meta"]
+    comp_meta = parse_csv_oracle(comp_text)["meta"]
+    check(exp_meta.get("tipo") == "experimental", "fixture experimental: meta.tipo = experimental")
+    check(comp_meta.get("tipo") == "computacional_referencia", "fixture computacional: meta.tipo = computacional_referencia")
+
+    loaded_series = [
+        {"id": "s1", "isotopo": "I131", "tipo": exp_meta.get("tipo"), "descripcion": "exp"},
+        {"id": "s2", "isotopo": "I131", "tipo": comp_meta.get("tipo"), "descripcion": "comp"},
+        {"id": "s3", "isotopo": "XE133", "tipo": "experimental", "descripcion": "otro isotopo"},
+    ]
+    for_metrics = series_for_metrics(loaded_series, "I131")
+    check(len(for_metrics) == 2, f"las 2 series de I131 entran en métricas, sea su tipo el que sea (obtenido {len(for_metrics)})")
+    check(any(s["tipo"] == "experimental" for s in for_metrics), "la serie experimental entra")
+    check(any(s["tipo"] == "computacional_referencia" for s in for_metrics),
+          "la serie computacional_referencia TAMBIÉN entra (antes de la Fase 6 se excluía)")
+    check(not any(s["id"] == "s3" for s in for_metrics), "la serie de otro isótopo no entra")
+    check(series_for_metrics([], "I131") == [], "sin series cargadas → lista vacía")
+    check(series_for_metrics(None, "I131") == [], "None → lista vacía (nunca rompe)")
+
+
+def test_resolve_target_sim_name() -> None:
+    section("resolveTargetSimName — selector de simulación objetivo (Fase 6 del BACKLOG)")
+    check(resolve_target_sim_name(["sim1"], None) == "sim1", "una sola simulación → esa, sin selección previa")
+    check(resolve_target_sim_name(["sim1", "sim2"], None) == "sim1",
+          "varias simulaciones sin selección previa → la primera (comportamiento por defecto)")
+    check(resolve_target_sim_name(["sim1", "sim2"], "sim2") == "sim2", "selección previa válida → se respeta")
+    check(resolve_target_sim_name(["sim1", "sim2"], "sim3-ya-no-existe") == "sim1",
+          "selección previa que ya no existe → cae a la primera")
+    check(resolve_target_sim_name([], "sim1") is None, "sin simulaciones cargadas → None")
+    check(resolve_target_sim_name(None, "sim1") is None, "None → None (nunca rompe)")
+
+
 def test_bqcm3_inverse_conversion() -> None:
     section("Inversa de la conversión de unidad (MBq/g → Bq/cm³, mirror de bqcm3FromUnit)")
     densidad = 0.12317
@@ -322,6 +372,8 @@ def main() -> int:
     test_fixture_computacional()
     test_linear_interp_clamped_matches_numpy()
     test_deviation_metrics_legacy_11_points()
+    test_series_for_metrics()
+    test_resolve_target_sim_name()
     test_bqcm3_inverse_conversion()
 
     print(f"\n{'-' * 50}")

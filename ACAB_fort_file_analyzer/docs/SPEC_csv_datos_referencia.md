@@ -30,8 +30,10 @@ t;A;A_err
 
 ## Metadatos (líneas `# clave: valor`, todas opcionales)
 
-- `tipo`: `experimental` (puntos huecos; entra en las métricas de desviación) |
-  `computacional_referencia` (puntos rellenos; solo se dibuja). Defecto: experimental.
+- `tipo`: `experimental` (puntos huecos) | `computacional_referencia` (puntos
+  rellenos). Distinción puramente visual en la gráfica: AMBOS tipos entran en
+  las métricas de desviación, cada uno con su propia tabla (Fase 6 del
+  BACKLOG). Defecto: experimental.
 - `descripcion`: etiqueta de la serie en la leyenda. Defecto: nombre del fichero.
 - `fase`: `irradiacion` | `enfriamiento`. Sin defecto: si falta, el diálogo pregunta.
 - `isotopo`: clave estilo fort.6 (`I131`). Si falta, se asume el isótopo activo del informe.
@@ -60,8 +62,13 @@ t;A;A_err
    metadatos si existen, editables siempre.
 3. Se pueden cargar VARIAS series simultáneamente (p. ej. experimental + referencia
    computacional del paper, como en la Fig. 6); cada una con su etiqueta y estilo.
-   Las métricas de desviación (tabla punto a punto, media, máxima) se calculan solo
-   para las series de tipo experimental, contra la curva de la simulación activa.
+   Las métricas de desviación (tabla punto a punto, media, máxima) se calculan para
+   CADA serie cargada, sea del tipo que sea — una tabla independiente por serie,
+   con el tipo visible en su cabecera (Fase 6 del BACKLOG). Con varias simulaciones
+   cargadas, un desplegable único (fuera de este diálogo, junto a las tablas de
+   desviación) elige contra qué simulación se interpolan TODAS las series; con una
+   sola simulación no aparece. La gráfica sigue mostrando todas las curvas de
+   simulación, independientemente de cuál sea la elegida para las métricas.
 
 ## Fixtures asociados (tests de la Fase 4)
 
@@ -77,3 +84,7 @@ En `tests/fixtures/experimental/`:
   importación. Para superponerlas con sentido físico hace falta analizar el fort.6
   del cuarto experimento. El criterio de aceptación de la Fase 4 sigue siendo el del
   runbook: los 11 puntos del script legacy sobre la ref_sim.
+- Fase 6 del BACKLOG (`ACABRefData.seriesForMetrics`/`resolveTargetSimName`): como
+  una de estas dos series es `experimental` y la otra `computacional_referencia`,
+  el par sirve tal cual para verificar que AMBAS entran ahora en las métricas de
+  desviación (antes solo la experimental).

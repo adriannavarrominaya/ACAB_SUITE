@@ -133,6 +133,37 @@ const metrics = R.computeDeviationMetrics(expPoints, comp_t, comp_A);
 close(metrics.meanDevPct, 7.487912045806161, 'sesgo medio = 7.49 % (oráculo numpy)', 1e-6);
 close(metrics.maxAbsDevPct, 11.475921998900839, 'desviación máxima = 11.48 % (oráculo numpy)', 1e-6);
 
+// ─────────────────────────────────────────────────────────────────────────
+section('seriesForMetrics — ambos tipos entran en las métricas (Fase 6 del BACKLOG)');
+const expText  = fs.readFileSync(path.join(FIXTURES, 'fig6_exp4_experimental_normalizado.csv'), 'utf8');
+const compText = fs.readFileSync(path.join(FIXTURES, 'fig6_exp4_computacional_normalizado.csv'), 'utf8');
+const expParsed  = R.parseCSV(expText);
+const compParsed = R.parseCSV(compText);
+check(expParsed.meta.tipo === 'experimental', 'fixture experimental: meta.tipo = experimental');
+check(compParsed.meta.tipo === 'computacional_referencia', 'fixture computacional: meta.tipo = computacional_referencia');
+
+const loadedSeries = [
+  { id: 's1', isotopo: 'I131', tipo: expParsed.meta.tipo, descripcion: 'exp' },
+  { id: 's2', isotopo: 'I131', tipo: compParsed.meta.tipo, descripcion: 'comp' },
+  { id: 's3', isotopo: 'XE133', tipo: 'experimental', descripcion: 'otro isotopo' },
+];
+const forMetrics = R.seriesForMetrics(loadedSeries, 'I131');
+check(forMetrics.length === 2, 'las 2 series de I131 entran en métricas, sea su tipo el que sea (obtenido ' + forMetrics.length + ')');
+check(forMetrics.some(s => s.tipo === 'experimental'), 'la serie experimental entra');
+check(forMetrics.some(s => s.tipo === 'computacional_referencia'), 'la serie computacional_referencia TAMBIÉN entra (antes de la Fase 6 se excluía)');
+check(!forMetrics.some(s => s.id === 's3'), 'la serie de otro isótopo no entra');
+check(R.seriesForMetrics([], 'I131').length === 0, 'sin series cargadas → lista vacía');
+check(R.seriesForMetrics(null, 'I131').length === 0, 'null → lista vacía (nunca rompe)');
+
+// ─────────────────────────────────────────────────────────────────────────
+section('resolveTargetSimName — selector de simulación objetivo (Fase 6 del BACKLOG)');
+check(R.resolveTargetSimName(['sim1'], null) === 'sim1', 'una sola simulación → esa, sin selección previa');
+check(R.resolveTargetSimName(['sim1', 'sim2'], null) === 'sim1', 'varias simulaciones sin selección previa → la primera (comportamiento por defecto)');
+check(R.resolveTargetSimName(['sim1', 'sim2'], 'sim2') === 'sim2', 'selección previa válida → se respeta');
+check(R.resolveTargetSimName(['sim1', 'sim2'], 'sim3-ya-no-existe') === 'sim1', 'selección previa que ya no existe → cae a la primera');
+check(R.resolveTargetSimName([], 'sim1') === null, 'sin simulaciones cargadas → null');
+check(R.resolveTargetSimName(null, 'sim1') === null, 'null → null (nunca rompe)');
+
 console.log('\n' + '-'.repeat(50));
 console.log('Resultado: ' + passed + ' pasados, ' + failed + ' fallidos');
 process.exit(failed === 0 ? 0 : 1);

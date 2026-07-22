@@ -281,7 +281,7 @@
     "field_etiqueta": "Etiqueta (leyenda)",
     "field_fuente": "Fuente (opcional)",
     "field_refsim": "Simulación de referencia",
-    "field_refsim_hint": "Se usa para convertir la unidad de actividad y para las métricas de desviación.",
+    "field_refsim_hint": "Se usa para convertir la unidad de actividad (densidad/volumen). Las métricas de desviación usan el selector de simulación objetivo de la tabla, no este campo.",
     "btn_choose_file": "Elegir fichero…",
     "btn_import": "Importar",
     "btn_cancel": "Cancelar",
@@ -298,14 +298,18 @@
     "remove_title": "Quitar esta serie",
     "badge_experimental": "experimental",
     "badge_computacional": "comp. ref.",
-    "metrics_title": "Desviación de {label} vs. {sim}",
+    "metrics_tipo_experimental": "experimental",
+    "metrics_tipo_computacional": "computacional de referencia",
+    "metrics_title": "Desviación de {label} [{tipo}] vs. {sim}",
+    "metrics_csv_meta": "Tipo: {tipo} | Simulación objetivo: {sim}",
     "metrics_mean": "Sesgo medio: {v} %",
     "metrics_max": "Desviación máxima: {v} %",
     "metrics_th_t": "t [h]",
-    "metrics_th_aexp": "A exp. [{unit}]",
+    "metrics_th_aserie": "A serie [{unit}]",
     "metrics_th_ainterp": "A ACAB interp. [{unit}]",
     "metrics_th_dev": "Desv. [%]",
-    "metrics_export": "Exportar CSV"
+    "metrics_export": "Exportar CSV",
+    "target_sim_label": "Simulación objetivo (interpolación):"
   },
 
   "metrics": {

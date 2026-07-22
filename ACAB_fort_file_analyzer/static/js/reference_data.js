@@ -280,6 +280,37 @@
     return { rows, meanDevPct, maxAbsDevPct };
   }
 
+  // ───────────────────────────────────────────────────────────────────────
+  // Series que entran en las tablas de desviación + selector de simulación
+  // objetivo (Fase 6 del BACKLOG)
+  // ───────────────────────────────────────────────────────────────────────
+
+  /**
+   * Series de referencia que generan tabla de desviación para un isótopo:
+   * TODAS las cargadas para ese isótopo, sea su tipo `experimental` o
+   * `computacional_referencia` (antes de la Fase 6 solo entraban las
+   * experimentales). La distinción visual en la gráfica (huecos/rellenos) no
+   * cambia: esto solo decide qué series generan tabla de métricas.
+   */
+  function seriesForMetrics(series, iso) {
+    return (series || []).filter(s => s.isotopo === iso);
+  }
+
+  /**
+   * Resuelve qué simulación usar como objetivo de interpolación para TODAS
+   * las tablas de desviación (Fase 6 del BACKLOG: antes cada serie
+   * interpolaba contra la simulación elegida al importarla). Si la
+   * solicitada sigue entre las disponibles se respeta; si no (o no se pidió
+   * ninguna todavía) se usa la primera — mismo comportamiento por defecto
+   * que el `<select>` de importación sin tocar, que el navegador preselecciona
+   * en su primera opción. `null` si no hay ninguna simulación disponible.
+   */
+  function resolveTargetSimName(simNames, requestedName) {
+    if (!simNames || !simNames.length) return null;
+    if (requestedName && simNames.indexOf(requestedName) !== -1) return requestedName;
+    return simNames[0];
+  }
+
   return {
     TIME_UNIT_TO_H,
     parseActivityUnitLabel,
@@ -291,5 +322,7 @@
     buildSeriesPoints,
     linearInterpClamped,
     computeDeviationMetrics,
+    seriesForMetrics,
+    resolveTargetSimName,
   };
 });

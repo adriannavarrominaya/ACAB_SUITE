@@ -112,6 +112,7 @@ const _state = {
   tablesRendered:  false,  // Tab 4 rendered for current selectedIsotopo
   refSeries:       [],     // Fase 4: series de referencia importadas (appState, no disco)
   refImportDraft:  null,   // CSV recién parseado, pendiente de confirmar en el diálogo
+  refMetricsTargetSim: null, // Fase 6: simulación objetivo elegida en el desplegable de métricas (null = primera)
   optimRendered:   false,  // Tab 5 rendered for current selectedIsotopo (Fase 5 opcional, barrido)
   optimYVar:       'a_pico', // variable Y elegida: 'a_pico' | 't_pico' | 'pureza' | 'rendimiento'
   optimXParam:     null,     // clave de parámetro elegida para el eje X (null = por defecto)
@@ -667,6 +668,7 @@ async function doAnalyze(opts = {}) {
   _state.isotopoReport   = null;
   _state.refSeries       = [];
   _state.refImportDraft  = null;
+  _state.refMetricsTargetSim = null;
   _state.optimRendered   = false;
   _state.optimXParam     = null;
   _state.espectroRendered = false;
@@ -2751,8 +2753,20 @@ function renderRefDataList() {
   });
 }
 
-// Deviation-metrics table (mean/max bias vs. its reference simulation) for
-// every EXPERIMENTAL series loaded for the current isotope. Purely a
+/** 'experimental' | 'computacional_referencia' → etiqueta corta para la cabecera de tabla/CSV. */
+function _refTipoLabel(tipo) {
+  return tipo === 'experimental'
+    ? t('refdata.metrics_tipo_experimental')
+    : t('refdata.metrics_tipo_computacional');
+}
+
+// Deviation-metrics table (mean/max bias vs. the target simulation) for
+// EVERY series loaded for the current isotope — both types, experimental AND
+// computacional_referencia (Fase 6 del BACKLOG: antes solo experimental),
+// una tabla independiente por serie con su tipo visible en la cabecera.
+// Con varias simulaciones cargadas, un desplegable único (_state.refMetricsTargetSim,
+// resuelto vía ACABRefData.resolveTargetSimName) elige contra qué simulación
+// se interpolan TODAS las series; con una sola, no se muestra. Purely a
 // percentage, so it is computed in raw Bq/cm³ (unit-invariant); only the
 // displayed A columns are converted to the active unit for readability.
 function renderRefDataMetrics() {
@@ -2760,16 +2774,28 @@ function renderRefDataMetrics() {
   if (!container) return;
   const iso  = _state.selectedIsotopo;
   const sims = _state.analysisData ? _state.analysisData.simulations : {};
-  const expSeries = (_state.refSeries || []).filter(s => s.isotopo === iso && s.tipo === 'experimental');
+  const simNames = Object.keys(sims);
+  const metricSeries = ACABRefData.seriesForMetrics(_state.refSeries, iso);
 
-  if (!expSeries.length) { container.innerHTML = ''; return; }
+  if (!metricSeries.length || !simNames.length) { container.innerHTML = ''; return; }
 
-  container.innerHTML = expSeries.map(s => {
-    const sim = sims[s.refSimName];
-    if (!sim) return '';
+  const targetSimName = ACABRefData.resolveTargetSimName(simNames, _state.refMetricsTargetSim);
+  _state.refMetricsTargetSim = targetSimName;
+  const sim = sims[targetSimName];
+  if (!sim) { container.innerHTML = ''; return; }
+
+  const selectorHtml = simNames.length > 1 ? `
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <label class="small fw-semibold mb-0" for="refdata-target-sim">${t('refdata.target_sim_label')}</label>
+      <select id="refdata-target-sim" class="form-select form-select-sm" style="max-width:260px">
+        ${simNames.map(name => `<option value="${escAttr(name)}" ${name === targetSimName ? 'selected' : ''}>${escHtml(name)}</option>`).join('')}
+      </select>
+    </div>` : '';
+
+  const tablesHtml = metricSeries.map(s => {
     const { xs, ys } = _combinedCurveBqcm3(sim, iso);
-    const expPoints = s.points.map(p => ({ t: p.t_h, A: p.A_bqcm3 }));
-    const metrics = ACABRefData.computeDeviationMetrics(expPoints, xs, ys);
+    const points = s.points.map(p => ({ t: p.t_h, A: p.A_bqcm3 }));
+    const metrics = ACABRefData.computeDeviationMetrics(points, xs, ys);
     const factor = convFactor(sim);
 
     const rows = metrics.rows.map(r => `
@@ -2786,7 +2812,7 @@ function renderRefDataMetrics() {
     return `
       <div class="card shadow-sm mb-2">
         <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <strong class="small">${t('refdata.metrics_title', { label: escHtml(s.descripcion), sim: escHtml(s.refSimName) })}</strong>
+          <strong class="small">${t('refdata.metrics_title', { label: escHtml(s.descripcion), tipo: _refTipoLabel(s.tipo), sim: escHtml(targetSimName) })}</strong>
           <div class="d-flex align-items-center gap-2">
             <span class="badge bg-secondary">${t('refdata.metrics_mean', { v: mean })}</span>
             <span class="badge bg-dark">${t('refdata.metrics_max', { v: max })}</span>
@@ -2800,7 +2826,7 @@ function renderRefDataMetrics() {
           <table class="table table-sm mb-0" style="font-size:0.8rem">
             <thead><tr>
               <th>${t('refdata.metrics_th_t')}</th>
-              <th>${t('refdata.metrics_th_aexp', { unit: unitLabel() })}</th>
+              <th>${t('refdata.metrics_th_aserie', { unit: unitLabel() })}</th>
               <th>${t('refdata.metrics_th_ainterp', { unit: unitLabel() })}</th>
               <th>${t('refdata.metrics_th_dev')}</th>
             </tr></thead>
@@ -2809,6 +2835,16 @@ function renderRefDataMetrics() {
         </div>
       </div>`;
   }).join('');
+
+  container.innerHTML = selectorHtml + tablesHtml;
+
+  const targetSel = document.getElementById('refdata-target-sim');
+  if (targetSel) {
+    targetSel.addEventListener('change', () => {
+      _state.refMetricsTargetSim = targetSel.value;
+      renderRefDataMetrics();
+    });
+  }
 
   container.querySelectorAll('.btn-export-refmetrics').forEach(btn => {
     btn.addEventListener('click', () => exportRefMetricsCSV(btn.dataset.id));
@@ -2820,12 +2856,15 @@ function exportRefMetricsCSV(seriesId) {
   const iso = _state.selectedIsotopo;
   const s = (_state.refSeries || []).find(x => x.id === seriesId);
   if (!s || !_state.analysisData) return;
-  const sim = _state.analysisData.simulations[s.refSimName];
+  const sims = _state.analysisData.simulations;
+  const simNames = Object.keys(sims);
+  const targetSimName = ACABRefData.resolveTargetSimName(simNames, _state.refMetricsTargetSim);
+  const sim = targetSimName ? sims[targetSimName] : null;
   if (!sim) return;
 
   const { xs, ys } = _combinedCurveBqcm3(sim, iso);
-  const expPoints = s.points.map(p => ({ t: p.t_h, A: p.A_bqcm3 }));
-  const metrics = ACABRefData.computeDeviationMetrics(expPoints, xs, ys);
+  const points = s.points.map(p => ({ t: p.t_h, A: p.A_bqcm3 }));
+  const metrics = ACABRefData.computeDeviationMetrics(points, xs, ys);
   const factor = convFactor(sim);
 
   const rows = metrics.rows.map(r => [
@@ -2834,8 +2873,9 @@ function exportRefMetricsCSV(seriesId) {
     (factor !== null && r.A_interp != null) ? r.A_interp * factor : null,
     r.dev_pct,
   ]);
-  const headers = ['t [h]', `A_exp [${unitLabel()}]`, `A_ACAB [${unitLabel()}]`, 'desv [%]'];
+  const headers = ['t [h]', `A_serie [${unitLabel()}]`, `A_ACAB [${unitLabel()}]`, 'desv [%]'];
   const extraMeta = [
+    `# ${t('refdata.metrics_csv_meta', { tipo: _refTipoLabel(s.tipo), sim: targetSimName })}`,
     `# ${t('refdata.metrics_mean', { v: metrics.meanDevPct   != null ? metrics.meanDevPct.toFixed(3)   : '' })}`,
     `# ${t('refdata.metrics_max',  { v: metrics.maxAbsDevPct != null ? metrics.maxAbsDevPct.toFixed(3) : '' })}`,
   ].join('\r\n');
