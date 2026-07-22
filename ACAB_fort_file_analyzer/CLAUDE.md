@@ -51,6 +51,11 @@ App web Flask (monousuario, 127.0.0.1:5001) para analizar ficheros de salida `fo
   clave `figuras` de tipo lista (422 si no), y escribe
   `<folder>/figuras.yaml` en UTF-8 (409 si ya existe y `overwrite` no es
   `true`).
+  B1b del BACKLOG — `POST /api/browse-file` `{title?, initial_dir?}`: variante
+  de `/api/browse-folder` con `filedialog.askopenfilename` (selector nativo
+  de UN fichero, no carpeta) para elegir la ruta de PHOTON.dat desde la
+  propia pestaña "Espectro gamma"; mismo patrón de subprocess tkinter, sin
+  test automático (el diálogo bloquea esperando al usuario).
   B1 del BACKLOG — `POST /api/espectro_gamma` `{folder, sim, t_h, photon_dat_path?}`:
   requiere `/api/analyze` previo sobre `folder` (mismo criterio 404 que
   `/api/isotopo_report`); `sim` por defecto la primera simulación, `t_h` por
@@ -85,6 +90,28 @@ App web Flask (monousuario, 127.0.0.1:5001) para analizar ficheros de salida `fo
   informativa colapsable con los nucleidos presentes sin líneas en la
   librería (`nucleidos_sin_lineas`). Exportación CSV de la tabla de líneas
   con `ACABExport`/`emitCSV`, mismo patrón que el resto de tablas.
+  B1b del BACKLOG (pulido tras primer uso real) — tres arreglos:
+  (1) ruta de PHOTON.dat con explorador nativo de FICHERO (`POST
+  /api/browse-file`, variante de `/api/browse-folder` que usa
+  `filedialog.askopenfilename`) además del campo manual; la última ruta
+  cargada con éxito se recuerda en `localStorage`
+  (`PHOTON_PATH_KEY = 'fort-analyzer-photon-path'`) y se reintenta
+  automáticamente y en silencio (sin toast de error si ya no existe) la
+  primera vez que se abre la pestaña tras un análisis, SOLO si el servidor
+  no autodescubrió ya una librería junto al fort.6 (`_state.espectroAutoLoadDone`
+  evita reintentarlo en cada rebuild). (2) Umbral de tasa mínima POR DEFECTO
+  relativo al máximo del instante (`ACABEspectroGamma.umbralPorDefecto`,
+  máximo/1e6) para que la vista inicial sea legible sin tocar ningún filtro
+  — verificado que NO había bug de escala/recorte en el eje Y (los datos y
+  el autorange de Plotly ya eran correctos; el problema era puramente de
+  legibilidad por el rango dinámico de ~30 décadas de las líneas más
+  débiles). Se recalcula en cada instante/simulación mientras el usuario no
+  toque el campo a mano (`_state.espectroTasaMinTouched`); tecleando "0" se
+  desactiva el filtro explícitamente. (3) Leyenda acotada a los 8 nucleidos
+  de mayor tasa TOTAL (`ACABEspectroGamma.construirTrazasStickTopN`,
+  criterio de U4: nunca volcado completo); el resto se agrupa en una única
+  traza "otros" con color neutro, cuyo hover sigue mostrando el nucleido
+  real de cada punto vía `customdata` (no el nombre de traza compartido).
   Pestaña "Simulaciones" (`renderOverview`): si `sim.desactualizada`, badge de
   aviso con tooltip por simulación junto a `fort6_fecha`, y un banner agregado
   si CUALQUIER sim del análisis está desactualizada (claves i18n
@@ -121,6 +148,7 @@ App web Flask (monousuario, 127.0.0.1:5001) para analizar ficheros de salida `fo
 - `static/js/pureza_time_utils.js` — puro (UMD, sin DOM; F1, `RUNBOOK_F1_pureza_temporal.md`): da forma (rango de eje, clase de badge, formato de fracción del pico) a `informe.metricas[sim].pureza_serie` (P(t) durante el enfriamiento, ya calculado por `fort_analyzer.calcular_pureza_serie`) para la gráfica de la pestaña "Informe Isótopo"; no recalcula pureza ni t_cruce. `purezaYRange`, `estadoBadgeClass`, `formatFraccionPico`. Renderizado (`_renderPurezaSerieChart` en app.js, dos paneles apilados P(t)/A(iso,t) con Plotly) se llama siempre tras `_renderMetricasOptimizacion`.
   F2 del BACKLOG — `_renderActividadEspecificaYodoChart` (app.js, llamada justo después de `_renderPurezaSerieChart`, mismo contenedor de métricas): gráfica de un solo panel de `informe.metricas[sim].actividad_especifica_yodo_serie` (`fort_analyzer.calcular_actividad_especifica_yodo_serie`), mismo dominio temporal que P(t) pero sin umbral ni semáforos (fuera de alcance del diseño F2). Línea vertical + badge en `t_destacado_h`/`valor_destacado_MBq_g` (el t_cruce de pureza, ya resuelto en el servidor). La sección `#aesp-yodo-section` se oculta entera si NINGUNA simulación trae el dato (isótopo seleccionado no es yodo — el servidor ya filtra por elemento, el frontend no repite esa lógica). No tiene módulo `_utils.js` propio: no hay lógica pura reutilizable más allá de pintar con Plotly.
 - `static/js/espectro_gamma_utils.js` — puro (UMD, sin DOM; B1 del BACKLOG): da forma al espectro ya calculado por el servidor (`fort_analyzer.calcular_espectro_gamma`) para la pestaña "Espectro gamma" — `filtrarLineas` (rango de energía + tasa mínima, recorta el ruido de líneas débiles), `agruparPorNucleido`/`nucleidosOrdenados` (coloreado/leyenda por nucleido de origen), `topLineas` (tabla), `construirTrazasStick` (dos trazas de Plotly por nucleido: palotes `mode:'lines'` sin hover propio + marcadores en la punta con el hover rico, mismo `legendgroup` para que el toggle de leyenda afecte a ambas). No recalcula ninguna tasa; solo filtra/agrupa/da forma a lo ya recibido — su verificación vive únicamente en node (como `optim_utils.js`/`pureza_time_utils.js`).
+  B1b del BACKLOG — `umbralPorDefecto(lineas, factor=1e6)` (máximo del instante / factor, 0 si no hay líneas o el máximo es 0); `totalTasaPorNucleido`/`topNNucleidos` (suma de tasas por nucleido, para decidir qué entra en la leyenda — NO la tasa de su línea más fuerte); `construirTrazasStickTopN` (como `construirTrazasStick` pero acota la leyenda a los N nucleidos de mayor tasa total y agrupa el resto en una única traza "otros" de color neutro, con `customdata` por punto para que el hover conserve el nucleido real de cada línea agrupada).
 - `figuras.yaml` — ejemplo real de configuración de figuras (16 figuras del caso Te/Xe/I del TFG); el formato se documenta en README §7. NO se carga automáticamente salvo que la carpeta analizada coincida con esta raíz.
   `docs/ejemplo_figuras_TeO2.yaml` es una plantilla equivalente más simple (15 figuras) pensada para copiar/cargar desde cero.
 - `compare_simulaciones.py` — **[LEGACY]**: la densidad de normalización ya se lee automáticamente de `CONCENTRATIONS(GRAM)` (`leer_fort6_concentraciones`) y la superposición de datos experimentales la cubre `reference_data.js`; no invertir más en este script.
@@ -138,7 +166,7 @@ Suite de tests oro (scripts autocontenidos, sin framework, estilo de la suite):
 - `node tools\test_optim_utils.js` — combinación pura `sweep_manifest` + informe de `static/js/optim_utils.js` (Fase 5 opcional, pestaña Optimización). Sin oráculo Python: no reproduce ninguna fórmula física (esas ya están cubiertas por `test_metricas.py`/`test_fort_analyzer.py`), solo combina/agrupa datos ya calculados — su verificación vive únicamente en node, como `test_export.js`.
 - `node tools\test_pureza_time_utils.js` — funciones puras de `static/js/pureza_time_utils.js` (F1: rango de eje de la gráfica P(t), badge de estado, formato de fracción del pico). Sin oráculo Python: solo da forma a `pureza_serie`, ya calculado y verificado en `test_metricas.py`/`test_api.py` — su verificación vive únicamente en node.
 - `C:\venv\acab-venv\Scripts\python tools\test_photon.py` — B1 del BACKLOG (Fases 1 y 2): `leer_photon_dat` contra el extracto congelado `tests/fixtures/ref_sim/PHOTON_extract.dat` (16 nucleidos I131=18 líneas/XE133=6 líneas, TE131M como entrada distinta de TE131, la línea 364,49 keV/81,2 % del I131 verificada contra ENSDF) y `calcular_espectro_gamma` contra ref_sim (cruce de nombres exacto fort.6↔PHOTON.dat, caso oro en enfriamiento tardío t=4,5 h con tasa(364 keV)=A(I131,4,5h)×0,812 comprobado a mano, I130M presente en el inventario pero ausente del extracto → `nucleidos_sin_lineas` sin romper el resto).
-- `node tools\test_espectro_gamma_utils.js` — funciones puras de `static/js/espectro_gamma_utils.js` (B1: filtrado por energía/tasa, agrupación por nucleido, construcción de trazas de palotes). Sin oráculo Python: solo filtra/agrupa/da forma a `espectro.lineas`, ya calculado y verificado en `test_photon.py` — su verificación vive únicamente en node.
+- `node tools\test_espectro_gamma_utils.js` — funciones puras de `static/js/espectro_gamma_utils.js` (B1: filtrado por energía/tasa, agrupación por nucleido, construcción de trazas de palotes; B1b: `umbralPorDefecto` con el caso oro real de ref_sim en t=3,750h —máximo=13398,0 fotones/(s·cm³), la línea de 364 keV—, `topNNucleidos` por tasa TOTAL no por línea más fuerte, y `construirTrazasStickTopN` —leyenda acotada + grupo "otros" con color neutro y `customdata` por punto—). Sin oráculo Python: solo filtra/agrupa/da forma a `espectro.lineas`, ya calculado y verificado en `test_photon.py` — su verificación vive únicamente en node.
 
 Fixtures en `tests/fixtures/ref_sim/` (simulación v.5 "info thesis") y `tests/fixtures/experimental/` (CSV de la Fase 4); valores oro documentados en `tests/fixtures/README.md` y `docs/SPEC_csv_datos_referencia.md`. Cada script devuelve código de salida 0/1. Regla: cualquier cambio en `fort_analyzer.py` o en los módulos JS puros debe dejar toda la suite (Python + node) en verde y añadir los tests oro correspondientes.
 
@@ -154,5 +182,5 @@ Fixtures en `tests/fixtures/ref_sim/` (simulación v.5 "info thesis") y `tests/f
 
 ## Gotchas
 
-- `/api/browse-folder` abre el selector nativo vía tkinter en subprocess: frágil en instalaciones Python sin tkinter; el campo de ruta manual es el fallback. No convertirlo en dependencia dura de ningún flujo.
+- `/api/browse-folder` y `/api/browse-file` (B1b del BACKLOG, variante de fichero para la ruta de PHOTON.dat) abren el selector nativo vía tkinter en subprocess: frágiles en instalaciones Python sin tkinter; el campo de ruta manual es el fallback en ambos. El diálogo BLOQUEA hasta que el usuario interactúa — no hay test automático para ninguno de los dos (mismo motivo que no hay test de `/api/browse-folder`: no se puede automatizar un diálogo nativo sin colgar la suite).
 - Respuestas JSON pasan por `_sanitize_for_json` (NaN/inf); mantener al añadir endpoints.

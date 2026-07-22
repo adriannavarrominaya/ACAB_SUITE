@@ -126,6 +126,8 @@ const _state = {
   espectroPhotonPath:  '',     // override manual de la ruta de PHOTON.dat
   espectroData:        null,  // última respuesta de /api/espectro_gamma
   espectroFiltros:     { eMinKeV: null, eMaxKeV: null, tasaMin: null }, // sobrevive a rebuilds (cambio de idioma, sim, t)
+  espectroAutoLoadDone: false, // B1b: intento único de recarga desde la ruta recordada en localStorage por análisis
+  espectroTasaMinTouched: false, // B1b: false = el umbral de tasa mínima se recalcula solo (max/1e6); true = manda el valor del usuario
 };
 
 // Simulation colour palette (up to 10 simulations)
@@ -160,6 +162,9 @@ const Z_BY_ELEM = {
 // ─────────────────────────────────────────────────────────────────────────────
 const UNIT_KEY = 'fort-analyzer-unit';
 const VOLUME_KEY = 'fort-analyzer-volume';
+// B1b del BACKLOG — última ruta de PHOTON.dat cargada con éxito (patrón U2:
+// recordar la última carpeta/fichero elegido, precargarlo la próxima vez).
+const PHOTON_PATH_KEY = 'fort-analyzer-photon-path';
 
 function activeUnit() {
   const u = localStorage.getItem(UNIT_KEY) || 'bqcm3';
@@ -669,6 +674,8 @@ async function doAnalyze(opts = {}) {
   _state.espectroT        = null;
   _state.espectroData     = null;
   _state.espectroFiltros  = { eMinKeV: null, eMaxKeV: null, tasaMin: null };
+  _state.espectroAutoLoadDone = false;
+  _state.espectroTasaMinTouched = false;
 
   // Hide sidebar isotope summary card
   document.getElementById('i131-summary-card').classList.add('d-none');
@@ -1204,8 +1211,14 @@ function renderEspectroGamma() {
     <div class="row g-2 align-items-end mb-3">
       <div class="col-auto flex-grow-1" style="max-width:420px">
         <label class="form-label small mb-1" for="espectro-photon-path">${t('espectro.photon_path_label')}</label>
-        <input type="text" class="form-control form-control-sm" id="espectro-photon-path"
-               placeholder="${escAttr(t('espectro.photon_path_placeholder'))}" value="${escAttr(_state.espectroPhotonPath || '')}">
+        <div class="input-group input-group-sm">
+          <input type="text" class="form-control" id="espectro-photon-path"
+                 placeholder="${escAttr(t('espectro.photon_path_placeholder'))}" value="${escAttr(_state.espectroPhotonPath || '')}">
+          <button class="btn btn-outline-secondary" id="btn-espectro-browse-photon" type="button"
+                  title="${escAttr(t('espectro.photon_path_browse_title'))}">
+            <i class="bi bi-folder2-open"></i>
+          </button>
+        </div>
       </div>
       <div class="col-auto">
         <button class="btn btn-outline-primary btn-sm" id="btn-espectro-load-photon">
@@ -1243,6 +1256,10 @@ function renderEspectroGamma() {
   Object.entries(FILTRO_INPUT_IDS).forEach(([id, key]) => {
     document.getElementById(id)?.addEventListener('input', e => {
       _state.espectroFiltros[key] = parseFloatOrNull(e.target.value);
+      // B1b: en cuanto el usuario toca la tasa mínima a mano, deja de
+      // recalcularse el umbral por defecto (su elección manda, "0 = sin
+      // filtro" incluido).
+      if (id === 'espectro-tasa-min') _state.espectroTasaMinTouched = true;
       _renderEspectroChartAndTable();
     });
   });
@@ -1252,13 +1269,48 @@ function renderEspectroGamma() {
     _state.espectroPhotonPath = p;
     fetchEspectroGamma(p);
   });
+  // B1b del BACKLOG — explorador nativo de FICHERO (variante de U2, que usa
+  // la carpeta): rellena la ruta y carga de inmediato, sin paso manual extra.
+  document.getElementById('btn-espectro-browse-photon')?.addEventListener('click', async () => {
+    const browseBtn = document.getElementById('btn-espectro-browse-photon');
+    const icon = browseBtn.querySelector('i');
+    browseBtn.disabled = true;
+    icon.className = 'bi bi-hourglass-split';
+    try {
+      const res = await fetch('/api/browse-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: t('espectro.photon_path_dialog_title') }),
+      });
+      const json = await res.json();
+      if (json.path) {
+        document.getElementById('espectro-photon-path').value = json.path;
+        _state.espectroPhotonPath = json.path;
+        fetchEspectroGamma(json.path);
+      } else if (!json.error) {
+        showToast(t('toast.no_file_selected'), 'secondary');
+      }
+    } catch {
+      showToast(t('toast.browse_file_err'), 'warning');
+    } finally {
+      browseBtn.disabled = false;
+      icon.className = 'bi bi-folder2-open';
+    }
+  });
   document.getElementById('btn-export-espectro')?.addEventListener('click', exportEspectroCSV);
 
   fetchEspectroGamma();
 }
 
-/** POST /api/espectro_gamma para (simulación, instante) actuales del estado. */
-async function fetchEspectroGamma(photonPathOverride) {
+/**
+ * POST /api/espectro_gamma para (simulación, instante) actuales del estado.
+ * *opts.silent*, si true, no muestra toast de error (usado por el intento
+ * automático de recarga desde la ruta recordada en localStorage — "si la
+ * ruta sigue existiendo", B1b del BACKLOG: si ya no existe, se queda
+ * calladamente en el estado "sin librería", no es un fallo del usuario).
+ */
+async function fetchEspectroGamma(photonPathOverride, opts) {
+  opts = opts || {};
   if (!_state.analysisData) return;
   const chartDiv = document.getElementById('espectro-chart');
   if (chartDiv) chartDiv.innerHTML = `<div class="text-muted small p-3">${t('espectro.loading')}</div>`;
@@ -1276,6 +1328,10 @@ async function fetchEspectroGamma(photonPathOverride) {
     });
     const json = await res.json();
     if (!res.ok || !json.ok) {
+      if (opts.silent) {
+        _renderEspectroChartAndTable();
+        return;
+      }
       const msg = (json && json.error) || t('toast.unknown_err');
       showToast(msg, 'danger');
       if (chartDiv) chartDiv.innerHTML = `<div class="alert alert-danger small mb-0">${escHtml(msg)}</div>`;
@@ -1288,7 +1344,28 @@ async function fetchEspectroGamma(photonPathOverride) {
         ? t('espectro.photon_path_status_ok', { path: json.photon_dat_path || '' })
         : t('espectro.photon_path_status_none');
     }
+    if (json.photon_dat_used && json.photon_dat_path) {
+      localStorage.setItem(PHOTON_PATH_KEY, json.photon_dat_path);
+      _state.espectroPhotonPath = json.photon_dat_path;
+      const pathInput = document.getElementById('espectro-photon-path');
+      if (pathInput) pathInput.value = json.photon_dat_path;
+    }
     _renderEspectroChartAndTable();
+
+    // Primer render de esta carpeta analizada solamente: si el servidor no
+    // autodescubrió ninguna librería junto al fort.6, intenta la última ruta
+    // recordada en localStorage (silenciosamente).
+    if (!_state.espectroAutoLoadDone) {
+      _state.espectroAutoLoadDone = true;
+      if (!json.photon_dat_used) {
+        const remembered = localStorage.getItem(PHOTON_PATH_KEY);
+        if (remembered) {
+          const pathInput = document.getElementById('espectro-photon-path');
+          if (pathInput) pathInput.value = remembered;
+          fetchEspectroGamma(remembered, { silent: true });
+        }
+      }
+    }
   } catch (err) {
     showToast(t('toast.net_err', { msg: err.message }), 'danger');
   }
@@ -1312,15 +1389,30 @@ function _renderEspectroChartAndTable() {
     return;
   }
 
+  // B1b del BACKLOG — umbral de tasa mínima POR DEFECTO relativo al máximo
+  // del instante (vista inicial legible sin tocar ningún filtro); una vez
+  // el usuario toca el campo, su elección manda y ya no se recalcula solo
+  // (incluido "0 = sin filtro", que sigue disponible tecleándolo).
+  if (!_state.espectroTasaMinTouched) {
+    const defecto = ACABEspectroGamma.umbralPorDefecto(lineasTodas);
+    _state.espectroFiltros.tasaMin = defecto > 0 ? defecto : null;
+    const tasaInput = document.getElementById('espectro-tasa-min');
+    if (tasaInput) tasaInput.value = defecto > 0 ? Number(defecto.toPrecision(3)) : '';
+  }
+
   const lineas = ACABEspectroGamma.filtrarLineas(lineasTodas, _state.espectroFiltros);
 
   if (!lineas.length) {
     chartDiv.innerHTML = `<div class="alert alert-warning small mb-0">${t('espectro.no_lines_after_filter')}</div>`;
   } else {
     chartDiv.innerHTML = '';
-    const nucleidos = ACABEspectroGamma.nucleidosOrdenados(lineas);
-    const colorFor = nucleido => PALETTE[nucleidos.indexOf(nucleido) % PALETTE.length];
-    const traces = ACABEspectroGamma.construirTrazasStick(lineas, colorFor);
+    // Leyenda acotada a los 8 nucleidos de mayor tasa total (criterio de U4:
+    // nunca volcado completo); el resto se agrupa en una única traza "otros"
+    // con color neutro (el hover de cada punto sigue mostrando su nucleido real).
+    const colorFor = (nucleido, i) => PALETTE[i % PALETTE.length];
+    const traces = ACABEspectroGamma.construirTrazasStickTopN(lineas, colorFor, {
+      topN: 8, colorOtros: '#9e9e9e', otrosLabel: t('espectro.legend_otros'),
+    });
     Plotly.newPlot(chartDiv, traces, {
       xaxis: { title: t('espectro.ax_e'), showgrid: true, gridcolor: '#eee' },
       yaxis: { title: t('espectro.ax_tasa'), type: 'log', exponentformat: 'e', showgrid: true, gridcolor: '#eee' },

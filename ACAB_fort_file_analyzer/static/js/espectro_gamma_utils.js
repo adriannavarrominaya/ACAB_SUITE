@@ -92,11 +92,101 @@
     return trazas;
   }
 
+  /**
+   * B1b del BACKLOG — umbral de tasa mínima POR DEFECTO para que la vista
+   * inicial sea legible sin tocar ningún filtro: relativo al máximo del
+   * INSTANTE actual (no un valor absoluto fijo, que no tendría sentido
+   * entre instantes/simulaciones con actividades muy distintas). 0 si no
+   * hay líneas o el máximo es 0 (no hay nada que recortar).
+   */
+  function umbralPorDefecto(lineas, factor) {
+    factor = factor == null ? 1e6 : factor;
+    if (!lineas || !lineas.length) return 0;
+    const max = lineas.reduce((m, l) => Math.max(m, l.tasa_fotones_s_cm3), 0);
+    return max > 0 ? max / factor : 0;
+  }
+
+  /** Tasa total (suma) por nucleido, para decidir qué entra en la leyenda. */
+  function totalTasaPorNucleido(lineas) {
+    const totales = {};
+    (lineas || []).forEach(l => {
+      totales[l.nucleido] = (totales[l.nucleido] || 0) + l.tasa_fotones_s_cm3;
+    });
+    return totales;
+  }
+
+  /** Los N nucleidos de mayor tasa TOTAL (suma de sus líneas), descendente. */
+  function topNNucleidos(lineas, n) {
+    const totales = totalTasaPorNucleido(lineas);
+    return Object.keys(totales)
+      .sort((a, b) => totales[b] - totales[a])
+      .slice(0, n == null ? undefined : n);
+  }
+
+  /**
+   * Como `construirTrazasStick`, pero con la leyenda acotada a los N
+   * nucleidos de mayor tasa total (criterio de U4: nunca volcado completo);
+   * el resto se agrupa visualmente en una única traza "otros" con color
+   * neutro — el hover de cada punto sigue mostrando su nucleido real
+   * (`customdata`), aunque comparta color/leyenda con los demás agrupados.
+   * *opts.topN* (por defecto 8), *opts.colorOtros* (por defecto gris),
+   * *opts.otrosLabel* (por defecto 'otros' — el caller pasa la traducción).
+   */
+  function construirTrazasStickTopN(lineas, colorFor, opts) {
+    opts = opts || {};
+    const topN = opts.topN == null ? 8 : opts.topN;
+    const colorOtros = opts.colorOtros || '#9e9e9e';
+    const otrosLabel = opts.otrosLabel || 'otros';
+    const OTROS = '__otros__';
+
+    const top = new Set(topNNucleidos(lineas, topN));
+    const grupos = {};
+    (lineas || []).forEach(l => {
+      const grupo = top.has(l.nucleido) ? l.nucleido : OTROS;
+      if (!grupos[grupo]) grupos[grupo] = [];
+      grupos[grupo].push(l);
+    });
+
+    const nombresTop = Object.keys(grupos).filter(g => g !== OTROS).sort();
+    const nombres = grupos[OTROS] ? nombresTop.concat([OTROS]) : nombresTop;
+
+    const trazas = [];
+    nombres.forEach((grupo, i) => {
+      const esOtros = grupo === OTROS;
+      const filas = grupos[grupo].slice().sort((a, b) => a.E_keV - b.E_keV);
+      const color = esOtros ? colorOtros : colorFor(grupo, i);
+      const nombreLeyenda = esOtros ? otrosLabel : grupo;
+      const xSticks = [], ySticks = [];
+      filas.forEach(l => {
+        xSticks.push(l.E_keV, l.E_keV, null);
+        ySticks.push(0, l.tasa_fotones_s_cm3, null);
+      });
+      trazas.push({
+        x: xSticks, y: ySticks, name: nombreLeyenda, mode: 'lines', type: 'scatter',
+        line: { color, width: 1.5 }, legendgroup: grupo, hoverinfo: 'skip',
+        showlegend: true,
+      });
+      trazas.push({
+        x: filas.map(l => l.E_keV), y: filas.map(l => l.tasa_fotones_s_cm3),
+        name: nombreLeyenda, mode: 'markers', type: 'scatter',
+        marker: { color, size: 6 }, legendgroup: grupo, showlegend: false,
+        customdata: filas.map(l => [l.nucleido, l.intensidad_pct]),
+        hovertemplate: 'E = %{x:.2f} keV<br>tasa = %{y:.3e}<br>I = %{customdata[1]:.3g} %'
+          + '<extra>%{customdata[0]}</extra>',
+      });
+    });
+    return trazas;
+  }
+
   return {
     filtrarLineas,
     agruparPorNucleido,
     nucleidosOrdenados,
     topLineas,
     construirTrazasStick,
+    umbralPorDefecto,
+    totalTasaPorNucleido,
+    topNNucleidos,
+    construirTrazasStickTopN,
   };
 });

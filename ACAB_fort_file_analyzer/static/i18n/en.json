@@ -224,6 +224,8 @@
   "toast": {
     "no_folder_selected": "No folder was selected.",
     "browse_err": "Could not open the folder picker.",
+    "no_file_selected": "No file was selected.",
+    "browse_file_err": "Could not open the file picker.",
     "enter_folder": "Enter a folder path.",
     "unknown_err": "Unknown error.",
     "errors_count": "{n} simulation(s) with errors. See the results panel.",
@@ -409,6 +411,9 @@
     "th_nucleido": "Nuclide",
     "th_intensidad": "Intensity [%]",
     "th_tasa": "Rate [photons/(s·cm³)]",
-    "sin_lineas_summary": "{n} nuclides present with no gamma lines in the library"
+    "sin_lineas_summary": "{n} nuclides present with no gamma lines in the library",
+    "photon_path_browse_title": "Browse…",
+    "photon_path_dialog_title": "Select PHOTON.dat",
+    "legend_otros": "other"
   }
 }

@@ -294,6 +294,42 @@ def api_browse_folder():
         return jsonify({"error": str(exc)}), 500
 
 
+@app.route("/api/browse-file", methods=["POST"])
+def api_browse_file():
+    """Open a native OS FILE-picker dialog and return the selected path.
+
+    Variante de `/api/browse-folder` (B1b del BACKLOG) para seleccionar un
+    fichero suelto en vez de una carpeta — p. ej. PHOTON.dat, que vive junto
+    a los datos de la distribución de ACAB, no dentro de una carpeta de
+    simulaciones. Mismo patrón: tkinter filedialog en subprocess.
+    """
+    payload = request.get_json(force=True, silent=True) or {}
+    title = (payload.get("title") or "Seleccionar fichero").replace("'", "")
+    initial_dir = (payload.get("initial_dir") or "").replace("'", "").replace("\\", "\\\\")
+    if not initial_dir or not Path(initial_dir.replace("\\\\", "\\")).is_dir():
+        initial_dir = ""
+    try:
+        script = (
+            "import sys; sys.stdout.reconfigure(encoding='utf-8'); "
+            "import tkinter as tk; from tkinter import filedialog; "
+            "root=tk.Tk(); root.attributes('-topmost',1); root.withdraw(); "
+            f"p=filedialog.askopenfilename(parent=root, title='{title}', "
+            f"initialdir='{initial_dir}'); "
+            "root.destroy(); print(p or '',end='')"
+        )
+        env = __import__("os").environ.copy()
+        env["PYTHONIOENCODING"] = "utf-8"
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True, text=True, timeout=60,
+            encoding="utf-8", env=env,
+        )
+        path = result.stdout.strip()
+        return jsonify({"ok": True, "path": path or None})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 @app.route("/api/gamma-spectrum", methods=["GET"])
 def api_gamma_spectrum():
     return jsonify({"ok": True, "data": GAMMA_I131})

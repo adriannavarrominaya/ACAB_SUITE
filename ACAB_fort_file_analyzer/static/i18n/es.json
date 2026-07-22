@@ -224,6 +224,8 @@
   "toast": {
     "no_folder_selected": "No se seleccionó ninguna carpeta.",
     "browse_err": "No se pudo abrir el selector de carpeta.",
+    "no_file_selected": "No se seleccionó ningún fichero.",
+    "browse_file_err": "No se pudo abrir el selector de fichero.",
     "enter_folder": "Introduce una ruta de carpeta.",
     "unknown_err": "Error desconocido.",
     "errors_count": "{n} simulación(es) con errores. Ver panel de resultados.",
@@ -409,6 +411,9 @@
     "th_nucleido": "Nucleido",
     "th_intensidad": "Intensidad [%]",
     "th_tasa": "Tasa [fotones/(s·cm³)]",
-    "sin_lineas_summary": "{n} nucleidos presentes sin líneas gamma en la librería"
+    "sin_lineas_summary": "{n} nucleidos presentes sin líneas gamma en la librería",
+    "photon_path_browse_title": "Explorar…",
+    "photon_path_dialog_title": "Seleccionar PHOTON.dat",
+    "legend_otros": "otros"
   }
 }
