@@ -375,7 +375,7 @@
 
     if (type === 'mass') {
       if (getInt('b1-INPT') === 2) throw new Error(t('sweep.mass_inpt2'));
-      if (!window._atomicData || !_atomicData.elements)
+      if (!_atomicData || !_atomicData.elements)
         throw new Error(t('sweep.err_no_atomic'));
       const masas   = parseSweepValues(getVal('sweep-mass-values'));
       const formula = getVal('sweep-mass-formula').trim();

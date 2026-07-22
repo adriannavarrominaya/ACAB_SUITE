@@ -83,3 +83,9 @@ autocontenidos ejecutables directamente, sin framework).
   la composición asistida y `compute_xcomp` NO soportan INPT=2.
 - Los ficheros del repo mezclan finales de línea CRLF/LF; no hacer commits que
   renormalicen líneas en masa.
+- `app.js`/`sweep.js`/`calc_utils.js` se cargan como `<script>` clásicos (sin
+  `type="module"`), así que comparten el mismo ámbito global y las variables de
+  nivel superior (`_atomicData`, etc.) se referencian directamente por su
+  nombre, **nunca** vía `window.xxx`: un `let`/`const` de nivel superior en un
+  script clásico no cuelga de `window` (a diferencia de `var`), por lo que
+  `window._atomicData` es siempre `undefined` aunque la variable esté cargada.
