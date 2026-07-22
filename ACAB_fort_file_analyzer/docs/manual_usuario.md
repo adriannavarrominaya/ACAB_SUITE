@@ -16,9 +16,10 @@
 7. [Informe de un isótopo](#7-informe-de-un-isótopo)
 8. [Métricas de optimización de producción](#8-métricas-de-optimización-de-producción)
 9. [Superponer datos experimentales](#9-superponer-datos-experimentales)
-10. [Tablas Comparativas](#10-tablas-comparativas)
-11. [Pestaña "Optimización" (barrido paramétrico)](#11-pestaña-optimización-barrido-paramétrico)
-12. [Errores y avisos frecuentes](#12-errores-y-avisos-frecuentes)
+10. [Pestaña "Espectro gamma"](#10-pestaña-espectro-gamma)
+11. [Tablas Comparativas](#11-tablas-comparativas)
+12. [Pestaña "Optimización" (barrido paramétrico)](#12-pestaña-optimización-barrido-paramétrico)
+13. [Errores y avisos frecuentes](#13-errores-y-avisos-frecuentes)
 
 ---
 
@@ -39,8 +40,11 @@ sola línea de código:
 - Gráficas interactivas de la evolución temporal de la actividad de cada
   isótopo.
 - Un informe completo por isótopo: propiedades nucleares, pico de actividad,
-  espectro gamma (solo ¹³¹I por ahora) y métricas de optimización de
-  producción (saturación, rendimiento, pureza).
+  espectro gamma ENSDF/NNDC (solo ¹³¹I) y métricas de optimización de
+  producción (saturación, rendimiento, pureza, actividad específica de
+  yodo).
+- Una pestaña de **espectro gamma de toda la muestra**, para cualquier
+  nucleido con datos en la librería `PHOTON.dat` de ACAB.
 - Tablas comparativas entre simulaciones.
 - Superposición de datos experimentales o de referencia importados desde CSV.
 - Una pestaña de optimización que combina los resultados con un barrido
@@ -98,9 +102,9 @@ simulación individual.
   **Unidades**, y (tras analizar) la lista de simulaciones cargadas y el
   resumen del isótopo seleccionado.
 - **Panel principal** — antes de analizar, muestra un panel de bienvenida con
-  instrucciones rápidas; después, cinco pestañas de resultados: **Simulaciones**,
-  **Actividad por Isótopo**, **Informe Isótopo**, **Tablas Comparativas** y
-  **Optimización**.
+  instrucciones rápidas; después, seis pestañas de resultados:
+  **Simulaciones**, **Actividad por Isótopo**, **Informe Isótopo**,
+  **Espectro gamma**, **Tablas Comparativas** y **Optimización**.
 - **Selector de idioma** (esquina superior derecha, bandera) — Español/English;
   la preferencia se guarda en el navegador. Los nombres de isótopo y las
   unidades físicas (Bq/cm³, MBq/g…) no se traducen: son notación científica,
@@ -127,7 +131,7 @@ simulación individual.
      forzar un valor concreto.
 3. Pulsa el botón **Analizar**. Mientras se procesa aparece una superposición
    de carga ("Analizando simulaciones…"); al terminar se activa el panel de
-   resultados con sus cinco pestañas.
+   resultados con sus seis pestañas.
 4. Si la carpeta o su directorio padre contienen un YAML de figuras, se
    carga automáticamente y aparece una alerta verde bajo el botón Analizar
    indicando su origen (ver sección 6). Si no hay ninguno, aparece un aviso
@@ -159,9 +163,10 @@ identificado como Rápido, Térmico o Epitérmico g*n* según su posición.
 Más abajo, la sección **"Isótopos detectados en fort.6"** lista todos los
 isótopos presentes como insignias (badges) clicables. Al hacer clic en una,
 ese isótopo queda seleccionado (resaltado en azul) como referencia para el
-**Informe Isótopo** (pestaña 3), las **Tablas Comparativas** (pestaña 4) y la
-**Optimización** (pestaña 5), y se lanza automáticamente la petición del
-informe.
+**Informe Isótopo** (pestaña 3), las **Tablas Comparativas** (pestaña 5) y la
+**Optimización** (pestaña 6), y se lanza automáticamente la petición del
+informe. La pestaña **Espectro gamma** (pestaña 4) no depende de esta
+selección — ver sección 10.
 
 ### Detección de simulaciones desactualizadas
 
@@ -310,8 +315,10 @@ Isótopo**. Contiene, en orden:
    completas (irradiación y enfriamiento) del isótopo, por simulación.
 6. **Espectro Gamma** (ENSDF/NNDC) — **solo aparece si el isótopo
    seleccionado es ¹³¹I**; para el resto de isótopos esta sección no se
-   muestra, porque los datos de espectro gamma solo están integrados para
-   ¹³¹I por ahora.
+   muestra, porque estos datos concretos (ENSDF/NNDC) solo están integrados
+   para ¹³¹I. Para el espectro gamma de **toda la muestra** con cualquier
+   nucleido presente en `PHOTON.dat` (la librería genérica de ACAB), usa la
+   pestaña independiente **"Espectro gamma"** (sección 10).
 
 Cada tabla y cada gráfica de esta pestaña respeta la unidad de actividad
 activa (sección 5) y ofrece su propio botón de exportación CSV donde aplica.
@@ -382,6 +389,77 @@ ordenada de mayor a menor.
 > permite ajustarlo, pero no lo tomes como recomendación general sin
 > revisarlo con tu tutor.
 
+### Pureza P(t) durante el Enfriamiento
+
+Debajo de la tabla de contribuciones, una gráfica de dos paneles apilados
+extiende la pureza puntual del bloque anterior a **toda la ventana de
+enfriamiento** (t = 0 = fin de irradiación), usando la misma lista de
+isótopos considerados:
+
+- **Panel superior** — P(t) = A(isótopo objetivo, t) / Σ A(isótopos
+  considerados, t) en cada paso de enfriamiento, con una línea horizontal en
+  el **umbral de calidad farmacéutica (99,9 %)** y una línea vertical en el
+  instante de cruce, etiquetada "Tiempo mínimo de enfriamiento para calidad
+  farmacéutica". Si el cruce cae entre dos timesteps reales del `fort.6`, el
+  instante se interpola (marcado como "estimado, interpolado"); si el umbral
+  nunca se alcanza en la ventana simulada, la gráfica lo indica sin marcador
+  de cruce.
+- **Panel inferior** — A(isótopo objetivo, t) en la misma escala temporal,
+  para leer de un vistazo cuánta actividad queda cuando se alcanza la
+  pureza.
+
+Junto a la gráfica, por simulación: el instante t<sub>cruce</sub> (o el
+aviso de umbral no alcanzado) y la **ventana de administración** — la
+actividad del isótopo objetivo en ese instante y qué fracción representa de
+su pico. Un aviso adicional aparece si P(t) vuelve a bajar del umbral
+después de cruzarlo (la función no asume monotonicidad).
+
+> **Por qué P(t) crece tras el pico de actividad.** En producción
+> **indirecta** como la de ¹³¹I (vía el precursor ¹³¹Te), las impurezas de
+> yodo suelen decaer más rápido que el isótopo objetivo: aunque la actividad
+> total ya esté bajando, la pureza sigue mejorando durante el enfriamiento.
+> Esta gráfica hace visible ese cruce, que la pureza puntual en el pico
+> (bloque anterior) no muestra.
+
+### Actividad Específica del Yodo A<sub>esp</sub>(t)
+
+Bajo la gráfica de pureza, y **solo si el isótopo seleccionado es un isótopo
+de yodo**, un panel adicional muestra A<sub>esp</sub>(t) = A(objetivo, t) /
+masa TOTAL de yodo presente en la muestra en ese instante [MBq/g], en el
+mismo dominio temporal que P(t). La sección entera queda oculta para
+cualquier otro isótopo.
+
+**Por qué no basta con la pureza radionucleídica.** El I-127 estable y el
+I-129 de vida muy larga no cuentan como "impurezas" en `P(t)` (no son
+isótopos radiactivos que contaminen la señal), pero sí **diluyen** el
+producto: los mismos becquerels de ¹³¹I repartidos entre más gramos de yodo
+total dan menos actividad específica. La masa de yodo suma **todos** los
+isótopos de yodo presentes en el `fort.6` (estables, de vida larga y
+radiactivos), no solo el objetivo.
+
+- Una línea vertical y un badge destacan el valor en **t<sub>cruce</sub> de
+  pureza** (el mismo instante ya resuelto en el bloque anterior) — "qué
+  actividad específica tiene el producto cuando alcanza calidad
+  farmacéutica". Si esa simulación no tiene t<sub>cruce</sub> resuelto
+  (umbral no alcanzado), el badge lo indica en vez de un valor.
+- Esta gráfica **no lleva umbral ni semáforos** (a diferencia de P(t)): es
+  una magnitud de referencia para el diseño del proceso, no un criterio de
+  aceptación validado.
+- A<sub>esp</sub>(t) tiene un **techo físico**: no puede superar la
+  actividad específica del ¹³¹I puro sin ningún diluyente,
+  λ(¹³¹I)·N<sub>A</sub>/masa(¹³¹I) ≈ 4,60×10⁹ MBq/g. Un valor por encima de
+  ese techo en cualquier instante indicaría un error en los datos, no un
+  resultado físico válido.
+- Esta variable también está disponible como **A<sub>esp</sub> yodo** en el
+  selector de la pestaña Optimización (sección 12) para comparar entre
+  espectros o condiciones de un barrido — el valor que se compara es siempre
+  el de t<sub>cruce</sub>, no una serie completa.
+
+> **Unidad fija.** A<sub>esp</sub>(t) siempre se expresa en MBq/g de yodo,
+> independientemente de la unidad de actividad activa (sección 5) — no es
+> la misma magnitud que "MBq/g" del blanco completo (p. ej. TeO₂), así que
+> el selector de unidades no la reconvierte.
+
 ---
 
 ## 9. Superponer datos experimentales
@@ -449,7 +527,77 @@ Exportar CSV.
 
 ---
 
-## 10. Tablas Comparativas
+## 10. Pestaña "Espectro gamma"
+
+A diferencia del Informe Isótopo (secciones 7-9), esta pestaña **no depende
+del isótopo seleccionado**: se activa en cuanto hay una carpeta analizada
+(igual que "Actividad por Isótopo") y muestra el espectro gamma de **toda**
+la muestra en un instante de enfriamiento, combinando el inventario completo
+de isótopos de esa simulación con la librería genérica de líneas gamma de
+ACAB (`PHOTON.dat`) — no solo el ¹³¹I del punto 6 del Informe Isótopo
+(sección 7), que usa datos ENSDF/NNDC distintos y sigue existiendo tal cual.
+
+> **Espectro de EMISIÓN, no de detección.** La gráfica muestra líneas
+> discretas (energía × tasa de fotones emitidos), no la respuesta de un
+> detector real: no incluye resolución energética, eficiencia de detección
+> ni el continuo Compton/bremsstrahlung. Es la magnitud física de partida
+> para diseñar o interpretar una medida, no una simulación de espectro
+> medido.
+
+### Cargar la librería PHOTON.dat
+
+El servidor intenta autodescubrir `PHOTON.dat` junto al `fort.6` de la
+primera simulación, igual que hace con `DECAY.dat`. Si no lo encuentra:
+
+- El campo **"Ruta de PHOTON.dat"** admite teclear la ruta a mano o pulsar el
+  botón de examinar (icono de carpeta) para abrir el selector nativo de
+  **fichero** del sistema operativo (no de carpeta).
+- Pulsa **"Cargar librería"** para aplicar la ruta introducida a mano.
+- La **última ruta cargada con éxito** se recuerda en el navegador
+  (`localStorage`) y se reintenta automáticamente y en silencio la primera
+  vez que abres esta pestaña tras analizar una carpeta — solo si el servidor
+  no autodescubrió ya una librería junto al `fort.6`, y sin avisos si esa
+  ruta ya no existe (no es un error del usuario, simplemente no se
+  precarga).
+- Junto al botón de carga, un texto de estado indica la ruta activa
+  ("Librería cargada: …") o "Sin librería PHOTON.dat cargada."
+
+### Selección de instante y filtros
+
+- **Simulación** (si hay más de una cargada) e **Instante de enfriamiento**
+  — cualquiera de los timesteps reales de esa simulación (no se interpola).
+- **E mín./E máx. [keV]** — recorta el rango de energía mostrado.
+- **Tasa mínima [fotones/s/cm³]** — oculta líneas por debajo del umbral. Se
+  rellena automáticamente con un **valor por defecto legible**: el máximo de
+  tasa del instante dividido por 10⁶, para que la vista inicial no quede
+  dominada por ~30 décadas de rango dinámico entre la línea más intensa y
+  las más débiles. En cuanto tocas este campo a mano, tu valor manda y deja
+  de recalcularse solo — teclear **0** desactiva el filtro explícitamente y
+  muestra todas las líneas.
+
+Los filtros se aplican **en el navegador** sobre lo ya recibido del
+servidor; cambiar de instante o simulación sí relanza la petición al
+servidor (el espectro no viaja entero en el análisis inicial, solo bajo
+demanda).
+
+### Gráfica y tabla
+
+El stick plot de Plotly (eje Y logarítmico) colorea las líneas por
+**nucleido de origen**. Para que la leyenda no se vuelva ilegible con
+inventarios grandes, se acota a los **8 nucleidos de mayor tasa TOTAL**
+(suma de todas sus líneas, no la línea más fuerte); el resto se agrupa en
+una única traza **"otros"** de color neutro — el hover de cada punto sigue
+mostrando el nucleido real, aunque esté agrupado.
+
+Debajo, la tabla **"Líneas principales"** (hasta 50 filas, ordenadas por
+tasa) lista energía, nucleido, intensidad [%] y tasa [fotones/s/cm³], con su
+propio botón **Exportar CSV**. Una sección colapsable aparte lista los
+**nucleidos presentes en el inventario pero sin líneas en la librería**
+cargada (informativo, no bloquea el resto del espectro).
+
+---
+
+## 11. Tablas Comparativas
 
 Pestaña **Tablas Comparativas**, activa tras seleccionar un isótopo. Muestra
 dos tablas cruzadas para todas las simulaciones, usando el isótopo
@@ -465,7 +613,7 @@ son siempre "I-131"). Ambas tablas respetan la unidad de actividad activa.
 
 ---
 
-## 11. Pestaña "Optimización" (barrido paramétrico)
+## 12. Pestaña "Optimización" (barrido paramétrico)
 
 Esta pestaña solo se activa cuando la carpeta analizada contiene, en su
 raíz, un fichero `sweep_manifest.json` — generado por la pestaña "Barrido
@@ -482,24 +630,57 @@ Informe Isótopo (sección 8) — no repite ninguna fórmula física, solo agrup
 datos.
 
 1. Selecciona el **Parámetro (eje X)** — la dimensión del barrido a
-   representar (p. ej. `XNORM`, `mass`, `t_irr_fin`…).
+   representar. En los barridos de flujo, masa y temporal es uno de los
+   parámetros numéricos del `inp.5` (p. ej. `XNORM`, `mass`, `t_irr_fin`…).
+   En el **barrido espectral** el selector ofrece en su lugar:
+   - **"Espectro" (categórico)** — una barra por espectro importado,
+     etiquetada con su nombre (opción por defecto; ver más abajo).
+   - Una **fracción espectral numérica** (`frac_termica`, `frac_epitermica`,
+     `frac_rapida`, en ese orden) si el manifest las incluye — nunca
+     `n_grupos`, que no tiene significado físico como eje X. Con un manifest
+     de una versión anterior a esta mejora, estas opciones aparecen
+     deshabilitadas con una nota, y solo queda disponible la vista por
+     "Espectro".
 2. Selecciona la **Variable (eje Y)**: **A pico** (por defecto), **t pico**,
-   **Pureza radionucleídica en t pico** o **Rendimiento (A pico / T_irr)**.
-3. La **gráfica** de Plotly dibuja Y frente al parámetro elegido; si el
-   barrido varía más de un parámetro numérico (p. ej. un barrido temporal con
-   tiempo final y número de pasos), las demás dimensiones se representan
-   como series de color distintas.
+   **Pureza radionucleídica en t pico**, **Rendimiento (A pico / T_irr)** o
+   **Actividad específica de yodo (en t cruce de pureza)** — esta última
+   solo tiene valor cuando el isótopo seleccionado es un isótopo de yodo (ver
+   sección 8); para el resto de isótopos las simulaciones aparecen sin dato
+   en esa variable.
+3. La **gráfica** de Plotly dibuja Y frente al parámetro elegido:
+   - Flujo, masa y temporal: si el barrido varía más de un parámetro
+     numérico (p. ej. un barrido temporal con tiempo final y número de
+     pasos), las demás dimensiones se representan como series de color
+     distintas.
+   - Barrido espectral con eje X **"Espectro"**: **una sola** serie de
+     barras (una por espectro, con su nombre en el eje X) — nunca una
+     leyenda con el volcado de parámetros de cada simulación.
+   - Barrido espectral con eje X **numérico** (una fracción espectral): **una
+     sola** serie de dispersión, sin agrupar por parámetros, con el nombre de
+     cada espectro como etiqueta de texto junto a su punto (dos puntos muy
+     próximos en X se escalonan arriba/abajo para no solaparse — típico con
+     varios reactores reales de fracción térmica parecida).
 4. Debajo, la **tabla** lista una fila por simulación del barrido con sus
-   columnas de parámetros, A<sub>pico</sub>, t<sub>pico</sub>, pureza y
-   rendimiento medio.
+   columnas de parámetros (o el nombre del espectro, en el barrido
+   espectral), A<sub>pico</sub>, t<sub>pico</sub>, pureza y rendimiento
+   medio.
 5. La descripción y el tipo del barrido (campo `description`/`sweep_type` del
    manifest) aparecen como subtítulo.
 6. Botón **Exportar CSV** con todas las columnas de la tabla, en la unidad
    activa.
 
+> **Por qué el barrido espectral no usa el selector de parámetro genérico.**
+> Sus dimensiones (`n_grupos`, fracciones espectrales) son numéricas por
+> naturaleza pero identifican reactores distintos, no una variable continua
+> barrida a propósito: agruparlas como series de color produce una leyenda
+> con un volcado de parámetros ilegible. El nombre del espectro (columna
+> `espectro` del manifest) es el identificador visual en ambos modos de eje
+> X, igual que en la vista de "Consultar un barrido ya generado" del INP
+> File Configurator.
+
 ---
 
-## 12. Errores y avisos frecuentes
+## 13. Errores y avisos frecuentes
 
 | Aviso / mensaje | Dónde aparece | Qué significa | Qué hacer |
 |---|---|---|---|
@@ -508,7 +689,12 @@ datos.
 | Estado vacío en "Actividad por Isótopo" | Pestaña Actividad por Isótopo | `figuras` está vacío — sin YAML no hay figuras por defecto | Igual que arriba: cargar YAML o usar el editor |
 | "MBq/g no disponible: el fort.6 no incluye la sección CONCENTRATIONS(GRAM)." | Tarjeta Unidades | Esa simulación no tiene densidad calculable | Usa Bq/cm³ o actividad total (con volumen manual) para esa simulación |
 | "{sim}: sin densidad, omitida en MBq/g." | Gráficas/informe en modo MBq/g | Una simulación concreta del análisis no tiene densidad | El resto de simulaciones se muestran igual; esa serie se omite solo en MBq/g |
-| Sección "Espectro Gamma" ausente | Informe Isótopo | El isótopo seleccionado no es ¹³¹I — el espectro gamma solo está integrado para ese isótopo por ahora | Normal; no es un error. Está prevista una fase futura para soporte genérico (ver README) |
+| Sección "Espectro Gamma" (ENSDF/NNDC) ausente | Informe Isótopo | El isótopo seleccionado no es ¹³¹I — esos datos concretos solo están integrados para ese isótopo | Normal; no es un error. Para el espectro gamma de toda la muestra con cualquier nucleido, usa la pestaña independiente "Espectro gamma" (sección 10) |
+| "sin datos de enfriamiento." | Bloque Pureza P(t) / Actividad Específica de Yodo (Informe Isótopo) | La simulación no tiene fase de enfriamiento | Normal para simulaciones de solo irradiación; ese bloque no aplica a esa simulación |
+| Sección "Actividad Específica del Yodo" oculta | Informe Isótopo | El isótopo seleccionado no es un isótopo de yodo | Normal; selecciona un isótopo de yodo (I127, I129, I131…) para ver esta métrica |
+| "Esta simulación no tiene datos de enfriamiento." | Pestaña Espectro gamma | La simulación elegida no tiene fase de enfriamiento — no hay ningún instante que mostrar | Elige otra simulación del análisis, si la hay |
+| "No se ha encontrado ni cargado ningún PHOTON.dat…" | Pestaña Espectro gamma | El servidor no autodescubrió la librería junto al `fort.6` y tampoco había una ruta recordada válida | Indica la ruta de `PHOTON.dat` (campo manual o explorador) y pulsa "Cargar librería" |
+| "Ninguna línea cumple el filtro de energía/tasa actual." | Pestaña Espectro gamma | Los filtros de E mín./E máx./tasa mínima excluyen todas las líneas del instante | Amplía el rango de energía o baja la tasa mínima (tecleando 0 la desactivas) |
 | "no aplicable (semivida desconocida o T<sub>irr</sub> = 0)." | Bloque Saturación (Informe Isótopo) | El isótopo no tiene semivida conocida, o la simulación tiene T<sub>irr</sub> = 0 | Revisa que el isótopo tenga entrada en `DECAY.dat`/YAML `semividas`, o que la simulación incluya irradiación |
 | "sin T_irr > 0." | Bloque Rendimiento | La simulación no tiene fase de irradiación | Normal para simulaciones de solo enfriamiento; ese bloque no aplica |
 | "sin t<sub>pico</sub> o actividad total nula." | Bloque Pureza | El isótopo objetivo no alcanza actividad significativa en esa simulación | Revisa que el isótopo esté realmente presente en esa simulación |
