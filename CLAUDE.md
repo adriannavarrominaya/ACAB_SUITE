@@ -1,4 +1,4 @@
-<!-- Guardar como: TFG_ACAB/CLAUDE.md  (carpeta padre que contiene los tres repos y acab_suite/) -->
+<!-- Guardar como: ACAB_SUITE/CLAUDE.md  (carpeta padre que contiene los tres repos y acab_suite/) -->
 
 # Suite ACAB — TFG optimización de producción de ¹³¹I
 

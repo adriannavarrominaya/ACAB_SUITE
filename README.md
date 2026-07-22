@@ -154,7 +154,7 @@ Requisito común: Python 3.10+ (probado con 3.14) y pip.
 ## 6. Estructura del repositorio
 
 ```
-TFG_ACAB/
+ACAB_SUITE/
 ├── COLLAPS_inp_file_configurator/   # app Flask — puerto 5002
 ├── ACAB_inp_file_configurator/      # app Flask — puerto 5000
 ├── ACAB_fort_file_analyzer/         # app Flask — puerto 5001
