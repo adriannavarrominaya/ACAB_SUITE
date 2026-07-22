@@ -27,3 +27,4 @@ Flujo de trabajo del usuario: COLLAPS (espectro) → inp.5 (entrada ACAB) → ej
 - **Forma canónica de arrancar la suite:** `acab_suite/suite_launcher.py` (lanza las tres apps, health-check y abre el navegador). Ver `acab_suite/README.md`.
 - Idioma de la UI: español (con i18n es/en donde el repo lo soporte). Código y docstrings: el estilo ya existente de cada repo (mezcla es/en) — no "normalizar" idiomas en masa.
 - Las tres apps ligan a 127.0.0.1 y son monousuario; no introducir dependencias de despliegue multiusuario ni autenticación.
+- **Ejecución de los tests:** `acab_suite/tools/run_all_tests.ps1` lanza todos los tests de las tres apps, generando un informe final con el resultado de la ejecución.
