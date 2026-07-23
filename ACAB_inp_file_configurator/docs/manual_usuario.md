@@ -364,12 +364,51 @@ deshabilita este tipo de barrido si el fichero base usa ese modo.
 
 ### 9.3 Barrido temporal
 
-Cada fila de la tabla define una simulación con sus propias fases de
-irradiación y/o enfriamiento: **tiempo final de irradiación**, **pasos de
-irradiación**, **tiempo final de enfriamiento**, **pasos de enfriamiento**.
-Los campos que dejes vacíos conservan la fase correspondiente del fichero
-base. Usa **"Añadir fila"** para cada simulación adicional. `NOTTS` (Bloque
-#11) se sincroniza automáticamente por simulación.
+Cada simulación es una **tarjeta** de un acordeón, y cada tarjeta lleva su
+propio historial temporal **completo** — el mismo editor de tramos del
+generador manual (sección 6): mismo cálculo, misma validación, mismos
+mensajes de error. No se repite aquí la semántica (tiempo final acumulado,
+pasos 1–10, tiempos estrictamente crecientes, enfriamiento relativo al fin
+de la irradiación); consulta la sección 6. Cada tarjeta fija también su
+propio `IUNIT`/`IOUT`/`IPLOT`, independiente de las demás.
+
+- **Tarjeta plegada** — resumen compacto: número de tramos y tiempo final
+  de cada fase (p. ej. "irr: 3 tramos hasta 40 · cool: 2 tramos hasta
+  168"). **Tarjeta desplegada** — el editor de tramos completo, igual que
+  en la sección 6.
+- **La primera tarjeta se siembra** con el historial del fichero base
+  cargado, con un aviso visible en la propia tarjeta: el `inp.5` solo
+  guarda la lista plana de pasos ya calculados, no los tramos originales
+  que los produjeron, así que la siembra **colapsa la malla a un único
+  tramo por fase** (conservando el tiempo final de cada una). Si
+  necesitas reproducir la malla intermedia original con varios tramos,
+  edítala a mano en esa tarjeta antes de generar — el aviso te lo recuerda
+  cada vez que se siembra.
+- **Duplicar** (icono junto al título de la tarjeta) inserta una copia
+  idéntica justo a continuación; útil para variar solo un tramo entre
+  simulaciones parecidas. **Eliminar** quita la tarjeta.
+- **"Añadir simulación"** duplica la **última** tarjeta del acordeón.
+- Cada tarjeta es un historial **completo y explícito**: a diferencia de
+  los demás tipos de barrido, aquí no existe "deja el campo vacío para
+  conservar la fase del fichero base" — si una fase debe quedar igual que
+  la de otra simulación, cópiala con **Duplicar**.
+
+`NOTTS` (Bloque #11) se sincroniza automáticamente por simulación, igual
+que en el generador manual.
+
+> **Sufijos de carpeta.** El sufijo de cada simulación deriva del tiempo
+> final de irradiación (p. ej. `Tirr040.0h`). Si dos simulaciones comparten
+> el mismo tiempo final de irradiación pero tramos distintos (misma
+> duración total, distinta segmentación), la app añade un índice al
+> sufijo (`_2`, `_3`…) para que no colisionen de carpeta.
+>
+> **En el manifest.** Además de `t_irr_fin`/`t_cool_fin` (el valor que
+> sigue consumiendo la pestaña Optimización del Fort Analyzer como eje X,
+> sin cambios), cada simulación guarda su historial completo
+> (`historial_irr`/`historial_cool`, la lista de tramos de cada fase) en
+> `sweep_manifest.json`, para trazabilidad. En `sweep_manifest.csv` ese
+> historial aparece como JSON dentro de la celda correspondiente, no como
+> un volcado de texto de Python.
 
 ### 9.4 Barrido espectral (COLLAPS)
 
