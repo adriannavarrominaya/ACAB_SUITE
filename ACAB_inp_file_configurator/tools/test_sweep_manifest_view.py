@@ -74,6 +74,23 @@ SPECTRUM_MANIFEST = {
     'excluded_base_files': ['fort.6', 'collaps/XSECTION.dat', 'collaps/FLUX.inf'],
 }
 
+# Caso oro U7: manifest NUEVO (historial multi-tramo en params, junto a los
+# escalares t_irr_fin/t_cool_fin de siempre) -- prueba que sweep_manifest_view
+# no necesita cambios: _sim_value_label solo lee los escalares, las claves
+# nuevas (arrays) se ignoran sin romper nada.
+TIME_MANIFEST_MULTI_TRAMO = {
+    'timestamp': '2026-07-22T10:00:00+00:00', 'sweep_type': 'time',
+    'description': 'barrido temporal multi-tramo (U7)', 'fixed_params': {},
+    'n': 1,
+    'simulations': [{'folder': 'Tirr040.0h',
+                      'params': {
+                          't_irr_fin': 40, 't_cool_fin': 168,
+                          'historial_irr': [{'t_fin': 10, 'pasos': 5}, {'t_fin': 40, 'pasos': 8}],
+                          'historial_cool': [{'t_fin': 20, 'pasos': 4}, {'t_fin': 168, 'pasos': 6}],
+                      }}],
+    'excluded_base_files': ['fort.6'],
+}
+
 # Caso oro PRE-C4: sin la clave 'excluded_base_files' (trampa principal de U6).
 PRE_C4_MANIFEST = {
     'timestamp': '2026-06-01T10:00:00+00:00', 'sweep_type': 'flux',
@@ -124,6 +141,17 @@ class BuildManifestViewGoldenTests(unittest.TestCase):
         self.assertEqual(view['sweep_type'], 'time')
         self.assertEqual(view['simulations'][0]['value_label'],
                           'T_irr=24h, T_cool=4.5h')
+
+    def test_time_multi_tramo_manifest_new_shape_unaffected(self):
+        """U7: un manifest NUEVO (con historial_irr/historial_cool) da el
+        mismo value_label que la forma plana vieja -- sweep_manifest_view no
+        necesita cambios, las claves nuevas se ignoran sin romper nada."""
+        root = self.tmp / 'time_multi'
+        _write_manifest(root, TIME_MANIFEST_MULTI_TRAMO)
+        view = build_manifest_view(root)
+        self.assertEqual(view['sweep_type'], 'time')
+        self.assertEqual(view['simulations'][0]['value_label'],
+                          'T_irr=40h, T_cool=168h')
 
     def test_spectrum_uses_spectrum_name_never_param_dump(self):
         root = self.tmp / 'spectrum'

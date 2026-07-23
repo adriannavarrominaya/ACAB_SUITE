@@ -10,6 +10,8 @@ un inp.5 inválido / no re-parseable, y el barrido espectral (coll_patch):
 escritura de collaps/COLL.inp por sim, 422 si falta collaps/COLL.inp en la
 base, y round-trip del COLL.inp generado.
 """
+import csv
+import io
 import json
 import shutil
 import sys
@@ -104,6 +106,79 @@ class SweepEndpointTests(unittest.TestCase):
         self.assertTrue((root / 'README.txt').exists())
         self.assertTrue((root / 'run_all.ps1').exists())
         self.assertTrue((root / 'run_all.sh').exists())
+
+    def test_time_sweep_byte_identical_manual_vs_sweep_path(self):
+        """U7 del BACKLOG: refresco automatizado de "Control de malla" (README
+        de acab_suite, verificado antes a mano con fc) para el caso
+        multi-tramo. Prueba la identidad del CAMINO DE ESCRITURA del servidor
+        (deep_merge + _write_inp5, vía sweep_writer, vs _write_inp5 directo,
+        vía el flujo manual) -- NO las matemáticas de la malla, ya cubiertas
+        por el test de equivalencia buildTimePatches ≡ buildBlocks78 en
+        tools/test_sweep_utils.js. El blocks78 usado aquí es un literal
+        cualquiera válido: lo único que importa es que ambos caminos reciban
+        el MISMO patch.
+        """
+        blocks78 = {
+            'sets': [
+                {'MMN': 2, 'MOUT': 3, 'NGO': 1, 'MSUB': 0, 'IUNIT': 3,
+                 'MFEED': 0, 'IOUT': 1, 'IPLOT': 0, 'TIMES': [10.0, 20.0, 5.0]},
+                {'MMN': 0, 'MOUT': 2, 'NGO': 0, 'MSUB': 3, 'IUNIT': 3,
+                 'MFEED': 0, 'IOUT': 1, 'IPLOT': 0, 'TIMES': [15.0, 30.0]},
+            ],
+            'times': [[10.0, 1], [20.0, 1], [5.0, 0], [15.0, 0], [30.0, 0]],
+        }
+        # block13.ITSO tiene un elemento por NOTTS (app.py::_write_inp5,
+        # rama Block #13): el default de _default_data() trae NOTTS=1 /
+        # ITSO=[1] consistentes entre sí; al subir NOTTS a 2 hay que ampliar
+        # ITSO en el mismo patch o el inp.5 generado queda desincronizado
+        # (gotcha preexistente del formato, no específico de U7 -- el editor
+        # de tramos no toca block13, igual que el flujo manual de hoy).
+        patch = {'blocks78': blocks78, 'block11': {'NOTTS': 2}, 'block13': {'ITSO': [1, 1]}}
+
+        # Camino "manual": generarB78() deja blocks78/NOTTS en appState.data
+        # y el guardado pasa por _write_inp5 directamente.
+        content_manual = appmod._write_inp5(deep_merge(self.data, patch))
+
+        # Camino "barrido": una sola simulación temporal con el MISMO patch.
+        root = self.tmp / 'time_out'
+        historial_irr  = [{'t_fin': 10.0, 'pasos': 2}, {'t_fin': 20.0, 'pasos': 1}]
+        historial_cool = [{'t_fin': 30.0, 'pasos': 2}]
+        sims = [{
+            'suffix': 'Tirr020.0h',
+            'params': {
+                't_irr_fin': 20.0, 't_cool_fin': 30.0,
+                'historial_irr': historial_irr, 'historial_cool': historial_cool,
+            },
+            'patch': patch,
+        }]
+        r = self.client.post('/api/sweep', json={
+            'root': str(root), 'base_folder': str(self.base), 'prefix': '',
+            'description': 'barrido temporal multi-tramo', 'sweep_type': 'time',
+            'fixed_params': {}, 'data': self.data, 'sims': sims})
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        body = r.get_json()
+        self.assertTrue(body['ok'])
+
+        content_sweep = (root / 'Tirr020.0h' / 'inp.5').read_text(encoding='utf-8')
+        self.assertEqual(content_manual, content_sweep,
+                          'inp.5 del barrido debe ser BYTE-IDÉNTICO al del flujo manual')
+        _roundtrip_check(content_sweep, ACABParser(), 'Tirr020.0h')
+
+        manifest = json.loads((root / 'sweep_manifest.json').read_text(encoding='utf-8'))
+        sim_params = manifest['simulations'][0]['params']
+        self.assertEqual(sim_params['t_irr_fin'], 20.0,
+                          'valor barrido (eje X del analyzer) sigue siendo t_irr_fin numérico')
+        self.assertEqual(sim_params['historial_irr'], historial_irr)
+        self.assertEqual(sim_params['historial_cool'], historial_cool)
+
+        # El CSV del manifest es un entregable de trazabilidad: el historial
+        # multi-tramo debe quedar como JSON válido en su celda, no como repr
+        # de Python (_manifest_csv::_csv_cell).
+        csv_txt = (root / 'sweep_manifest.csv').read_text(encoding='utf-8')
+        rows = list(csv.reader(io.StringIO(csv_txt)))
+        header, data_row = rows[0], rows[1]
+        hist_irr_cell = data_row[header.index('historial_irr')]
+        self.assertEqual(json.loads(hist_irr_cell), historial_irr)
 
     def test_preview(self):
         root = self.tmp / 'pv'

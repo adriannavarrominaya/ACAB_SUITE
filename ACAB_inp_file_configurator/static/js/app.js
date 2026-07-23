@@ -332,11 +332,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   initEgrpPresets();
 
   // ── Temporal history (Blocks #7/#8) generator ──────────────────────────
-  const btnAddIrr  = document.getElementById('btn-b78-add-irr');
-  const btnAddCool = document.getElementById('btn-b78-add-cool');
+  wireB78EditorButtons('b78', _b78MarkDirty);
   const btnGenerar = document.getElementById('btn-b78-generar');
-  if (btnAddIrr)  btnAddIrr.addEventListener('click',  () => addB78PhaseRow('irr'));
-  if (btnAddCool) btnAddCool.addEventListener('click', () => addB78PhaseRow('cool'));
   if (btnGenerar) btnGenerar.addEventListener('click', generarB78);
 
   // ── Block #11 conditional visibility ─────────────────────────────────────
@@ -1568,41 +1565,25 @@ function collectBlock6() {
 
 // ---------------------------------------------------------------------------
 // Blocks #7/#8 — Temporal history generator (port of generador_acab.py)
+//
+// El editor de tramos (tablas + IUNIT/IOUT/IPLOT) vive en
+// static/js/b78_editor.js como componente reutilizable (prefijo de ids
+// parametrizable) -- U7 del BACKLOG lo instancia también por tarjeta en el
+// barrido temporal. Esta sección es solo el wrapper de la pestaña manual
+// (prefijo fijo 'b78' sobre su markup estático de index.html), que añade el
+// efecto lateral propio del formulario principal (marcar "dirty").
 // ---------------------------------------------------------------------------
 
-function addB78PhaseRow(phase, t_fin = '', pasos = '') {
-  const tbody = document.getElementById(`b78-${phase}-tbody`);
-  const idx   = tbody.querySelectorAll('tr').length + 1;
-  const tr    = document.createElement('tr');
-  tr.innerHTML = `
-    <td class="text-center text-muted small align-middle b78-row-num">${idx}</td>
-    <td><input type="number" class="form-control form-control-sm b78-t-fin"
-               step="any" min="0" value="${t_fin}" placeholder="${t('b78.ph_time')}"></td>
-    <td><input type="number" class="form-control form-control-sm b78-pasos"
-               min="1" max="10" step="1" value="${pasos}" placeholder="${t('b78.ph_steps')}"></td>
-    <td class="text-center align-middle">
-      <button class="btn btn-sm btn-outline-danger p-1 lh-1"
-              onclick="this.closest('tr').remove(); renumberB78Rows('${phase}')">
-        <i class="bi bi-x-lg"></i>
-      </button>
-    </td>`;
-  tbody.appendChild(tr);
-  tr.querySelectorAll('input').forEach(el => el.addEventListener('change', () => {
-    if (!appState.dirty) { appState.dirty = true; setStatus(appState.filename, true); }
-  }));
-}
-
-function renumberB78Rows(phase) {
-  document.querySelectorAll(`#b78-${phase}-tbody tr .b78-row-num`)
-    .forEach((td, i) => { td.textContent = i + 1; });
+function _b78MarkDirty() {
   if (!appState.dirty) { appState.dirty = true; setStatus(appState.filename, true); }
 }
 
+function addB78PhaseRow(phase, t_fin = '', pasos = '') {
+  addB78EditorRow('b78', phase, t_fin, pasos, _b78MarkDirty);
+}
+
 function getB78PhaseEntradas(phase) {
-  return [...document.querySelectorAll(`#b78-${phase}-tbody tr`)].map(tr => ({
-    t_fin: parseFloat(tr.querySelector('.b78-t-fin').value),
-    pasos: parseInt(tr.querySelector('.b78-pasos').value, 10),
-  }));
+  return getB78EditorFase('b78', phase);
 }
 
 /* calcularVectorTiempos y buildBlocks78 viven en static/js/sweep_utils.js
@@ -1637,14 +1618,11 @@ function generarB78() {
   valMsg.classList.add('d-none');
   okMsg.classList.add('d-none');
   try {
-    const irrEntradas  = getB78PhaseEntradas('irr');
-    const coolEntradas = getB78PhaseEntradas('cool');
+    const { fasesIrr: irrEntradas, fasesCool: coolEntradas } = getB78EditorFases('b78');
     if (irrEntradas.length === 0 && coolEntradas.length === 0)
       throw new Error(t('b78.no_phase'));
 
-    const iunit = getInt('b78-iunit') || 3;
-    const iout  = document.getElementById('b78-iout')?.checked  ? 1 : 0;
-    const iplot = document.getElementById('b78-iplot')?.checked ? 1 : 0;
+    const { iunit, iout, iplot } = getB78EditorIunitIoutIplot('b78');
 
     const { sets, times } = buildBlocks78(irrEntradas, coolEntradas,
                                           { iunit, iout, iplot, t });

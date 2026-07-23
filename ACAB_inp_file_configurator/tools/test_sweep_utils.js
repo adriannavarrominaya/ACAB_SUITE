@@ -5,7 +5,12 @@
  *   buildMassPatches  — reutiliza el caso oro de calc_utils (0.1231 g TeO2)
  *   buildFluxPatches  — modo 'phi' (φ_base=2e14, objetivo=1e14 → XNORM=0.5)
  *   parseSweepValues / proposeSuffix — casos límite
- *   buildTimePatches  — sincroniza block11.NOTTS con el nº de sets
+ *   buildTimePatches  — historiales multi-tramo (U7): sincroniza
+ *                        block11.NOTTS, params.t_irr_fin/t_cool_fin y
+ *                        equivalencia estructural con buildBlocks78 (mismo
+ *                        cálculo que el generador manual)
+ *   summarizeFases / insertDuplicate / uniqueSuffix — lógica pura del
+ *                        acordeón de tarjetas (resumen, duplicar, sufijos)
  */
 'use strict';
 const fs   = require('fs');
@@ -13,7 +18,8 @@ const path = require('path');
 const {
   calcularVectorTiempos, buildBlocks78, parseSweepValues, proposeSuffix,
   buildFluxPatches, fluxBaseTotal, buildMassPatches, buildTimePatches,
-  fluxValuesPlaceholder, fluxSweepGuardrail,
+  fluxValuesPlaceholder, fluxSweepGuardrail, summarizeFases, insertDuplicate,
+  uniqueSuffix,
 } = require('../static/js/sweep_utils.js');
 
 const atomic = JSON.parse(fs.readFileSync(
@@ -144,18 +150,98 @@ check("proposeSuffix('mass',1.5) = 'm1.500g'", proposeSuffix('mass', 1.5) === 'm
 check("proposeSuffix('time',48) = 'Tirr048.0h'", proposeSuffix('time', 48) === 'Tirr048.0h');
 check("proposeSuffix('xnorm',1) = 'x1'", proposeSuffix('xnorm', 1) === 'x1');
 
-// ── buildTimePatches: sincroniza NOTTS ──────────────────────────────────────
-const tp = buildTimePatches(
-  [{ t_irr_fin: 10, pasos_irr: 10, t_cool_fin: 20, pasos_cool: 5 }],
-  { iunit: 3 });
-check('buildTimePatches: NOTTS = nº de sets',
+// ── buildTimePatches (U7): historiales multi-tramo por tarjeta ─────────────
+// Regresión: 1 tramo por fase, mismo comportamiento exacto que antes de U7.
+const singleFila = {
+  fasesIrr:  [{ t_fin: 10, pasos: 10 }],
+  fasesCool: [{ t_fin: 20, pasos: 5 }],
+  iunit: 3, iout: 1, iplot: 0,
+};
+const tp = buildTimePatches([singleFila], {});
+check('buildTimePatches: NOTTS = nº de sets (regresión 1 tramo/fase)',
   tp[0].patch.block11.NOTTS === 2 && tp[0].patch.blocks78.sets.length === 2);
-// fase vacía → conserva la del base
-const tp2 = buildTimePatches(
-  [{ t_irr_fin: 8, pasos_irr: 4 }],
-  { iunit: 3, baseCool: [{ t_fin: 100, pasos: 3 }] });
-check('buildTimePatches: fase cool vacía conserva la del base',
-  tp2[0].patch.blocks78.times.some(([, tipo]) => tipo === 0));
+check('buildTimePatches: params.t_irr_fin/t_cool_fin = t_fin del tramo',
+  tp[0].params.t_irr_fin === 10 && tp[0].params.t_cool_fin === 20);
+check('buildTimePatches: historial_irr/historial_cool presentes',
+  JSON.stringify(tp[0].params.historial_irr) === JSON.stringify(singleFila.fasesIrr)
+  && JSON.stringify(tp[0].params.historial_cool) === JSON.stringify(singleFila.fasesCool));
+
+// Multi-tramo: 2 tramos de irradiación + 2 de enfriamiento en una tarjeta.
+const multiFila = {
+  fasesIrr:  [{ t_fin: 10, pasos: 5 }, { t_fin: 40, pasos: 8 }],
+  fasesCool: [{ t_fin: 20, pasos: 4 }, { t_fin: 168, pasos: 6 }],
+  iunit: 3, iout: 1, iplot: 0,
+};
+const tpMulti = buildTimePatches([multiFila], {});
+check('buildTimePatches multi-tramo: t_irr_fin = t_fin del ÚLTIMO tramo de irr',
+  tpMulti[0].params.t_irr_fin === 40);
+check('buildTimePatches multi-tramo: t_cool_fin = t_fin del ÚLTIMO tramo de cool',
+  tpMulti[0].params.t_cool_fin === 168);
+check('buildTimePatches multi-tramo: NOTTS = nº de sets (5+8 irr + 4+6 cool = 23 pasos → 3 sets)',
+  tpMulti[0].patch.block11.NOTTS === 3 && tpMulti[0].patch.blocks78.sets.length === 3);
+
+// Ambas fases vacías sigue siendo un error (misma semántica que el editor manual).
+let threwEmptyPhases = false;
+try { buildTimePatches([{ fasesIrr: [], fasesCool: [] }], {}); }
+catch (e) { threwEmptyPhases = true; }
+check('buildTimePatches: ambas fases vacías lanza error', threwEmptyPhases);
+
+// Equivalencia de generadores: el barrido y el generador manual son
+// literalmente el mismo cálculo (buildBlocks78) -- cero divergencia.
+const bDirect = buildBlocks78(multiFila.fasesIrr, multiFila.fasesCool,
+  { iunit: multiFila.iunit, iout: multiFila.iout, iplot: multiFila.iplot });
+check('buildTimePatches ≡ buildBlocks78 (mismo cálculo, misma entrada)',
+  JSON.stringify(tpMulti[0].patch.blocks78)
+  === JSON.stringify({ sets: bDirect.sets, times: bDirect.times }));
+
+// ── summarizeFases: resumen de tarjeta (lógica pura) ────────────────────────
+const sEmpty = summarizeFases([], []);
+check('summarizeFases: ambas fases vacías → tramos 0, final null',
+  sEmpty.irrTramos === 0 && sEmpty.irrFinal === null
+  && sEmpty.coolTramos === 0 && sEmpty.coolFinal === null);
+const sSingle = summarizeFases([{ t_fin: 24, pasos: 6 }], []);
+check('summarizeFases: 1 tramo de irr, sin cool',
+  sSingle.irrTramos === 1 && sSingle.irrFinal === 24 && sSingle.coolTramos === 0);
+const sMulti = summarizeFases(multiFila.fasesIrr, multiFila.fasesCool);
+check('summarizeFases multi-tramo: recuentos y tiempo final del ÚLTIMO tramo',
+  sMulti.irrTramos === 2 && sMulti.irrFinal === 40
+  && sMulti.coolTramos === 2 && sMulti.coolFinal === 168);
+
+// ── insertDuplicate: clonar+insertar una tarjeta (lógica pura) ──────────────
+const cards = [{ id: 1, fasesIrr: [{ t_fin: 10, pasos: 2 }] }, { id: 2, fasesIrr: [] }];
+const dup = insertDuplicate(cards, 0);
+check('insertDuplicate: longitud +1', dup.length === cards.length + 1);
+check('insertDuplicate: el clon se inserta justo después del índice',
+  dup[0].id === 1 && dup[1].id === 1 && dup[2].id === 2);
+check('insertDuplicate: no muta la lista original', cards.length === 2);
+dup[1].fasesIrr[0].t_fin = 999;
+check('insertDuplicate: el clon es independiente (clon profundo)',
+  cards[0].fasesIrr[0].t_fin === 10 && dup[0].fasesIrr[0].t_fin === 10);
+
+// ── uniqueSuffix: desambigua colisiones dentro de un mismo barrido ─────────
+check('uniqueSuffix: sin colisión devuelve la base tal cual',
+  uniqueSuffix('Tirr040.0h', []) === 'Tirr040.0h');
+check('uniqueSuffix: colisión simple añade _2',
+  uniqueSuffix('Tirr040.0h', ['Tirr040.0h']) === 'Tirr040.0h_2');
+check('uniqueSuffix: colisiones encadenadas añade el primer índice libre',
+  uniqueSuffix('Tirr040.0h', ['Tirr040.0h', 'Tirr040.0h_2']) === 'Tirr040.0h_3');
+// Caso U7: dos tarjetas con el mismo t_irr_fin (misma duración total) pero
+// historiales distintos (distinta segmentación) no deben colisionar de
+// carpeta -- exactamente lo que corrige uniqueSuffix en sweep.js.
+const cardA = { fasesIrr: [{ t_fin: 40, pasos: 8 }], fasesCool: [] };
+const cardB = { fasesIrr: [{ t_fin: 10, pasos: 5 }, { t_fin: 40, pasos: 8 }], fasesCool: [] };
+const tpAB = buildTimePatches(
+  [{ ...cardA, iunit: 3 }, { ...cardB, iunit: 3 }], {});
+check('buildTimePatches: mismo t_irr_fin en dos tarjetas con historial distinto',
+  tpAB[0].params.t_irr_fin === 40 && tpAB[1].params.t_irr_fin === 40);
+const suffixesAB = [];
+tpAB.forEach(p => {
+  const base = proposeSuffix('time', p.params.t_irr_fin);
+  const suf  = uniqueSuffix(base, suffixesAB);
+  suffixesAB.push(suf);
+});
+check('uniqueSuffix aplicado a buildTimePatches: sufijos desambiguados y únicos',
+  suffixesAB[0] === 'Tirr040.0h' && suffixesAB[1] === 'Tirr040.0h_2');
 
 console.log(fails === 0 ? '\nTODOS LOS TESTS OK' : `\n${fails} TESTS FALLARON`);
 process.exit(fails === 0 ? 0 : 1);

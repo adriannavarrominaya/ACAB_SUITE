@@ -23,6 +23,15 @@
   let _spectrumRowSeq = 0;
   let _spectrumPhiRefEdited = false; // D1: solo se parchea block3 si el usuario edita φ_ref
 
+  // ── Barrido temporal (U7 del BACKLOG): acordeón de tarjetas, una por sim ──
+  // Cada tarjeta instancia el editor de tramos COMPLETO (b78_editor.js, el
+  // MISMO componente que usa la pestaña manual) con un prefijo de ids único
+  // — cero divergencia de validaciones entre el generador manual y el
+  // barrido, por ser literalmente el mismo código.
+  let _timeSimCards = [];   // [{id, fasesIrr, fasesCool, iunit, iout, iplot, seeded}]
+  let _timeSimSeq = 0;
+  let _timeExpandedId = null; // tarjeta a expandir en el próximo render (recién añadida/duplicada)
+
   const $ = id => document.getElementById(id);
 
   function humanBytes(n) {
@@ -82,7 +91,7 @@
       $(`sweep-panel-${k}`).classList.toggle('d-none', k !== type));
     if (type === 'flux') refreshFluxInfo();
     if (type === 'mass') refreshMassPanel();
-    if (type === 'time') ensureTimeRow();
+    if (type === 'time') { seedTimeSimCardsFromBase(); renderTimeSimCards(); }
     if (type === 'spectrum') refreshSpectrumPanel();
     hidePreview();
   }
@@ -144,32 +153,12 @@
     $('sweep-mass-inpt2').classList.toggle('d-none', !inpt2);
   }
 
-  function ensureTimeRow() {
-    const tb = $('sweep-time-tbody');
-    if (tb && tb.children.length === 0) addTimeRow();
-  }
-
-  function addTimeRow() {
-    const tb = $('sweep-time-tbody');
-    const idx = tb.children.length + 1;
-    const tr = document.createElement('tr');
-    tr.innerHTML =
-      `<td class="text-center text-muted small align-middle sweep-time-num">${idx}</td>`
-      + `<td><input type="number" step="any" min="0" class="form-control form-control-sm sweep-t-irr"></td>`
-      + `<td><input type="number" min="1" max="10" step="1" class="form-control form-control-sm sweep-p-irr"></td>`
-      + `<td><input type="number" step="any" min="0" class="form-control form-control-sm sweep-t-cool"></td>`
-      + `<td><input type="number" min="1" max="10" step="1" class="form-control form-control-sm sweep-p-cool"></td>`
-      + `<td class="text-center align-middle">`
-      + `<button class="btn btn-sm btn-outline-danger p-1 lh-1 sweep-time-del"><i class="bi bi-x-lg"></i></button></td>`;
-    tb.appendChild(tr);
-    tr.querySelector('.sweep-time-del').addEventListener('click', () => {
-      tr.remove();
-      [...tb.querySelectorAll('.sweep-time-num')].forEach((td, i) => { td.textContent = i + 1; });
-    });
-  }
-
-  // Reconstruye las fases del base (para conservar cuando una fila deja el
-  // campo vacío) a partir de blocks78.times, igual que el generador manual.
+  // Reconstruye las fases del fichero base (para sembrar la primera
+  // tarjeta) a partir de blocks78.times, igual que el generador manual con
+  // _tryPopulateGeneratorFromTimes: colapsa la malla intermedia a UN tramo
+  // por fase (los límites entre tramos no sobreviven al parseo de un
+  // inp.5, solo la lista plana de pasos) — misma limitación aceptada que
+  // ya tenía el generador manual, no algo nuevo de U7.
   function baseFases() {
     const times = appState.data?.blocks78?.times || [];
     const irr  = times.filter(([, k]) => k === 1).map(([v]) => v);
@@ -178,6 +167,132 @@
     if (irr.length)  out.baseIrr  = [{ t_fin: irr[irr.length - 1],   pasos: Math.min(irr.length, 10) }];
     if (cool.length) out.baseCool = [{ t_fin: cool[cool.length - 1], pasos: Math.min(cool.length, 10) }];
     return out;
+  }
+
+  // ── Barrido temporal: acordeón de tarjetas (U7) ─────────────────────────
+  function seedTimeSimCardsFromBase() {
+    if (_timeSimCards.length > 0) return;
+    const { baseIrr, baseCool } = baseFases();
+    const set0 = appState.data?.blocks78?.sets?.[0];
+    _timeSimCards.push({
+      id: ++_timeSimSeq,
+      fasesIrr: baseIrr, fasesCool: baseCool,
+      iunit: set0?.IUNIT ?? 3,
+      iout:  set0?.IOUT  ? 1 : 0,
+      iplot: set0?.IPLOT ? 1 : 0,
+      seeded: true,
+    });
+  }
+
+  function _timeSummaryPart(phaseKey, tramos, final) {
+    if (!tramos) return t(`sweep.time_summary_empty_${phaseKey}`);
+    const key = tramos === 1 ? `sweep.time_summary_${phaseKey}_one` : `sweep.time_summary_${phaseKey}`;
+    return t(key).replace('{n}', tramos).replace('{t}', final);
+  }
+
+  function _timeCardSummaryText(card) {
+    const s = summarizeFases(card.fasesIrr, card.fasesCool);
+    return [
+      _timeSummaryPart('irr', s.irrTramos, s.irrFinal),
+      _timeSummaryPart('cool', s.coolTramos, s.coolFinal),
+    ].join(' · ');
+  }
+
+  function _syncTimeCard(id) {
+    const card = _timeSimCards.find(c => c.id === id);
+    if (!card) return;
+    const prefix = `sweep-time-${id}`;
+    const { fasesIrr, fasesCool } = getB78EditorFases(prefix);
+    const { iunit, iout, iplot } = getB78EditorIunitIoutIplot(prefix);
+    Object.assign(card, { fasesIrr, fasesCool, iunit, iout, iplot });
+    const summaryEl = $(`sweep-time-summary-${id}`);
+    if (summaryEl) summaryEl.textContent = _timeCardSummaryText(card);
+    hidePreview();
+  }
+
+  function _mountTimeCardEditor(card) {
+    const prefix = `sweep-time-${card.id}`;
+    const host = $(`sweep-time-editor-${card.id}`);
+    if (!host) return;
+    host.innerHTML = b78EditorBodyHtml(prefix);
+    setVal(`${prefix}-iunit`, card.iunit);
+    const ioutEl  = $(`${prefix}-iout`);  if (ioutEl)  ioutEl.checked  = !!card.iout;
+    const iplotEl = $(`${prefix}-iplot`); if (iplotEl) iplotEl.checked = !!card.iplot;
+    const onChange = () => _syncTimeCard(card.id);
+    setB78EditorFases(prefix, card.fasesIrr, card.fasesCool, onChange);
+    wireB78EditorButtons(prefix, onChange);
+  }
+
+  function renderTimeSimCards() {
+    const container = $('sweep-time-accordion');
+    if (!container) return;
+    const expandId = _timeExpandedId != null
+      ? _timeExpandedId
+      : (_timeSimCards[0] ? _timeSimCards[0].id : null);
+    container.innerHTML = _timeSimCards.map((card, idx) => {
+      const expanded = card.id === expandId;
+      const seededHint = card.seeded
+        ? `<div class="alert alert-warning py-2 small">${t('sweep.time_seeded_hint')}</div>` : '';
+      return `
+        <div class="accordion-item">
+          <h2 class="accordion-header d-flex">
+            <button class="accordion-button flex-grow-1 ${expanded ? '' : 'collapsed'}" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#sweep-time-collapse-${card.id}">
+              <span class="me-2 fw-bold">#${idx + 1}</span>
+              <span class="small text-muted sweep-time-summary" id="sweep-time-summary-${card.id}">${_timeCardSummaryText(card)}</span>
+            </button>
+            <button type="button" class="btn btn-outline-secondary border-0 rounded-0 sweep-time-dup-btn"
+                    data-id="${card.id}" title="${t('sweep.time_dup')}">
+              <i class="bi bi-files"></i>
+            </button>
+            <button type="button" class="btn btn-outline-danger border-0 rounded-0 sweep-time-del-btn"
+                    data-id="${card.id}" title="${t('sweep.time_del')}">
+              <i class="bi bi-trash"></i>
+            </button>
+          </h2>
+          <div id="sweep-time-collapse-${card.id}" class="accordion-collapse collapse ${expanded ? 'show' : ''}"
+               data-bs-parent="#sweep-time-accordion">
+            <div class="accordion-body">
+              ${seededHint}
+              <div id="sweep-time-editor-${card.id}"></div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    _timeSimCards.forEach(_mountTimeCardEditor);
+    _timeExpandedId = null;
+
+    container.querySelectorAll('.sweep-time-dup-btn').forEach(btn => btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.id, 10);
+      const idx = _timeSimCards.findIndex(c => c.id === id);
+      if (idx < 0) return;
+      _timeSimCards = insertDuplicate(_timeSimCards, idx);
+      const clone = _timeSimCards[idx + 1];
+      clone.id = ++_timeSimSeq;
+      clone.seeded = false;
+      _timeExpandedId = clone.id;
+      renderTimeSimCards();
+      hidePreview();
+    }));
+    container.querySelectorAll('.sweep-time-del-btn').forEach(btn => btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.id, 10);
+      _timeSimCards = _timeSimCards.filter(c => c.id !== id);
+      renderTimeSimCards();
+      hidePreview();
+    }));
+  }
+
+  function addTimeSimCard() {
+    if (_timeSimCards.length === 0) { seedTimeSimCardsFromBase(); renderTimeSimCards(); return; }
+    const lastIdx = _timeSimCards.length - 1;
+    _timeSimCards = insertDuplicate(_timeSimCards, lastIdx);
+    const clone = _timeSimCards[lastIdx + 1];
+    clone.id = ++_timeSimSeq;
+    clone.seeded = false;
+    _timeExpandedId = clone.id;
+    renderTimeSimCards();
+    hidePreview();
   }
 
   // ── Panel: Espectro (COLLAPS) — Fase P3 del RUNBOOK_barrido_espectral.md ──
@@ -205,13 +320,6 @@
     return clean || 'espectro';
   }
 
-  function _uniqueAmong(base, taken) {
-    if (!taken.includes(base)) return base;
-    let i = 2;
-    while (taken.includes(`${base}_${i}`)) i++;
-    return `${base}_${i}`;
-  }
-
   async function handleSpectrumFiles(fileList) {
     for (const file of fileList) {
       let text;
@@ -237,7 +345,7 @@
     }
     const baseLabel = filename.replace(/\.[^./\\]+$/, '') || filename;
     const takenSuffixes = _spectrumRows.map(r => r.suffix);
-    const suffix = _uniqueAmong(_sanitizeSuffix(baseLabel), takenSuffixes);
+    const suffix = uniqueSuffix(_sanitizeSuffix(baseLabel), takenSuffixes);
     _spectrumRows.push({
       id: ++_spectrumRowSeq, label: baseLabel, suffix, parsed, indices, patch,
     });
@@ -389,22 +497,24 @@
     }
 
     if (type === 'time') {
-      const rows = [...$('sweep-time-tbody').querySelectorAll('tr')].map(tr => ({
-        t_irr_fin:  parseFloat(tr.querySelector('.sweep-t-irr').value),
-        pasos_irr:  parseInt(tr.querySelector('.sweep-p-irr').value, 10),
-        t_cool_fin: parseFloat(tr.querySelector('.sweep-t-cool').value),
-        pasos_cool: parseInt(tr.querySelector('.sweep-p-cool').value, 10),
+      if (_timeSimCards.length === 0) throw new Error(t('sweep.err_no_rows'));
+      const rows = _timeSimCards.map(c => ({
+        fasesIrr: c.fasesIrr, fasesCool: c.fasesCool,
+        iunit: c.iunit, iout: c.iout, iplot: c.iplot,
       }));
-      if (rows.length === 0) throw new Error(t('sweep.err_no_rows'));
-      const iunit = getInt('b78-iunit') || 3;
-      const iout  = $('b78-iout')?.checked ? 1 : 0;
-      const iplot = $('b78-iplot')?.checked ? 1 : 0;
-      const list = buildTimePatches(rows, { iunit, iout, iplot, t, ...baseFases() });
-      return list.map(p => ({
-        ...p,
-        suffix: proposeSuffix('time',
-          Number.isFinite(p.params.t_irr_fin) ? p.params.t_irr_fin : p.params.t_cool_fin),
-      }));
+      const list = buildTimePatches(rows, { t });
+      const taken = [];
+      return list.map(p => {
+        const base = proposeSuffix('time',
+          Number.isFinite(p.params.t_irr_fin) ? p.params.t_irr_fin : p.params.t_cool_fin);
+        // U7: dos tarjetas pueden compartir t_irr_fin con historiales
+        // distintos (misma duración, distinta segmentación) — se reutiliza
+        // el desambiguador ya usado por el barrido espectral para no
+        // colisionar de carpeta.
+        const suffix = uniqueSuffix(base, taken);
+        taken.push(suffix);
+        return { ...p, suffix };
+      });
     }
 
     // spectrum (Fase P3): D1 — φ_ref solo se parchea (uniforme, todas las
@@ -431,8 +541,13 @@
   }
 
   function paramsLabel(params) {
+    // typeof v !== 'object' descarta arrays/dicts (p. ej. historial_irr/
+    // historial_cool de U7): son datos de trazabilidad para el manifest,
+    // no un valor compacto para la etiqueta "k=v, k=v" de la previsualización
+    // -- sin este filtro un array de tramos se renderiza como
+    // "[object Object],[object Object]".
     return Object.entries(params)
-      .filter(([, v]) => v !== undefined && v !== null && !Number.isNaN(v))
+      .filter(([, v]) => v !== undefined && v !== null && !Number.isNaN(v) && typeof v !== 'object')
       .map(([k, v]) => `${k}=${typeof v === 'number' ? (Math.abs(v) < 1e-3 || Math.abs(v) >= 1e6 ? v.toExponential(3) : v) : v}`)
       .join(', ');
   }
@@ -950,7 +1065,7 @@
       if (el) el.addEventListener('input', hidePreview);
     });
 
-    $('sweep-time-add')?.addEventListener('click', () => { addTimeRow(); hidePreview(); });
+    $('sweep-time-add-sim')?.addEventListener('click', addTimeSimCard);
     $('sweep-preview-btn')?.addEventListener('click', doPreview);
     $('sweep-generate-btn')?.addEventListener('click', () => doGenerate(false));
 

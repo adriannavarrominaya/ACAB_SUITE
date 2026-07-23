@@ -249,6 +249,15 @@ def _manifest_json(root_p, sweep_type, description, fixed_params, sims, folders,
     }
 
 
+def _csv_cell(v):
+    """Valores no escalares (listas/dicts, p. ej. el historial multi-tramo
+    de U7) se vuelcan como JSON válido en la celda, no como repr de Python
+    -- el manifest CSV es un entregable de trazabilidad, no un debug dump."""
+    if isinstance(v, (list, dict)):
+        return json.dumps(v, ensure_ascii=False)
+    return v
+
+
 def _manifest_csv(sims, folders) -> str:
     keys = []
     for sim in sims:
@@ -256,11 +265,17 @@ def _manifest_csv(sims, folders) -> str:
             if k not in keys:
                 keys.append(k)
     buf = io.StringIO()
-    w = csv.writer(buf)
+    # lineterminator='\n': el valor por defecto de csv.writer es '\r\n', que
+    # al pasar por Path.write_text en modo texto (traduce '\n'->os.linesep
+    # sin tocar los '\r' ya presentes) duplica el salto de línea en Windows
+    # ('\r\n' -> '\r\r\n') y deja una fila en blanco entre cada registro --
+    # bug preexistente e inadvertido (ningún test parseaba el CSV fila a
+    # fila hasta el caso oro de U7). '\n' evita la doble traducción.
+    w = csv.writer(buf, lineterminator='\n')
     w.writerow(['folder'] + keys)
     for sim, folder in zip(sims, folders):
         params = sim.get('params') or {}
-        w.writerow([folder] + [params.get(k, '') for k in keys])
+        w.writerow([folder] + [_csv_cell(params.get(k, '')) for k in keys])
     return buf.getvalue()
 
 

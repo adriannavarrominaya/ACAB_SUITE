@@ -113,6 +113,21 @@ function _cleanNum(v) {
 }
 
 /**
+ * Devuelve `base` si no está en `taken`; si no, el primer `base_N` (N=2,3,…)
+ * que no colisione. Genérica -- desambigua sufijos duplicados dentro de un
+ * mismo barrido (usada por el barrido espectral y por el temporal: dos
+ * tarjetas con el mismo t_irr_fin pero historial distinto no deben
+ * colisionar de carpeta).
+ * @returns {string}
+ */
+function uniqueSuffix(base, taken) {
+  if (!taken.includes(base)) return base;
+  let i = 2;
+  while (taken.includes(`${base}_${i}`)) i++;
+  return `${base}_${i}`;
+}
+
+/**
  * Propone un sufijo de subcarpeta estable y seguro a partir de un valor.
  *   proposeSuffix('flux', 0.75) → 'x0.75'
  *   proposeSuffix('mass', 1.5)  → 'm1.500g'
@@ -241,37 +256,63 @@ function buildMassPatches({ masas, formula, volumen, inpt, zoneIdx, baseBlock5, 
   return out;
 }
 
-// ── Barrido temporal (historial + NOTTS) ───────────────────────────────────
+// ── Barrido temporal (historial multi-tramo + NOTTS, U7 del BACKLOG) ───────
 /**
- * Cada fila describe una simulación: {t_irr_fin, pasos_irr, t_cool_fin,
- * pasos_cool}.  Un campo de fase vacío/NaN ⇒ se conserva la fase del fichero
- * base (opts.baseIrr / opts.baseCool).
+ * Cada fila describe una simulación (una tarjeta del acordeón) con un
+ * historial COMPLETO y explícito por fase — ya no hay "campo vacío conserva
+ * la fase del fichero base": cada tarjeta lleva su propio iunit/iout/iplot,
+ * igual que una instancia del editor de tramos completo.
+ * @param {{fasesIrr:{t_fin:number,pasos:number}[], fasesCool:{t_fin:number,pasos:number}[],
+ *           iunit?:number, iout?:number|boolean, iplot?:number|boolean}[]} filas
+ * @param {{t?:Function}} [opts]
  * @returns {{params:Object, patch:Object}[]}
  */
 function buildTimePatches(filas, opts) {
   const o = opts || {};
-  const iunit    = Number.isFinite(o.iunit) ? o.iunit : 3;
-  const iout     = o.iout ? 1 : 0;
-  const iplot    = o.iplot ? 1 : 0;
-  const baseIrr  = o.baseIrr  || [];
-  const baseCool = o.baseCool || [];
   const out = [];
   for (const fila of filas) {
-    const fasesIrr = (Number.isFinite(fila.t_irr_fin) && Number.isFinite(fila.pasos_irr))
-      ? [{ t_fin: fila.t_irr_fin, pasos: fila.pasos_irr }] : baseIrr;
-    const fasesCool = (Number.isFinite(fila.t_cool_fin) && Number.isFinite(fila.pasos_cool))
-      ? [{ t_fin: fila.t_cool_fin, pasos: fila.pasos_cool }] : baseCool;
-    if ((!fasesIrr || !fasesIrr.length) && (!fasesCool || !fasesCool.length))
-      throw new Error('Cada simulación temporal debe definir al menos una fase (irr o cool).');
-    const b78 = buildBlocks78(fasesIrr, fasesCool, { iunit, iout, iplot, t: o.t });
+    const fasesIrr  = fila.fasesIrr  || [];
+    const fasesCool = fila.fasesCool || [];
+    if (!fasesIrr.length && !fasesCool.length)
+      throw new Error(o.t ? o.t('b78.no_phase') : 'Cada simulación temporal debe definir al menos una fase (irr o cool).');
+    const b78 = buildBlocks78(fasesIrr, fasesCool,
+      { iunit: fila.iunit, iout: fila.iout, iplot: fila.iplot, t: o.t });
     out.push({
       params: {
-        t_irr_fin: fila.t_irr_fin, pasos_irr: fila.pasos_irr,
-        t_cool_fin: fila.t_cool_fin, pasos_cool: fila.pasos_cool,
+        t_irr_fin:  fasesIrr.length  ? fasesIrr[fasesIrr.length - 1].t_fin   : undefined,
+        t_cool_fin: fasesCool.length ? fasesCool[fasesCool.length - 1].t_fin : undefined,
+        historial_irr: fasesIrr, historial_cool: fasesCool,
       },
       patch: { blocks78: { sets: b78.sets, times: b78.times }, block11: { NOTTS: b78.notts } },
     });
   }
+  return out;
+}
+
+/**
+ * Resumen de una tarjeta del acordeón temporal: recuentos de tramos y
+ * tiempo final de cada fase (o null si la fase está vacía). Pura, sin DOM.
+ * @returns {{irrTramos:number, irrFinal:number|null, coolTramos:number, coolFinal:number|null}}
+ */
+function summarizeFases(fasesIrr, fasesCool) {
+  const irr  = fasesIrr  || [];
+  const cool = fasesCool || [];
+  return {
+    irrTramos:  irr.length,  irrFinal:  irr.length  ? irr[irr.length - 1].t_fin   : null,
+    coolTramos: cool.length, coolFinal: cool.length ? cool[cool.length - 1].t_fin : null,
+  };
+}
+
+/**
+ * Clona profundamente `list[idx]` e inserta el clon justo después. Devuelve
+ * un array NUEVO (no muta `list`). Genérica -- no específica del barrido
+ * temporal, usable para cualquier "duplicar" de una lista de tarjetas.
+ * @returns {Array}
+ */
+function insertDuplicate(list, idx) {
+  const clone = JSON.parse(JSON.stringify(list[idx]));
+  const out = list.slice();
+  out.splice(idx + 1, 0, clone);
   return out;
 }
 
@@ -280,6 +321,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     calcularVectorTiempos, buildBlocks78, parseSweepValues, proposeSuffix,
     buildFluxPatches, fluxBaseTotal, buildMassPatches, buildTimePatches,
-    fluxValuesPlaceholder, fluxSweepGuardrail,
+    fluxValuesPlaceholder, fluxSweepGuardrail, summarizeFases, insertDuplicate,
+    uniqueSuffix,
   };
 }

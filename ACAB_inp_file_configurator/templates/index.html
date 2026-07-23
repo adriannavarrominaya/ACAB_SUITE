@@ -1506,9 +1506,11 @@
                   </h6>
                   <div class="alert alert-info py-2 small mb-2">
                     <i class="bi bi-info-circle me-1"></i>
-                    Cada tramo indica el <strong>tiempo final acumulado</strong> (en la unidad IUNIT) y los
-                    <strong>pasos</strong> (&le;10) distribuidos linealmente hasta ese tiempo.
-                    Los tiempos deben ser estrictamente crecientes.
+                    <span data-i18n-html="b78.irr_hint_html">
+                      Cada tramo indica el <strong>tiempo final acumulado</strong> (en la unidad IUNIT) y los
+                      <strong>pasos</strong> (&le;10) distribuidos linealmente hasta ese tiempo.
+                      Los tiempos deben ser estrictamente crecientes.
+                    </span>
                   </div>
                   <table class="table table-sm table-bordered zone-input-table mb-0">
                     <thead class="table-danger">
@@ -1531,8 +1533,10 @@
                   </h6>
                   <div class="alert alert-secondary py-2 small mb-2">
                     <i class="bi bi-info-circle me-1"></i>
-                    El reloj se reinicia a cero al final de la irradiación.
-                    Los tiempos son <strong>relativos al fin de la irradiación</strong>.
+                    <span data-i18n-html="b78.cool_hint_html">
+                      El reloj se reinicia a cero al final de la irradiación.
+                      Los tiempos son <strong>relativos al fin de la irradiación</strong>.
+                    </span>
                   </div>
                   <table class="table table-sm table-bordered zone-input-table mb-0">
                     <thead class="table-primary">
@@ -2186,30 +2190,16 @@
               </div>
             </div>
 
-            <!-- Panel: Temporal -->
+            <!-- Panel: Temporal (U7 del BACKLOG) -->
             <div id="sweep-panel-time" class="sweep-panel d-none">
               <div class="alert alert-info py-2 small" data-i18n="sweep.time_expl">
-                Cada fila define una simulación con sus fases de irradiación y/o enfriamiento. Los
-                campos vacíos conservan la fase del fichero base. NOTTS (Bloque #11) se sincroniza
-                automáticamente por simulación.
+                Cada tarjeta es una simulación con su historial temporal COMPLETO (mismo editor de
+                tramos que la pestaña "Generador de Historial Temporal"). NOTTS (Bloque #11) se
+                sincroniza automáticamente por simulación.
               </div>
-              <div class="table-responsive">
-                <table class="table table-sm table-bordered align-middle">
-                  <thead class="table-light">
-                    <tr>
-                      <th style="width:2.5rem">#</th>
-                      <th data-i18n="sweep.time_tirr">t_irr fin</th>
-                      <th data-i18n="sweep.time_pirr">pasos irr</th>
-                      <th data-i18n="sweep.time_tcool">t_cool fin</th>
-                      <th data-i18n="sweep.time_pcool">pasos cool</th>
-                      <th style="width:3rem"></th>
-                    </tr>
-                  </thead>
-                  <tbody id="sweep-time-tbody"></tbody>
-                </table>
-              </div>
-              <button class="btn btn-sm btn-outline-secondary" id="sweep-time-add">
-                <i class="bi bi-plus-lg me-1"></i><span data-i18n="sweep.time_add">Añadir fila</span>
+              <div id="sweep-time-accordion" class="accordion mb-2"></div>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="sweep-time-add-sim">
+                <i class="bi bi-plus-lg me-1"></i><span data-i18n="sweep.time_add_sim">Añadir simulación</span>
               </button>
             </div>
 
@@ -2641,6 +2631,7 @@
 <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
 <script src="/static/js/calc_utils.js"></script>
 <script src="/static/js/sweep_utils.js"></script>
+<script src="/static/js/b78_editor.js"></script>
 <script src="/static/js/conderc_import.js"></script>
 <script src="/static/js/app.js"></script>
 <script src="/static/js/sweep.js"></script>
