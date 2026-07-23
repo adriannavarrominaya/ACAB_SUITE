@@ -526,10 +526,16 @@ def leer_fort6_enfriamiento(filepath: str) -> tuple[np.ndarray, dict[str, np.nda
         for tok in lines[header_line].strip().split():
             if tok == "INITIAL":
                 col_times.append(None)
-            elif tok == "SHUTDOWN":
+            elif tok in ("SHUTDOWN", "RESTART"):
+                # RESTART is ambiguous in ACAB's fort.6: it marks the first
+                # column of a new TIME SET's cooling table, which is either
+                # the genuine irr->cool transition (t=0, not yet seen -- F7:
+                # cards never mix phases, so a cooling-only card right after
+                # an irradiation-only card reports this as RESTART instead of
+                # SHUTDOWN) or a carried-over duplicate of the previous set's
+                # last cooling time (already in t_all). Mapping it to 0.0 lets
+                # the dedup below ("t not in t_all") decide which case it is.
                 col_times.append(0.0)
-            elif tok == "RESTART":
-                col_times.append(None)
             else:
                 try:
                     col_times.append(float(tok))

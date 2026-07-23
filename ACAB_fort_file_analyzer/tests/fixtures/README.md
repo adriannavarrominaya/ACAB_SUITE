@@ -1,6 +1,18 @@
 # Simulación de referencia (caso oro)
 Origen: simulación v.5 "info thesis" (TeO2, MURR), usada en compare_simulaciones.py
 
+## ref_sim_f7 (F7 del BACKLOG)
+
+`tests/fixtures/ref_sim_f7/` es la MISMA física que `ref_sim` (idéntico
+`acab.exe`/`DECAY.dat`/`XSECTION.dat`/`REACTIONS.dat`, mismo `inp.5` salvo
+Blocks #7/#8), regenerada tras F7 con el formato sin compactación: 3 TIME
+SETs en vez de 2 (irradiación y enfriamiento nunca comparten tarjeta). Este
+fixture fue el que expuso que `leer_fort6_enfriamiento` trataba el token
+RESTART siempre como "excluir" — con F7 el t=0 real puede caer en un límite
+de tarjeta y aparecer como RESTART en vez de SHUTDOWN. Ver
+`tests/fixtures/ref_sim_f7/PROCEDENCIA.md` para el detalle y los valores oro
+(deben coincidir exactamente con los de `ref_sim` de abajo).
+
 ## Valores esperados (leídos del analyzer actual, 2026-07-07)
 - A_pico I131 (enfriamiento): 1.6500e+04 Bq/cm3, en t_global = 3.753 h
   (= T_irr 0.00278 h + 3.75 h de enfriamiento; calcular_pico usa el eje global

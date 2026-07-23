@@ -40,6 +40,13 @@ FORT6 = str(REF_SIM / "fort.6")
 INP5 = str(REF_SIM / "inp.5")
 DECAY = str(REF_SIM / "DECAY.dat")
 
+# ref_sim_f7 (F7 del BACKLOG): misma física que ref_sim, Blocks #7/#8
+# regenerados sin compactación (irr y cool nunca comparten tarjeta) -> 3 TIME
+# SETs en vez de 2. Ver tests/fixtures/ref_sim_f7/PROCEDENCIA.md.
+REF_SIM_F7 = FIXTURES / "ref_sim_f7"
+FORT6_F7 = str(REF_SIM_F7 / "fort.6")
+DECAY_F7 = str(REF_SIM_F7 / "DECAY.dat")
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Mini-framework de aserciones
 # ─────────────────────────────────────────────────────────────────────────────
@@ -136,6 +143,45 @@ def test_enfriamiento() -> None:
     check_close(datos["I131"][0], 38.42, "I131 en RESTART (t=0) = 38.42 Bq/cm³")
     check_close(datos["I131"][1], 5690.0, "I131 en t=0.25 h = 5690 Bq/cm³")
     check_close(datos["I131"][-1], 16490.0, "I131 en t=4.50 h = 16490 Bq/cm³")
+
+
+def test_enfriamiento_f7_3sets() -> None:
+    section("leer_fort6_enfriamiento — F7: 3 TIME SETs, RESTART = t=0 real")
+    t_cool, datos = fa.leer_fort6_enfriamiento(FORT6_F7)
+
+    # Misma malla física que ref_sim (19 puntos, 0.00-4.50h/0.25h), pero aquí
+    # la tarjeta 2 (primer TIME SET de enfriamiento) reporta el t=0 bajo el
+    # token RESTART, no SHUTDOWN (la transición irr->cool cae justo en el
+    # límite de tarjeta -- F7 nunca mezcla fases). Regresión del bug que
+    # trataba todo RESTART como "excluir" y perdía ese punto.
+    check(len(t_cool) == 19, f"19 timesteps de enfriamiento (obtenido {len(t_cool)})")
+    check_close(t_cool[0], 0.0, "primer t de enfriamiento = 0 (RESTART real, no duplicado)", atol=1e-9)
+    check_close(t_cool[-1], 4.50, "último t de enfriamiento = 4.50 h")
+    check(len(set(t_cool.tolist())) == len(t_cool), "sin timesteps duplicados (3 TIME SETs fusionados)")
+
+    # Mismos valores oro de I131 que ref_sim: es la MISMA física, solo cambia
+    # el agrupado de tarjetas de Blocks #7/#8.
+    check("I131" in datos, "I131 presente en enfriamiento")
+    check(len(datos["I131"]) == 19, "serie I131 alineada con la malla (19 puntos)")
+    check_close(datos["I131"][0], 38.42, "I131 en RESTART (t=0 real) = 38.42 Bq/cm³")
+    check_close(datos["I131"][1], 5690.0, "I131 en t=0.25 h = 5690 Bq/cm³")
+    check_close(datos["I131"][-1], 16490.0, "I131 en t=4.50 h = 16490 Bq/cm³")
+
+
+def test_pico_i131_f7_3sets() -> None:
+    section("analizar_carpeta + calcular_pico — F7 (3 TIME SETs), pico de I131")
+    t12 = fa.leer_decay_dat(DECAY_F7)
+    all_data, errors = fa.analizar_carpeta(str(REF_SIM_F7), t12)
+
+    check(len(errors) == 0, f"análisis sin errores (errores={errors})")
+    sim = next(iter(all_data.values()))
+    pico = fa.calcular_pico(sim, "I131")
+
+    # Idéntico al pico oro de ref_sim (1.6500e4 Bq/cm³ en t_global=3.753h):
+    # el agrupado F7 de Blocks #7/#8 no cambia la física, solo las tarjetas.
+    check_close(pico["A_pico"], 1.6500e4, "A_pico I131 = 1.6500e4 Bq/cm³ (idéntico a ref_sim)", rtol=2e-3)
+    check_close(pico["t_pico"], 3.753, "t_pico I131 = 3.753 h (idéntico a ref_sim)", rtol=1e-2)
+    check(pico["fase"] == "enfriamiento", "pico en fase de enfriamiento")
 
 
 def test_inp5() -> None:
@@ -294,10 +340,15 @@ def main() -> int:
     if not Path(FORT6).exists():
         print(f"\nERROR: no se encuentra el fixture {FORT6}")
         return 1
+    if not Path(FORT6_F7).exists():
+        print(f"\nERROR: no se encuentra el fixture {FORT6_F7}")
+        return 1
 
     test_decay_dat()
     test_irradiacion()
     test_enfriamiento()
+    test_enfriamiento_f7_3sets()
+    test_pico_i131_f7_3sets()
     test_inp5()
     test_pico_i131()
     test_concentraciones()
