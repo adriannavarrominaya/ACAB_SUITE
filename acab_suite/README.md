@@ -151,3 +151,23 @@ Se persiste por app en `suite_config.json`, clave `runner` dentro de cada app: `
 - **Control B1 — espectro gamma (línea de 364 keV)** ✅ (2026-07-22): sobre la referencia v.5 en t = 3.750 h (instante del pico): tasa esperada a mano = A_pico(I131) × I(364,49 keV) = 1.6500E+04 × 0.812 = 1.340E+04 fot/s·cm³. La pestaña Espectro gamma reporta: 364.49 keV / I131 / 81.200 % / 1.340e+4 — coincidencia exacta. La vista lista además 11 nucleidos del inventario sin líneas gamma en PHOTON.dat (I130M entre ellos), conforme al diseño. Observación física: en t_pico las líneas de TE131/TE131M siguen presentes (precursores activos alimentando el pico), coherente con la cinética de Bateman del caso pulso.
 - **Recuento de suite** ✅ (2026-07-22): 661 tests automáticos en verde, 0 fallos, vía `acab_suite\tools\run_all_tests.ps1` (analyzer 438, inp-conf 198, collaps 25) + `regression_roundtrip.py` (OK, sin recuento numérico).
 - **Control de equivalencia de generadores** — re-verificado tras U7 (2026-07-23): historial 2+2 tramos generado por el Generador manual y por barrido de 1 simulación → inp.5 idénticos (SHA1 ffa423ca0207...b773). Automatizado además como test de bytes del camino de escritura (test_sweep_endpoint.py).
+- - **Control de invariancia del reagrupado (F7)** ✅ (2026-07-23): la malla de ref_sim ejecutada en ACAB con el formato compactado histórico (2 TIME SETs, fixture ref_sim) y con el formato por fases del tutor (3 TIME SETs, fixture ref_sim_f7) reproduce física idéntica: todos los valores oro de ref_sim (A_pico=1.6500E+04, t_pico=3.753 h, A(I131,t=0)=3.842E+01, 19 timesteps fusionados) coinciden en ambos. El reagrupado de tarjetas es puramente de presentación. Automatizado en los tests oro de ref_sim_f7.
+- **Recuento de suite** (2026-07-23): 753 tests, 0 fallos (run_all_tests.ps1).
+- **Control de invariancia del reagrupado (F7)** ✅ (2026-07-23): la malla de
+  ref_sim ejecutada en ACAB con el formato compactado histórico (2 TIME SETs,
+  fixture `ref_sim`) y con el formato por fases del tutor (3 TIME SETs,
+  fixture `ref_sim_f7`, ejecución real de ACAB) reproduce física idéntica:
+  todos los valores oro de ref_sim (A_pico=1.6500E+04 Bq/cm³, t_pico=3.753 h,
+  A(I131,t=0)=3.842E+01, 19 timesteps fusionados) coinciden en ambos. El
+  reagrupado de tarjetas es puramente de presentación. Automatizado en los
+  tests oro de `ref_sim_f7`; ambos fixtures con PROCEDENCIA.md.
+- **Control F8 — sincronización NOTTS/ITSO** ✅ (2026-07-23): historial con
+  más tarjetas que el fichero base → generación y validación limpias a la
+  primera, sin editar ITSO a mano (el escenario que antes disparaba V17e).
+  Automatizado en test_validate_all.js; en barridos, block13.ITSO viaja en
+  el patch junto a block11.NOTTS (test_sweep_utils.js). Semántica confirmada
+  contra el manual ACAB 2008: NOTTS = nº total de tarjetas; ITSO = vector
+  [NOTTS] de flags de salida por set (un 0 amputa ese set del fort.6).
+- **Recuento de suite** (2026-07-23): 757 tests, 0 fallos, vía
+  `acab_suite\tools\run_all_tests.ps1` (sustituye al recuento de 689 del
+  2026-07-22; regression_roundtrip.py aparte, OK sin recuento numérico).
