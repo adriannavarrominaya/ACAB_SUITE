@@ -130,9 +130,11 @@ class SweepEndpointTests(unittest.TestCase):
         # block13.ITSO tiene un elemento por NOTTS (app.py::_write_inp5,
         # rama Block #13): el default de _default_data() trae NOTTS=1 /
         # ITSO=[1] consistentes entre sí; al subir NOTTS a 2 hay que ampliar
-        # ITSO en el mismo patch o el inp.5 generado queda desincronizado
-        # (gotcha preexistente del formato, no específico de U7 -- el editor
-        # de tramos no toca block13, igual que el flujo manual de hoy).
+        # ITSO en el mismo patch o el inp.5 generado queda desincronizado.
+        # Desde F8 este patch (blocks78 + block11.NOTTS + block13.ITSO) es
+        # exactamente lo que produce buildTimePatches en el navegador (JS,
+        # tools/test_sweep_utils.js) -- aquí se construye a mano porque este
+        # test ejercita el camino de escritura del SERVIDOR, no el cálculo.
         patch = {'blocks78': blocks78, 'block11': {'NOTTS': 2}, 'block13': {'ITSO': [1, 1]}}
 
         # Camino "manual": generarB78() deja blocks78/NOTTS en appState.data

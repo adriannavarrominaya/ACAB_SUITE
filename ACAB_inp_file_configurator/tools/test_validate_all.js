@@ -118,6 +118,26 @@ check('V25e NGO=0 intermedio', has(run(d), 'errors', 'v25e'));
 d = base(); d.blocks78.sets[1].MSUB = 7;
 check('V25f MSUB no encadena (aviso)', has(run(d), 'warnings', 'v25f'));
 
+// F8: buildTimePatches sincroniza block13.ITSO junto a block11.NOTTS. La
+// base() de este fichero tiene NOTTS=2/ITSO=[1,1] (2 tarjetas); un barrido
+// con un Nº DE TARJETAS DISTINTO (aquí 3: 2 tramos de irr de 10 pasos c/u)
+// debe seguir validando limpio -- antes de F8 solo se parcheaba
+// block11.NOTTS y block13.ITSO se quedaba con la longitud de la base,
+// disparando V17e (longitud de ITSO ≠ NOTTS).
+const f8Patch = su.buildTimePatches([{
+  fasesIrr: [{ t_fin: 10, pasos: 10 }, { t_fin: 40, pasos: 10 }],
+  fasesCool: [{ t_fin: 20, pasos: 5 }],
+  iunit: 3, iout: 1, iplot: 0,
+}], {})[0].patch;
+check('F8 fixture: el barrido genera un nº de tarjetas != base (2)',
+  f8Patch.blocks78.sets.length !== base().blocks78.sets.length);
+d = base();
+d.blocks78 = f8Patch.blocks78;
+d.block11.NOTTS = f8Patch.block11.NOTTS;
+d.block13.ITSO = f8Patch.block13.ITSO;
+check('F8: barrido con nº de tarjetas != base valida limpio (ITSO sincronizado)',
+  run(d).errors.length === 0);
+
 // el exp1 real parseado no debe disparar nada nuevo — coherencia con patrón oro
 console.log(fails === 0 ? '\nTODOS LOS TESTS OK' : `\n${fails} TESTS FALLARON`);
 process.exit(fails === 0 ? 0 : 1);

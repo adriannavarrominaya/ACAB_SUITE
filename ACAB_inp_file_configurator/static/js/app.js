@@ -1640,6 +1640,21 @@ function generarB78() {
     const nottsEl = document.getElementById('b11-NOTTS');
     if (nottsEl) nottsEl.value = sets.length;
 
+    // Auto-sync ITSO in Block #13: NOTTS (Block #11) = nº de tarjetas del
+    // historial; ITSO (Block #13, tarjeta 3) es un vector [NOTTS] con el
+    // flag de salida por time set (manual ACAB 2008, Block #13) -- un 0
+    // suprime en silencio ese set del fort.6 (trampa para el analyzer). Se
+    // redimensiona a "todo con salida" (1); el campo sigue editable después
+    // si el usuario quiere suprimir algún set.
+    const itsoEl = document.getElementById('b13-ITSO');
+    if (itsoEl) {
+      const prevItso = parseIntArray(itsoEl.value);
+      const wasCustomized = prevItso.length > 0 && prevItso.some(v => v !== 1);
+      itsoEl.value = Array(sets.length).fill(1).join(' ');
+      if (wasCustomized)
+        showToast(t('b78.itso_resized_hint').replace('{n}', sets.length), 'info');
+    }
+
   } catch (err) {
     valMsg.textContent = err.message;
     valMsg.classList.remove('d-none');

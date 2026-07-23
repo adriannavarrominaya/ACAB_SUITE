@@ -296,7 +296,17 @@ function buildTimePatches(filas, opts) {
         t_cool_fin: fasesCool.length ? fasesCool[fasesCool.length - 1].t_fin : undefined,
         historial_irr: fasesIrr, historial_cool: fasesCool,
       },
-      patch: { blocks78: { sets: b78.sets, times: b78.times }, block11: { NOTTS: b78.notts } },
+      // NOTTS (Block #11) = nº de tarjetas del historial; ITSO (Block #13,
+      // tarjeta 3) es un vector [NOTTS] con el flag de salida por time set
+      // (manual ACAB 2008, Block #13) -- debe crecer/encoger junto a NOTTS o
+      // el inp.5 queda inconsistente (F8 del BACKLOG). Se sincroniza a "todo
+      // con salida"; la salida por intervalo exige además IOUT=1 en la
+      // tarjeta del set, que buildBlocks78 ya escribe.
+      patch: {
+        blocks78: { sets: b78.sets, times: b78.times },
+        block11: { NOTTS: b78.notts },
+        block13: { ITSO: Array(b78.notts).fill(1) },
+      },
     });
   }
   return out;

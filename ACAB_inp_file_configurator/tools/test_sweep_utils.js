@@ -6,9 +6,9 @@
  *   buildFluxPatches  — modo 'phi' (φ_base=2e14, objetivo=1e14 → XNORM=0.5)
  *   parseSweepValues / proposeSuffix — casos límite
  *   buildTimePatches  — historiales multi-tramo (U7): sincroniza
- *                        block11.NOTTS, params.t_irr_fin/t_cool_fin y
- *                        equivalencia estructural con buildBlocks78 (mismo
- *                        cálculo que el generador manual)
+ *                        block11.NOTTS, block13.ITSO (F8), params.t_irr_fin/
+ *                        t_cool_fin y equivalencia estructural con
+ *                        buildBlocks78 (mismo cálculo que el generador manual)
  *   summarizeFases / insertDuplicate / uniqueSuffix — lógica pura del
  *                        acordeón de tarjetas (resumen, duplicar, sufijos)
  */
@@ -230,6 +230,10 @@ check('buildTimePatches: params.t_irr_fin/t_cool_fin = t_fin del tramo',
 check('buildTimePatches: historial_irr/historial_cool presentes',
   JSON.stringify(tp[0].params.historial_irr) === JSON.stringify(singleFila.fasesIrr)
   && JSON.stringify(tp[0].params.historial_cool) === JSON.stringify(singleFila.fasesCool));
+// F8: block13.ITSO debe crecer junto a block11.NOTTS (bug hermano: antes de
+// F8 solo se parcheaba block11.NOTTS y block13.ITSO quedaba desincronizado).
+check('F8 buildTimePatches: block13.ITSO longitud = NOTTS, todo con salida',
+  JSON.stringify(tp[0].patch.block13.ITSO) === JSON.stringify([1, 1]));
 
 // Multi-tramo: 2 tramos de irradiación + 2 de enfriamiento en una tarjeta.
 const multiFila = {
@@ -244,6 +248,8 @@ check('buildTimePatches multi-tramo: t_cool_fin = t_fin del ÚLTIMO tramo de coo
   tpMulti[0].params.t_cool_fin === 168);
 check('buildTimePatches multi-tramo: NOTTS = nº de sets (5+8 irr + 4+6 cool = 23 pasos → 3 sets)',
   tpMulti[0].patch.block11.NOTTS === 3 && tpMulti[0].patch.blocks78.sets.length === 3);
+check('F8 buildTimePatches multi-tramo: block13.ITSO longitud = NOTTS (3), todo con salida',
+  JSON.stringify(tpMulti[0].patch.block13.ITSO) === JSON.stringify([1, 1, 1]));
 // F7: los tramos se concatenan por fase y se trocean sin mezclar -- ninguna
 // tarjeta puede tener 0 < MMN < MOUT (eso sería una tarjeta mixta irr+cool).
 check('F7 multi-tramo: ninguna tarjeta mezcla fases (MMN=0 o MMN=MOUT)',

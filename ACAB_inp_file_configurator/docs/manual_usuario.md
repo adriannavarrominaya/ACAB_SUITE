@@ -218,7 +218,8 @@ formulario dedicado en vez de escribir tiempos acumulados a mano:
    por intervalo) e `IPLOT = 1` (datos para gráfica).
 5. Pulsa **"Generar y actualizar datos"**: la app calcula la malla temporal
    completa y muestra la vista previa de los Bloques #7/#8 generados, además
-   de fijar automáticamente `NOTTS` (Bloque #11).
+   de fijar automáticamente `NOTTS` (Bloque #11) e `ITSO` (Bloque #13):
+   `NOTTS` e `ITSO` se sincronizan automáticamente.
 
 Errores típicos de este formulario: un tiempo final que no es estrictamente
 mayor que el anterior, o un número de pasos fuera de 1–10 — ambos se señalan
@@ -393,8 +394,8 @@ propio `IUNIT`/`IOUT`/`IPLOT`, independiente de las demás.
   conservar la fase del fichero base" — si una fase debe quedar igual que
   la de otra simulación, cópiala con **Duplicar**.
 
-`NOTTS` (Bloque #11) se sincroniza automáticamente por simulación, igual
-que en el generador manual.
+`NOTTS` (Bloque #11) e `ITSO` (Bloque #13) se sincronizan automáticamente
+por simulación, igual que en el generador manual.
 
 > **Sufijos de carpeta.** El sufijo de cada simulación deriva del tiempo
 > final de irradiación (p. ej. `Tirr040.0h`). Si dos simulaciones comparten

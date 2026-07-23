@@ -395,7 +395,8 @@
     "ph_steps": "1–10",
     "no_phase": "Define at least one irradiation or cooling segment.",
     "error_steps": "Invalid step count ({n}). Must be integer between 1 and 10.",
-    "error_time": "End time {t} must be strictly greater than the previous ({prev})."
+    "error_time": "End time {t} must be strictly greater than the previous ({prev}).",
+    "itso_resized_hint": "ITSO resized to {n} sets (all with output); edit it if you need to suppress output for any set."
   },
   "b11": {
     "card1_h": "Card #1 — Run type & response functions",

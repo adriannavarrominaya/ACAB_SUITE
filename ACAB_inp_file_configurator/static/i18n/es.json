@@ -395,7 +395,8 @@
     "ph_steps": "1–10",
     "no_phase": "Define al menos un tramo de irradiación o de enfriamiento.",
     "error_steps": "Número de pasos inválido ({n}). Debe ser entero entre 1 y 10.",
-    "error_time": "Tiempo final {t} debe ser estrictamente mayor que el anterior ({prev})."
+    "error_time": "Tiempo final {t} debe ser estrictamente mayor que el anterior ({prev}).",
+    "itso_resized_hint": "ITSO redimensionado a {n} sets (todo con salida); edítalo si necesitas suprimir salida de algún set."
   },
   "b11": {
     "card1_h": "Card #1 — Tipo de cálculo y funciones de respuesta",
