@@ -55,6 +55,12 @@ function calcularVectorTiempos(entradas, t) {
 
 // ── Bloques #7/#8 a partir de las fases de irradiación y enfriamiento ──────
 /**
+ * Genera las tarjetas de Blocks #7/#8 SIN compactación entre fases (F7):
+ * irradiación y enfriamiento nunca comparten tarjeta. Cada fase se trocea
+ * por separado en grupos de <=10 tiempos; las tarjetas de irradiación
+ * preceden siempre a las de enfriamiento. NGO/MSUB encadenan las tarjetas
+ * globalmente (MSUB = MOUT de la tarjeta anterior, 0 en la primera; NGO=0
+ * solo en la última tarjeta).
  * @param {{t_fin:number,pasos:number}[]} fasesIrr
  * @param {{t_fin:number,pasos:number}[]} fasesCool
  * @param {{iunit?:number,iout?:number|boolean,iplot?:number|boolean,t?:Function}} [opts]
@@ -74,16 +80,23 @@ function buildBlocks78(fasesIrr, fasesCool, opts) {
     ...tiempos_cool.map(t => [t, 0]),
   ];
 
-  const chunks = [];
-  for (let i = 0; i < lista_global.length; i += 10) chunks.push(lista_global.slice(i, i + 10));
+  const chunk10 = (arr) => {
+    const out = [];
+    for (let i = 0; i < arr.length; i += 10) out.push(arr.slice(i, i + 10));
+    return out;
+  };
+  const chunks = [
+    ...chunk10(tiempos_irr).map(times  => ({ TIMES: times, MMN: times.length })),
+    ...chunk10(tiempos_cool).map(times => ({ TIMES: times, MMN: 0 })),
+  ];
 
   const sets = chunks.map((chunk, idx) => ({
-    MMN:   chunk.filter(([, tipo]) => tipo === 1).length,
-    MOUT:  chunk.length,
+    MMN:   chunk.MMN,
+    MOUT:  chunk.TIMES.length,
     NGO:   idx < chunks.length - 1 ? 1 : 0,
-    MSUB:  idx > 0 ? chunks[idx - 1].length : 0,
+    MSUB:  idx > 0 ? chunks[idx - 1].TIMES.length : 0,
     IUNIT: iunit, MFEED: 0, IOUT: iout, IPLOT: iplot,
-    TIMES: chunk.map(([t]) => t),
+    TIMES: chunk.TIMES,
   }));
 
   return { sets, times: lista_global, notts: sets.length };

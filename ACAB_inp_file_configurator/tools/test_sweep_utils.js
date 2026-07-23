@@ -56,6 +56,71 @@ check('buildBlocks78: set1 MMN=0 MOUT=5 NGO=0 MSUB=10',
 check('buildBlocks78: times marca fases (1=irr, 0=cool)',
   b2.times.length === 15 && b2.times[0][1] === 1 && b2.times[14][1] === 0);
 
+// ── buildBlocks78 (F7): sin compactación — irr y cool NUNCA comparten tarjeta ──
+// Caso oro literal del tutor: irr 2.778e-3 h / 1 paso + cool 4.5 h / 18 pasos
+// (entrados como 2 tramos de <=10 pasos cada uno, límite de calcularVectorTiempos).
+const bGolden = buildBlocks78(
+  [{ t_fin: 2.778e-3, pasos: 1 }],
+  [{ t_fin: 2.5, pasos: 10 }, { t_fin: 4.5, pasos: 8 }],
+  { iunit: 3, iout: 1, iplot: 0 });
+check('F7 caso oro: 3 tarjetas (irr solo / cool solo / cool solo)', bGolden.sets.length === 3);
+check('F7 caso oro: tarjeta 1 (irr) MMN=1 MOUT=1 NGO=1 MSUB=0',
+  bGolden.sets[0].MMN === 1 && bGolden.sets[0].MOUT === 1
+  && bGolden.sets[0].NGO === 1 && bGolden.sets[0].MSUB === 0);
+check('F7 caso oro: tarjeta 1 TIMES = [2.778e-3]',
+  JSON.stringify(bGolden.sets[0].TIMES) === JSON.stringify([2.778e-3]));
+check('F7 caso oro: tarjeta 2 (cool) MMN=0 MOUT=10 NGO=1 MSUB=1',
+  bGolden.sets[1].MMN === 0 && bGolden.sets[1].MOUT === 10
+  && bGolden.sets[1].NGO === 1 && bGolden.sets[1].MSUB === 1);
+check('F7 caso oro: tarjeta 2 TIMES = 0.25..2.5',
+  JSON.stringify(bGolden.sets[1].TIMES)
+  === JSON.stringify([0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5]));
+check('F7 caso oro: tarjeta 3 (cool) MMN=0 MOUT=8 NGO=0 MSUB=10',
+  bGolden.sets[2].MMN === 0 && bGolden.sets[2].MOUT === 8
+  && bGolden.sets[2].NGO === 0 && bGolden.sets[2].MSUB === 10);
+check('F7 caso oro: tarjeta 3 TIMES = 2.75..4.5',
+  JSON.stringify(bGolden.sets[2].TIMES)
+  === JSON.stringify([2.75, 3.0, 3.25, 3.5, 3.75, 4.0, 4.25, 4.5]));
+
+// Fase de irradiación > 10 pasos (2 tarjetas de irr) seguida de enfriamiento:
+// ninguna tarjeta debe mezclar fases (regresión del "compactado" pre-F7, que
+// habría fusionado los 5 últimos pasos de irr con los 3 de cool en una sola
+// tarjeta MMN=5 MOUT=8).
+const bIrrMulti = buildBlocks78(
+  [{ t_fin: 10, pasos: 10 }, { t_fin: 15, pasos: 5 }],
+  [{ t_fin: 20, pasos: 3 }],
+  { iunit: 3 });
+check('F7 irr>10: 3 tarjetas (irr, irr, cool)', bIrrMulti.sets.length === 3);
+check('F7 irr>10: tarjeta 1 pura irr MMN=10 MOUT=10 NGO=1 MSUB=0',
+  bIrrMulti.sets[0].MMN === 10 && bIrrMulti.sets[0].MOUT === 10
+  && bIrrMulti.sets[0].NGO === 1 && bIrrMulti.sets[0].MSUB === 0);
+check('F7 irr>10: tarjeta 2 pura irr (nunca MMN<MOUT) MMN=5 MOUT=5 NGO=1 MSUB=10',
+  bIrrMulti.sets[1].MMN === 5 && bIrrMulti.sets[1].MOUT === 5
+  && bIrrMulti.sets[1].NGO === 1 && bIrrMulti.sets[1].MSUB === 10);
+check('F7 irr>10: tarjeta 3 pura cool MMN=0 MOUT=3 NGO=0 MSUB=5',
+  bIrrMulti.sets[2].MMN === 0 && bIrrMulti.sets[2].MOUT === 3
+  && bIrrMulti.sets[2].NGO === 0 && bIrrMulti.sets[2].MSUB === 5);
+
+// Solo-irradiación (sin fase de enfriamiento): última tarjeta con NGO=0.
+const bSoloIrr = buildBlocks78(
+  [{ t_fin: 10, pasos: 10 }, { t_fin: 12, pasos: 2 }], [], { iunit: 3 });
+check('F7 solo-irr: 2 tarjetas, ambas MMN=MOUT (puro irr)',
+  bSoloIrr.sets.length === 2
+  && bSoloIrr.sets[0].MMN === 10 && bSoloIrr.sets[0].MOUT === 10
+  && bSoloIrr.sets[1].MMN === 2 && bSoloIrr.sets[1].MOUT === 2);
+check('F7 solo-irr: NGO 1,0 y MSUB 0,10',
+  bSoloIrr.sets[0].NGO === 1 && bSoloIrr.sets[0].MSUB === 0
+  && bSoloIrr.sets[1].NGO === 0 && bSoloIrr.sets[1].MSUB === 10);
+
+// Solo-enfriamiento (sin fase de irradiación): MMN=0 en todas las tarjetas.
+const bSoloCool = buildBlocks78(
+  [], [{ t_fin: 10, pasos: 10 }, { t_fin: 12, pasos: 2 }], { iunit: 3 });
+check('F7 solo-cool: 2 tarjetas, MMN=0 en ambas',
+  bSoloCool.sets.length === 2 && bSoloCool.sets[0].MMN === 0 && bSoloCool.sets[1].MMN === 0);
+check('F7 solo-cool: MOUT 10,2 NGO 1,0 MSUB 0,10',
+  bSoloCool.sets[0].MOUT === 10 && bSoloCool.sets[0].NGO === 1 && bSoloCool.sets[0].MSUB === 0
+  && bSoloCool.sets[1].MOUT === 2 && bSoloCool.sets[1].NGO === 0 && bSoloCool.sets[1].MSUB === 10);
+
 // calcularVectorTiempos rechaza pasos/tiempo inválidos
 let threw = false; try { calcularVectorTiempos([{ t_fin: 10, pasos: 11 }]); } catch (e) { threw = true; }
 check('calcularVectorTiempos rechaza pasos > 10', threw);
@@ -179,6 +244,10 @@ check('buildTimePatches multi-tramo: t_cool_fin = t_fin del ÚLTIMO tramo de coo
   tpMulti[0].params.t_cool_fin === 168);
 check('buildTimePatches multi-tramo: NOTTS = nº de sets (5+8 irr + 4+6 cool = 23 pasos → 3 sets)',
   tpMulti[0].patch.block11.NOTTS === 3 && tpMulti[0].patch.blocks78.sets.length === 3);
+// F7: los tramos se concatenan por fase y se trocean sin mezclar -- ninguna
+// tarjeta puede tener 0 < MMN < MOUT (eso sería una tarjeta mixta irr+cool).
+check('F7 multi-tramo: ninguna tarjeta mezcla fases (MMN=0 o MMN=MOUT)',
+  tpMulti[0].patch.blocks78.sets.every(s => s.MMN === 0 || s.MMN === s.MOUT));
 
 // Ambas fases vacías sigue siendo un error (misma semántica que el editor manual).
 let threwEmptyPhases = false;
