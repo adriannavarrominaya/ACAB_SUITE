@@ -415,70 +415,118 @@ def leer_inp5(filepath: str) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def leer_fort6_irradiacion(filepath: str) -> tuple[np.ndarray, dict[str, np.ndarray]]:
-    """Parse the NUMBER OF ATOMS section from fort.6.
+    """Parse all NUMBER OF ATOMS (CONCENTRATIONS DURING IRRADIATION BY
+    INTERVAL) sections from fort.6, merging every TIME SET that belongs to
+    the irradiation phase.
+
+    With F7's Blocks #7/#8 format (irradiation and cooling never share a
+    card), an irradiation phase longer than 10 timesteps spans multiple
+    cards/TIME SETs, each with its own NUMBER OF ATOMS table: reading only
+    the first one (as a single-block parser would) truncates the curve at
+    the end of the first card. Mirrors the multi-block merge that
+    leer_fort6_enfriamiento already does for the cooling tables.
 
     Returns:
-        t_irr_h   np.ndarray   Time points [h]
+        t_irr_h   np.ndarray   Time points [h] (t=0 = INITIAL, pre-irradiation)
         datos     dict         {iso: np.ndarray of atoms/cm³}
     """
     with open(filepath, "r", errors="ignore") as f:
         lines = f.readlines()
 
-    bloque_inicio: Optional[int] = None
+    # Locate all CONCENTRATIONS DURING IRRADIATION BY INTERVAL / NUMBER OF
+    # ATOMS sections (skip the BY ZONE duplicates, same criterion as the
+    # cooling parser).
+    block_starts: list[int] = []
     for i, l in enumerate(lines):
         if "NUMBER OF ATOMS" in l:
-            bloque_inicio = i
-            break
-    if bloque_inicio is None:
+            pre = "".join(lines[max(0, i - 6): i])
+            if "BY ZONE" not in pre:
+                block_starts.append(i)
+
+    if not block_starts:
         raise ValueError("No se encontró NUMBER OF ATOMS en fort.6")
 
-    header_line: Optional[int] = None
-    for j in range(bloque_inicio, min(bloque_inicio + 20, len(lines))):
-        if "INITIAL" in lines[j]:
-            header_line = j
-            break
-    if header_line is None:
-        raise ValueError("No se encontró la línea de cabecera de tiempos en NUMBER OF ATOMS")
+    t_all: list[float] = []
+    data_all: dict[str, list[float]] = {}
 
-    hdr_tokens = lines[header_line].strip().split()
-    t_vals: list[float] = []
-    for tok in hdr_tokens:
-        if tok == "INITIAL":
-            t_vals.append(0.0)
-        else:
-            try:
-                t_vals.append(float(tok))
-            except ValueError:
-                pass
-    t_irr = np.array(t_vals)
-    n_cols = len(t_irr)
+    _STOP = ("SUBTOT", "TOTAL")
 
-    datos: dict[str, np.ndarray] = {}
-    i = header_line + 1
-    while i < len(lines):
-        l = lines[i]
-        stripped = l.strip()
+    for bloque_inicio in block_starts:
+        header_line: Optional[int] = None
+        for j in range(bloque_inicio, min(bloque_inicio + 20, len(lines))):
+            if "INITIAL" in lines[j]:
+                header_line = j
+                break
+        if header_line is None:
+            continue
 
-        # Stop at end-of-table markers
-        if stripped.upper().startswith("TOTAL") or stripped.upper().startswith("SUBTOT"):
-            break
-        if "NUCLIDE RADIOACTIVITY" in l or "NUCLIDE IDENTIFIERS" in l:
-            break
-        if "2. TIME SET" in l:
-            break
-
-        parts = stripped.split()
-        if parts and len(parts) >= n_cols + 1:
-            iso_name = parts[0]
-            if re.match(r"^[A-Z]{1,2}\d{2,3}M?$", iso_name):
+        # Map column tokens to time values. INITIAL is the pre-irradiation
+        # t=0, repeated identically at the top of every table (deduped
+        # below). RESTART is always a carried-over duplicate of the
+        # previous card's last timestep here: unlike cooling's RESTART,
+        # the irradiation clock never resets between irradiation-only
+        # cards (single-pulse scope, NOPUL=0), so it never marks a new
+        # point and is safe to exclude unconditionally.
+        col_times: list[Optional[float]] = []
+        for tok in lines[header_line].strip().split():
+            if tok == "INITIAL":
+                col_times.append(0.0)
+            elif tok == "RESTART":
+                col_times.append(None)
+            else:
                 try:
-                    vals = [float(v) for v in parts[1: n_cols + 1]]
-                    if len(vals) == n_cols:
-                        datos[iso_name] = np.array(vals)
-                except (ValueError, IndexError):
-                    pass
-        i += 1
+                    col_times.append(float(tok))
+                except ValueError:
+                    col_times.append(None)
 
+        new_idx: list[int] = []
+        new_times: list[float] = []
+        for k, t in enumerate(col_times):
+            if t is not None and t not in t_all:
+                new_idx.append(k)
+                new_times.append(t)
+
+        if not new_idx:
+            continue
+
+        n_cols = len(col_times)
+        n_prev = len(t_all)
+        t_all += new_times
+
+        i = header_line + 1
+        sec_data: dict[str, list[float]] = {}
+        while i < len(lines):
+            l_str = lines[i]
+            stripped = l_str.strip()
+
+            if any(stripped.upper().startswith(kw) for kw in _STOP):
+                break
+            if "NUCLIDE RADIOACTIVITY" in l_str or "NUCLIDE IDENTIFIERS" in l_str:
+                break
+            if ". TIME SET" in l_str:
+                break
+            if i > bloque_inicio + 10 and "NUMBER OF ATOMS" in l_str:
+                break
+
+            parts = stripped.split()
+            if parts and len(parts) >= n_cols + 1:
+                iso_name = parts[0]
+                if re.match(r"^[A-Z]{1,2}\d{2,3}M?$", iso_name):
+                    try:
+                        all_vals = [float(v) for v in parts[1: n_cols + 1]]
+                        if len(all_vals) >= n_cols:
+                            sec_data[iso_name] = [all_vals[k] for k in new_idx]
+                    except (ValueError, IndexError):
+                        pass
+            i += 1
+
+        for iso, new_vals in sec_data.items():
+            if iso not in data_all:
+                data_all[iso] = [0.0] * n_prev
+            data_all[iso] += new_vals
+
+    t_irr = np.array(t_all)
+    datos = {iso: np.array(vals) for iso, vals in data_all.items()}
     return t_irr, datos
 
 

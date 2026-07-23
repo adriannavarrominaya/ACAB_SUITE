@@ -47,6 +47,15 @@ REF_SIM_F7 = FIXTURES / "ref_sim_f7"
 FORT6_F7 = str(REF_SIM_F7 / "fort.6")
 DECAY_F7 = str(REF_SIM_F7 / "DECAY.dat")
 
+# ref_sim_f7_irr2sets (F7 del BACKLOG, verificación adicional): fase de
+# irradiación que ocupa 2 tarjetas de Blocks #7/#8 (20 pasos, 0.25->5.00h) +
+# enfriamiento multi-tarjeta (misma malla que ref_sim_f7). Expuso que
+# leer_fort6_irradiacion solo leia la PRIMERA tabla NUMBER OF ATOMS. Ver
+# tests/fixtures/ref_sim_f7_irr2sets/PROCEDENCIA.md.
+REF_SIM_F7_IRR2 = FIXTURES / "ref_sim_f7_irr2sets"
+FORT6_F7_IRR2 = str(REF_SIM_F7_IRR2 / "fort.6")
+DECAY_F7_IRR2 = str(REF_SIM_F7_IRR2 / "DECAY.dat")
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Mini-framework de aserciones
 # ─────────────────────────────────────────────────────────────────────────────
@@ -182,6 +191,54 @@ def test_pico_i131_f7_3sets() -> None:
     check_close(pico["A_pico"], 1.6500e4, "A_pico I131 = 1.6500e4 Bq/cm³ (idéntico a ref_sim)", rtol=2e-3)
     check_close(pico["t_pico"], 3.753, "t_pico I131 = 3.753 h (idéntico a ref_sim)", rtol=1e-2)
     check(pico["fase"] == "enfriamiento", "pico en fase de enfriamiento")
+
+
+def test_irradiacion_f7_2sets() -> None:
+    section("leer_fort6_irradiacion — F7: irradiación en 2 tarjetas (NUMBER OF ATOMS)")
+    t_irr, datos = fa.leer_fort6_irradiacion(FORT6_F7_IRR2)
+
+    # Malla: INITIAL + 20 pasos = 21 puntos, 0.00-5.00h/0.25h. La tarjeta 1
+    # (10 pasos, 0.25->2.5h) y la tarjeta 2 (10 pasos, 2.75->5.0h, RESTART
+    # duplicando el último de la tarjeta 1) deben fusionarse sin perder
+    # puntos ni contar dos veces las tablas BY ZONE.
+    check(len(t_irr) == 21, f"INITIAL + 20 puntos de irradiación (obtenido {len(t_irr)})")
+    check_close(t_irr[0], 0.0, "primer t de irradiación = 0 (INITIAL)", atol=1e-9)
+    check_close(t_irr[-1], 5.0, "último t de irradiación = 5.00 h")
+    check(len(set(t_irr.tolist())) == len(t_irr),
+          "sin timesteps duplicados (BY ZONE no se cuenta como tarjeta nueva)")
+    check(all(t_irr[i] < t_irr[i + 1] for i in range(len(t_irr) - 1)),
+          "tiempos estrictamente crecientes tras fusionar las 2 tarjetas")
+
+    check("I131" in datos, "I131 presente en irradiación")
+    check(len(datos["I131"]) == 21, "serie I131 alineada con la malla (21 puntos)")
+
+    # Valor oro verificado a mano contra el texto del fort.6 (líneas 2896 y
+    # 5418): I131 en t=2.50h (última columna de la tarjeta 1) es IDÉNTICO al
+    # valor bajo RESTART en la tarjeta 2 -- confirma que el punto de empalme
+    # no se pierde ni se duplica al fusionar.
+    idx_250 = list(t_irr).index(2.5)
+    check_close(datos["I131"][idx_250], 1.141e13,
+                "I131 en t=2.50h (empalme tarjeta1/tarjeta2) = 1.141e13 át/cm³")
+    check_close(datos["I131"][-1], 2.622e13, "I131 al final de la irradiación (t=5.00h) = 2.622e13 át/cm³")
+
+
+def test_pico_f7_irr2sets_integracion() -> None:
+    section("analizar_carpeta — F7: irradiación 2 tarjetas + enfriamiento multi-tarjeta")
+    t12 = fa.leer_decay_dat(DECAY_F7_IRR2)
+    all_data, errors = fa.analizar_carpeta(str(REF_SIM_F7_IRR2), t12)
+
+    check(len(errors) == 0, f"análisis sin errores (errores={errors})")
+    sim = next(iter(all_data.values()))
+
+    # La irradiación completa (0->5h) debe llegar íntegra a la simulación
+    # analizada, no truncada en el final de la primera tarjeta (2.5h).
+    check(len(sim["t_irr"]) == 21, f"t_irr con los 21 puntos fusionados (obtenido {len(sim['t_irr'])})")
+    check_close(sim["t_irr"][-1], 5.0, "t_irr llega hasta 5.00h (no se corta en la tarjeta 1)")
+    check_close(sim["T_IRR_h"], 5.0, "T_IRR_h = 5.00h (leído de Block #11/Blocks #7,#8 del inp.5)")
+
+    pico = fa.calcular_pico(sim, "I131")
+    check(pico["fase"] == "enfriamiento", "pico de I131 en fase de enfriamiento")
+    check_close(pico["t_pico"], 7.5, "t_pico = T_irr(5.0h) + 2.5h de enfriamiento", rtol=1e-2)
 
 
 def test_inp5() -> None:
@@ -343,12 +400,17 @@ def main() -> int:
     if not Path(FORT6_F7).exists():
         print(f"\nERROR: no se encuentra el fixture {FORT6_F7}")
         return 1
+    if not Path(FORT6_F7_IRR2).exists():
+        print(f"\nERROR: no se encuentra el fixture {FORT6_F7_IRR2}")
+        return 1
 
     test_decay_dat()
     test_irradiacion()
     test_enfriamiento()
     test_enfriamiento_f7_3sets()
     test_pico_i131_f7_3sets()
+    test_irradiacion_f7_2sets()
+    test_pico_f7_irr2sets_integracion()
     test_inp5()
     test_pico_i131()
     test_concentraciones()

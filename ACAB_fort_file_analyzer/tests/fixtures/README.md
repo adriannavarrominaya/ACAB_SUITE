@@ -13,6 +13,20 @@ de tarjeta y aparecer como RESTART en vez de SHUTDOWN. Ver
 `tests/fixtures/ref_sim_f7/PROCEDENCIA.md` para el detalle y los valores oro
 (deben coincidir exactamente con los de `ref_sim` de abajo).
 
+## ref_sim_f7_irr2sets (F7 del BACKLOG, verificación adicional)
+
+`tests/fixtures/ref_sim_f7_irr2sets/` es una variante sintética (mismo
+material y librerías que `ref_sim`, malla temporal distinta) con una fase de
+**irradiación que ocupa 2 tarjetas** de Blocks #7/#8 (20 pasos, 0.25→5.00h) +
+enfriamiento multi-tarjeta. Expuso que `leer_fort6_irradiacion` solo leía la
+PRIMERA tabla NUMBER OF ATOMS y paraba en el literal `"2. TIME SET"`,
+truncando la serie de irradiación en el final de la primera tarjeta. Arreglo:
+fusión multi-bloque igual que `leer_fort6_enfriamiento` (RESTART siempre
+duplicado de continuación en irradiación pura, nunca genuino — a diferencia
+del RESTART de enfriamiento). Ver
+`tests/fixtures/ref_sim_f7_irr2sets/PROCEDENCIA.md` para el detalle y los
+valores oro (verificados a mano contra el texto del fort.6).
+
 ## Valores esperados (leídos del analyzer actual, 2026-07-07)
 - A_pico I131 (enfriamiento): 1.6500e+04 Bq/cm3, en t_global = 3.753 h
   (= T_irr 0.00278 h + 3.75 h de enfriamiento; calcular_pico usa el eje global
