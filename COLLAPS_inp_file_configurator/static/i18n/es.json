@@ -199,8 +199,9 @@
   },
 
   "footer": {
-    "tfg"    : "Trabajo de Fin de Grado — Ingeniería de la Energía | 2026",
-    "author" : "Autor: Adrián Navarro Minaya — Tutor: Óscar Luis Cabellos de Francisco",
-    "center" : "Escuela Universitaria de Minas y Energía — Universidad Politécnica de Madrid"
+    "tfg"       : "Trabajo de Fin de Grado — Grado en Ingeniería de la Energía | 2026",
+    "department": "Departamento de Ingeniería Energética Área/División Nuclear",
+    "author"    : "Autor: Adrián Navarro Minaya (adriannavarrominaya@gmail.com) — Tutor: Óscar Luis Cabellos de Francisco (oscar.cabellos@upm.es)",
+    "center"    : "Universidad Politécnica de Madrid"
   }
 }

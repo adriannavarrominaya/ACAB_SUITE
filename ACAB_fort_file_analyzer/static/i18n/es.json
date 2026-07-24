@@ -5,6 +5,12 @@
     "offline": "No arrancada — usa suite_launcher.py"
   },
 
+  "footer": {
+    "tfg": "Trabajo de Fin de Grado — Grado en Ingeniería de la Energía | 2026",
+    "department": "Departamento de Ingeniería Energética Área/División Nuclear",
+    "center": "Universidad Politécnica de Madrid"
+  },
+
   "common": {
     "close": "Cerrar"
   },

@@ -2,9 +2,13 @@
 
 **Tres aplicaciones web locales que cubren el ciclo completo de trabajo con el código de activación ACAB 2008 (UPM): configurar entradas → ejecutar → analizar salidas**
 
-**Autores:** Adrian Navarro Minaya · Oscar Luis Cabellos de Francisco
+**Autor:** Adrian Navarro Minaya · [adriannavarrominaya@gmail.com](mailto:adriannavarrominaya@gmail.com)
 
-**Centro:** Escuela Universitaria de Minas y Energía — Universidad Politécnica de Madrid
+**Tutor:** Oscar Luis Cabellos de Francisco · [oscar.cabellos@upm.es](mailto:oscar.cabellos@upm.es)
+
+**Departamento:** Departamento de Ingeniería Energética (Área Nuclear)
+
+**Centro:** Universidad Politécnica de Madrid
 
 **Fecha:** Julio 2026
 

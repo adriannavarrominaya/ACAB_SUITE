@@ -6,9 +6,12 @@
 
 > **Manual de usuario** (orientado a tareas, sin detalle de arquitectura ni tests): [`docs/manual_usuario.md`](docs/manual_usuario.md).
 
-**Autores:** Adrian Navarro Minaya · Oscar Luis Cabellos de Francisco
-**Centro** Escuela Universitaria de Minas y Energía — Universidad Politécnica de Madrid
-**Fecha** Mayo 2026
+**Proyecto:** Trabajo de Fin de Grado (TFG) en Ingeniería Energética
+**Autor:** Adrian Navarro Minaya · [adriannavarrominaya@gmail.com](mailto:adriannavarrominaya@gmail.com)
+**Tutor:** Oscar Luis Cabellos de Francisco · [oscar.cabellos@upm.es](mailto:oscar.cabellos@upm.es)
+**Departamento:** Departamento de Ingeniería Energética (Área Nuclear)
+**Centro:** Universidad Politécnica de Madrid
+**Fecha:** Mayo 2026
 **Código de simulación:** ACAB 2008 (UPM — Activation code)
 
 ---
@@ -38,6 +41,7 @@ Desarrollada como parte del Trabajo de Fin de Grado en Ingeniería de la Energí
       - [Linux / macOS (Bash)](#linux--macos-bash)
     - [Opción B — Instalación manual](#opción-b--instalación-manual)
     - [Arranque](#arranque)
+    - [La suite ACAB — puertos y launcher](#la-suite-acab--puertos-y-launcher)
   - [5. Uso de la Aplicación](#5-uso-de-la-aplicación)
     - [Secciones de la interfaz](#secciones-de-la-interfaz)
     - [Flujo de trabajo](#flujo-de-trabajo)
@@ -46,6 +50,9 @@ Desarrollada como parte del Trabajo de Fin de Grado en Ingeniería de la Energí
     - [Búsqueda de parámetros por código](#búsqueda-de-parámetros-por-código)
     - [Selector de idioma](#selector-de-idioma)
     - [Herramienta CHAINS](#herramienta-chains)
+      - [Modos de operación (IFLAG)](#modos-de-operación-iflag)
+      - [Identificador de nucleido](#identificador-de-nucleido)
+      - [Flujo de trabajo CHAINS](#flujo-de-trabajo-chains)
     - [Ayuda contextual](#ayuda-contextual)
   - [6. API REST](#6-api-rest)
     - [Endpoints CHAINS](#endpoints-chains)
@@ -59,6 +66,14 @@ Desarrollada como parte del Trabajo de Fin de Grado en Ingeniería de la Energí
     - [Sección 5 — Análisis de Incertidumbres](#sección-5--análisis-de-incertidumbres)
     - [Resumen visual](#resumen-visual)
   - [9. Ficheros de Ejemplo](#9-ficheros-de-ejemplo)
+  - [10. Validación y mejoras (julio 2026)](#10-validación-y-mejoras-julio-2026)
+    - [Suite de tests](#suite-de-tests)
+    - [Composición asistida del Bloque #5](#composición-asistida-del-bloque-5)
+    - [Presets de EGRP (Bloque #2, Card #6)](#presets-de-egrp-bloque-2-card-6)
+    - [Validaciones nuevas](#validaciones-nuevas)
+    - [Decisiones documentadas y cuestiones pendientes (julio 2026)](#decisiones-documentadas-y-cuestiones-pendientes-julio-2026)
+    - [Barrido paramétrico](#barrido-paramétrico)
+    - [Barrido espectral (COLLAPS)](#barrido-espectral-collaps)
 
 ---
 

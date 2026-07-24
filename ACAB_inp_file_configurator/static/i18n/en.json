@@ -575,9 +575,10 @@
     "unknown": "Unknown code '{code}'"
   },
   "footer": {
-    "tfg": "Bachelor's Final Thesis — Energy Engineering | 2026",
-    "author": "Author: Adrián Navarro Minaya — Supervisor: Óscar Luis Cabellos de Francisco",
-    "center": "Escuela Universitaria de Minas y Energía — Universidad Politécnica de Madrid"
+    "tfg": "Bachelor's Final Thesis — Energy Engineering Degree | 2026",
+    "department": "Department of Energy Engineering — Nuclear Area/Division",
+    "author": "Author: Adrián Navarro Minaya (adriannavarrominaya@gmail.com) — Supervisor: Óscar Luis Cabellos de Francisco (oscar.cabellos@upm.es)",
+    "center": "Universidad Politécnica de Madrid"
   },
   "b5calc": {
     "header": "Assisted composition — computed from the target mass",

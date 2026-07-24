@@ -5,6 +5,12 @@
     "offline": "Not running — use suite_launcher.py"
   },
 
+  "footer": {
+    "tfg": "Bachelor's Final Thesis — Energy Engineering Degree | 2026",
+    "department": "Department of Energy Engineering — Nuclear Area/Division",
+    "center": "Universidad Politécnica de Madrid"
+  },
+
   "common": {
     "close": "Close"
   },

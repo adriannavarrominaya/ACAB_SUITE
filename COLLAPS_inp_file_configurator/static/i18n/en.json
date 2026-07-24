@@ -199,8 +199,9 @@
   },
 
   "footer": {
-    "tfg"    : "Bachelor's Thesis — Energy Engineering | 2026",
-    "author" : "Author: Adrián Navarro Minaya — Tutor: Óscar Luis Cabellos de Francisco",
-    "center" : "School of Mining and Energy Engineering — Universidad Politécnica de Madrid"
+    "tfg"       : "Bachelor's Thesis — Energy Engineering Degree | 2026",
+    "department": "Department of Energy Engineering — Nuclear Area/Division",
+    "author"    : "Author: Adrián Navarro Minaya (adriannavarrominaya@gmail.com) — Tutor: Óscar Luis Cabellos de Francisco (oscar.cabellos@upm.es)",
+    "center"    : "Universidad Politécnica de Madrid"
   }
 }

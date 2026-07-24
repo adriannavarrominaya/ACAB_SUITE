@@ -6,8 +6,11 @@ Herramienta gráfica web para el análisis de ficheros de salida de ACABv2008
 
 > **Manual de usuario** (orientado a tareas, sin detalle de arquitectura ni tests): [`docs/manual_usuario.md`](docs/manual_usuario.md).
 
-**Autores:** Adrian Navarro Minaya · Oscar Luis Cabellos de Francisco
-**Centro:** Escuela Universitaria de Minas y Energía — Universidad Politécnica de Madrid
+**Proyecto:** Trabajo de Fin de Grado (TFG) en Ingeniería Energética
+**Autor:** Adrian Navarro Minaya · [adriannavarrominaya@gmail.com](mailto:adriannavarrominaya@gmail.com)
+**Tutor:** Oscar Luis Cabellos de Francisco · [oscar.cabellos@upm.es](mailto:oscar.cabellos@upm.es)
+**Departamento:** Departamento de Ingeniería Energética (Área Nuclear)
+**Centro:** Universidad Politécnica de Madrid
 **Fecha:** Mayo 2026
 **Código de simulación:** ACAB 2008 (UPM — Activation code)
 

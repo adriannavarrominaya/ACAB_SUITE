@@ -6,9 +6,12 @@
 
 > **Manual de usuario** (orientado a tareas, sin detalle de arquitectura ni tests): [`docs/manual_usuario.md`](docs/manual_usuario.md).
 
-**Autores:** Adrian Navarro Minaya · Oscar Luis Cabellos de Francisco  
-**Centro:** Escuela Universitaria de Minas y Energía — Universidad Politécnica de Madrid  
-**Fecha:** Mayo 2026  
+**Proyecto:** Trabajo de Fin de Grado (TFG) en Ingeniería Energética  
+**Autor:** Adrian Navarro Minaya · [adriannavarrominaya@gmail.com](mailto:adriannavarrominaya@gmail.com)  
+**Tutor:** Oscar Luis Cabellos de Francisco · [oscar.cabellos@upm.es](mailto:oscar.cabellos@upm.es)  
+**Departamento:** Departamento de Ingeniería Energética (Área Nuclear)  
+**Centro:** Universidad Politécnica de Madrid  
+**Fecha:** Mayo 2026
 **Código de simulación:** COLLAPS (preprocesador de secciones eficaces para ACABv2008)
 
 ---
@@ -31,6 +34,7 @@
     - [Opción A — Script automático (recomendado, Windows)](#opción-a--script-automático-recomendado-windows)
     - [Opción B — Instalación manual](#opción-b--instalación-manual)
     - [Arranque](#arranque)
+    - [La suite ACAB — puertos y launcher](#la-suite-acab--puertos-y-launcher)
   - [5. Uso de la Aplicación](#5-uso-de-la-aplicación)
     - [Secciones de la interfaz](#secciones-de-la-interfaz)
     - [Flujo de trabajo](#flujo-de-trabajo)
