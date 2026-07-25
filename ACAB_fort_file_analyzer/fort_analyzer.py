@@ -227,6 +227,31 @@ def leer_decay_dat(filepath: str) -> dict[str, float]:
     return t12_dict
 
 
+# Reverse of the ZZAAAS codec above (element symbol → Z), used by
+# nombre_a_zzaaas (F9 del BACKLOG).
+_ELEM_TO_Z: dict[str, int] = {v: k for k, v in _Z_TO_ELEM.items()}
+
+
+def nombre_a_zzaaas(acab_key: str) -> int:
+    """Inverse of the ZZAAAS codec of leer_decay_dat (name → code, F9 del BACKLOG).
+
+    'TE130' -> 521300, 'TE131M' -> 521311 (S=1 para isómeros). Necesario
+    para construir IINICIAL/IFINAL del input de CHAINS a partir de un
+    isótopo elegido en la UI (nombre ACAB), reutilizando la misma tabla
+    Z<->símbolo que la codificación directa — no se define una nueva.
+    """
+    m = re.match(r"^([A-Z]{1,2})(\d{1,3})(M?)$", acab_key.strip().upper())
+    if not m:
+        raise ValueError(f"Nombre de isótopo no reconocido: {acab_key!r}")
+    elem = m.group(1)
+    z = _ELEM_TO_Z.get(elem)
+    if z is None:
+        raise ValueError(f"Elemento desconocido: {elem!r}")
+    a = int(m.group(2))
+    s = 1 if m.group(3) else 0
+    return z * 10000 + a * 10 + s
+
+
 # Header line of a PHOTON.dat block: Z (int), symbol+A with optional M
 # suffix, number of gamma lines. e.g. " 53   I132M        9".
 _PHOTON_HEADER_RE = re.compile(r"^\s*\d+\s+([A-Z]{1,2}\d{1,3}M?)\s+(\d+)\s*$")
@@ -731,6 +756,183 @@ def leer_fort6_concentraciones(filepath: str) -> Optional[dict]:
     if total is None:
         total = float(sum(elementos.values()))
     return {"elementos": elementos, "total_g_cm3": total}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CHAINS (F9 del BACKLOG): inventario isotópico inicial + parser del output
+# ─────────────────────────────────────────────────────────────────────────────
+
+def leer_concentraciones_iniciales(filepath: str) -> dict[str, float]:
+    """Inventario isotópico inicial (t=0, INITIAL CONCENTRATIONS) del fort.6.
+
+    Es el desglose por isótopos que ACAB genera al expandir un ELEMID
+    (Bloque #5) con las abundancias naturales de la librería; fuente de
+    verdad para el patch monoisotópico de F9 del BACKLOG. Lee solo la
+    columna INITIAL de la PRIMERA tabla NUMBER OF ATOMS (t=0, idéntica en
+    todas las tarjetas del formato F7 — no hace falta fusionar varios
+    bloques como leer_fort6_irradiacion, que además NO sirve aquí:
+    esa función solo reconoce isótopos con símbolo+masa pegados en un único
+    token ("TE130"), pero el fort.6 separa símbolo y masa en dos tokens
+    para elementos de una letra ("O 16", "H  1") — se perdería el O del
+    blanco TeO2. Este parser combina ambos formatos de columna.
+
+    Returns:
+        {acab_key: C_i} en átomos/cm³, solo isótopos con C_i > 0 (los que
+        de verdad componen el blanco; el resto de la tabla son productos
+        de activación en t=0, siempre nulos).
+    """
+    with open(filepath, "r", errors="ignore") as f:
+        lines = f.readlines()
+
+    inicio: Optional[int] = None
+    for i, l in enumerate(lines):
+        if "NUMBER OF ATOMS" in l:
+            pre = "".join(lines[max(0, i - 6): i])
+            if "BY ZONE" not in pre:
+                inicio = i
+                break
+    if inicio is None:
+        raise ValueError(f"fort.6 sin sección NUMBER OF ATOMS: {filepath!r}")
+
+    header_line = next(
+        (j for j in range(inicio, min(inicio + 20, len(lines))) if "INITIAL" in lines[j]),
+        None,
+    )
+    if header_line is None:
+        raise ValueError(f"fort.6 sin columna INITIAL en NUMBER OF ATOMS: {filepath!r}")
+
+    idx_initial = lines[header_line].strip().split().index("INITIAL")
+
+    _STOP = ("SUBTOT", "TOTAL")
+    concentraciones: dict[str, float] = {}
+    for i in range(header_line + 1, len(lines)):
+        l_str = lines[i]
+        stripped = l_str.strip()
+
+        if any(stripped.upper().startswith(kw) for kw in _STOP):
+            break
+        if "NUCLIDE RADIOACTIVITY" in l_str or "NUCLIDE IDENTIFIERS" in l_str:
+            break
+        if ". TIME SET" in l_str:
+            break
+        if i > header_line + 10 and "NUMBER OF ATOMS" in l_str:
+            break
+
+        parts = stripped.split()
+        if not parts:
+            continue
+
+        if (len(parts) >= 3 and re.fullmatch(r"[A-Z]{1,2}", parts[0])
+                and re.fullmatch(r"\d{1,3}M?", parts[1])):
+            # Elemento de UNA letra: símbolo y masa en tokens separados
+            # ("O" + "16") por la anchura fija de columnas del fort.6.
+            iso_name = parts[0] + parts[1]
+            vals = parts[2:]
+        elif re.match(r"^[A-Z]{1,2}\d{1,3}M?$", parts[0]):
+            iso_name = parts[0]
+            vals = parts[1:]
+        else:
+            continue
+
+        if len(vals) <= idx_initial:
+            continue
+        try:
+            c_i = float(vals[idx_initial])
+        except ValueError:
+            continue
+        if c_i > 0.0:
+            concentraciones[iso_name] = c_i
+
+    return concentraciones
+
+
+# Detalle de un paso de cadena: "NUCLIDO (PROCESO)   NUCLIDO   XSEC=valor" o
+# "...DELTA=valor". El símbolo puede o no llevar espacio antes del "(" según
+# la anchura fija de columnas de CHAINS (p. ej. "TE130 (N,G-g)" vs.
+# "TE131M(B-)"), de ahí el \s* opcional.
+_CHAIN_STEP_RE = re.compile(
+    r"^(\S+?)\s*\(([^)]+)\)\s+(\S+)\s+(XSEC|DELTA)=\s*([0-9.DEde+\-]+)\s*$"
+)
+
+
+def leer_output_chains(filepath: str) -> dict:
+    """Parsea el output de ``chains.exe`` (IFLAG=2, F9 del BACKLOG).
+
+    Estructura del fichero:
+      - Cabecera con IFLAG, INITIAL/IFINAL (códigos ZZAAAS), NMAX, PCNT.
+      - NCHAIN: nº total de cadenas encontradas (antes del corte por PCNT).
+      - NCH: nº de cadenas por encima de PCNT (las únicas detalladas) y
+        PTOT (normalmente 100 tras la renormalización — ver nota abajo).
+      - Un bloque por cadena superviviente, delimitado por líneas de
+        asteriscos: "P=" (probabilidad relativa, %), la ruta compacta
+        (redundante, no se parsea) y el detalle paso a paso
+        ("NUCLIDO (PROCESO)   NUCLIDO   XSEC=..." o "...DELTA=...";
+        XSEC en capturas, DELTA en decaimientos).
+
+    OJO normalización (decisión de diseño de F9): PTOT=100 renormaliza
+    SOLO entre las cadenas que superan PCNT, así que Σ_z P de las cadenas
+    devueltas puede ser menor que 100 por la cola descartada — no se
+    corrige aquí, queda para la UI (nota al pie).
+
+    Returns:
+        {"iflag", "inicial", "ifinal", "nmax", "pcnt", "nchain", "nch",
+         "ptot", "cadenas": [{"p": float, "pasos": [
+             {"desde", "proceso", "hasta", "xsec": float|None,
+              "delta": float|None}, ...]}, ...]}
+    """
+    with open(filepath, "r", errors="ignore") as f:
+        text = f.read()
+
+    def _num(s: str) -> float:
+        return float(s.replace("D", "E").replace("d", "e"))
+
+    def _campo(patron: str) -> float:
+        m = re.search(patron, text)
+        if not m:
+            raise ValueError(f"Campo no encontrado en {filepath!r}: {patron!r}")
+        return _num(m.group(1))
+
+    _flt = r"([0-9.DEde+\-]+)"
+    iflag   = int(round(_campo(rf"\bIFLAG\s*=\s*{_flt}")))
+    inicial = int(round(_campo(rf"\bINITIAL\s*=\s*{_flt}")))
+    ifinal  = int(round(_campo(rf"\bIFINAL\s*=\s*{_flt}")))
+    nmax    = int(round(_campo(rf"\bNMAX\s*=\s*{_flt}")))
+    pcnt    = _campo(rf"\bPCNT\s*=\s*{_flt}")
+    nchain  = int(round(_campo(rf"\bNCHAIN\s*=\s*{_flt}")))
+    nch     = int(round(_campo(rf"\bNCH\s*=\s*{_flt}")))
+    ptot    = _campo(rf"\bPTOT\s*=\s*{_flt}")
+
+    lines = text.splitlines()
+    sep_idx = [i for i, l in enumerate(lines) if re.fullmatch(r"\*{5,}", l.strip())]
+
+    # La última cadena NO cierra con una línea separadora propia (el fichero
+    # pasa directo a "****** JOB FINISHED ******", que no es una línea de
+    # asteriscos puros): el último bloque llega hasta el final del fichero.
+    cadenas: list[dict] = []
+    for a, b in zip(sep_idx, sep_idx[1:] + [len(lines)]):
+        p_val: Optional[float] = None
+        pasos: list[dict] = []
+        for l in lines[a + 1: b]:
+            mp = re.match(r"^P=\s*([0-9.DEde+\-]+)\s*$", l.strip())
+            if mp:
+                p_val = _num(mp.group(1))
+                continue
+            ms = _CHAIN_STEP_RE.match(l.rstrip())
+            if ms:
+                desde, proceso, hasta, tag, val = ms.groups()
+                paso = {"desde": desde, "proceso": proceso, "hasta": hasta,
+                        "xsec": None, "delta": None}
+                paso[tag.lower()] = _num(val)
+                pasos.append(paso)
+        if p_val is not None and pasos:
+            cadenas.append({"p": p_val, "pasos": pasos})
+
+    return {
+        "iflag": iflag, "inicial": inicial, "ifinal": ifinal,
+        "nmax": nmax, "pcnt": pcnt,
+        "nchain": nchain, "nch": nch, "ptot": ptot,
+        "cadenas": cadenas,
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
