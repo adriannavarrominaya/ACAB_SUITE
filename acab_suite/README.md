@@ -171,3 +171,16 @@ Se persiste por app en `suite_config.json`, clave `runner` dentro de cada app: `
 - **Recuento de suite** (2026-07-23): 757 tests, 0 fallos, vía
   `acab_suite\tools\run_all_tests.ps1` (sustituye al recuento de 689 del
   2026-07-22; regression_roundtrip.py aparte, OK sin recuento numérico).
+  - **Control F9 Fase 0 — reproducibilidad de CHAINS** ✅ (2026-07-25): re-ejecución
+  limpia de `runchains.bat` (chains.exe real, fort.22/24 de las ejecuciones
+  reales de ACAB con IWP=3 / IMTX=1) → el `output_chain_Te130_to_I131.txt`
+  regenerado es idéntico por hash al fixture congelado (3 cadenas,
+  P=95.79/3.119/1.090 %). CHAINS es determinista: la salida queda fijada por
+  input_chain (IFLAG, IINICIAL, IFINAL, NMAX, PCNT) + fort.22/24 — en
+  particular NMAX condiciona qué cadenas existen, así que toda firma de
+  CHAINS del tablón debe citar su NMAX (aquí NMAX=5, PCNT=0.01).
+  Verificación de unidades de Fase 0: Σ C_i(Te) del eco del fort.6 =
+  4.6451E20 át/cm³ ↔ XCOMP(Te)=4.6448E-04 át/barn·cm (INPT=1): XCOMP está
+  en át/barn·cm (factor 1e-24), corrección incorporada al runbook de F9.
+- **Recuento de suite** (2026-07-25): 794 tests, 0 fallos
+  (run_all_tests.ps1; sustituye al 757 del 2026-07-23).
