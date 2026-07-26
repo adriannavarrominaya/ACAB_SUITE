@@ -36,6 +36,7 @@ REF_SIM = FIXTURES / "ref_sim"
 OUTPUT_CHAIN = str(FIXTURES / "chains" / "output_chain_Te130_to_I131.txt")
 DECAY = str(REF_SIM / "DECAY.dat")
 FORT6 = str(REF_SIM / "fort.6")
+CHAINS_SYNTHETIC = FIXTURES / "chains_synthetic"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Mini-framework de aserciones
@@ -204,13 +205,108 @@ def test_nombre_a_zzaaas_ida_y_vuelta() -> None:
           f" (fallos: {fallos[:5]}{'...' if len(fallos) > 5 else ''})")
 
 
+def test_calcular_analisis_cadenas_sintetico() -> None:
+    section("calcular_analisis_cadenas — caso sintético mínimo (2 isótopos, "
+            "R/Σ/X/Y verificados a mano, ver PROCEDENCIA.md)")
+
+    r = fa.calcular_analisis_cadenas(str(CHAINS_SYNTHETIC), t_h=None)
+
+    check(r["ifinal"] == "CO57", f"IFINAL=CO57 (obtenido {r['ifinal']})")
+    check_close(r["t_star_h"], 1.0, "t* por defecto = t_pico de la referencia = 1 h")
+    check(r["t_star_fuente"] == "pico_referencia",
+          f"t_star_fuente='pico_referencia' (obtenido {r['t_star_fuente']!r})")
+    check_close(r["a_ref"], 100.0, "A_ref(t*) = 100 Bq/cm3")
+
+    # ── Tabla 1: R_i por isótopo + Σ R_i ≈ 1 (cobertura completa) ──────────
+    tabla1 = {f["isotopo"]: f for f in r["tabla1"]}
+    check(set(tabla1.keys()) == {"FE56", "MN55"},
+          f"tabla1 tiene los 2 isótopos (obtenido {sorted(tabla1.keys())})")
+    check_close(tabla1["FE56"]["a_i"], 42.0, "A(FE56,t*) = 42 Bq/cm3")
+    check_close(tabla1["MN55"]["a_i"], 58.0, "A(MN55,t*) = 58 Bq/cm3")
+    check_close(tabla1["FE56"]["r_i"], 0.42, "R_FE56 = 42/100 = 0.42")
+    check_close(tabla1["MN55"]["r_i"], 0.58, "R_MN55 = 58/100 = 0.58")
+    check_close(r["suma_r_i"], 1.00, "Σ R_i = 1.00 (superposición lineal exacta del fixture)")
+    check(r["cobertura"]["completa"], "cobertura completa: los 2 isótopos del inventario inicial están seleccionados")
+    check(r["cobertura"]["n_seleccionados"] == 2 and r["cobertura"]["n_total_inventario"] == 2,
+          f"cobertura n_seleccionados=n_total_inventario=2 (obtenido {r['cobertura']})")
+
+    # ── Tabla 2: X_z_i, Y_z_i, orden por Y_z_i descendente ─────────────────
+    check(len(r["tabla2"]) == 3, f"tabla2 tiene 3 filas (2 cadenas de FE56 + 1 de MN55, obtenido {len(r['tabla2'])})")
+    fila_mn, fila_fe1, fila_fe2 = r["tabla2"]
+
+    check(fila_mn["isotopo"] == "MN55" and fila_fe1["isotopo"] == "FE56" and fila_fe2["isotopo"] == "FE56",
+          "orden esperado: MN55 (Y=0.580) -> FE56 (Y=0.336) -> FE56 (Y=0.084)")
+    check_close(fila_mn["x_z_i"], 1.00, "X_z_i(MN55, única cadena) = 1.00 (P=100%)")
+    check_close(fila_mn["y_z_i"], 0.580, "Y_z_i(MN55) = 0.58 * 1.00 = 0.580")
+    check_close(fila_fe1["x_z_i"], 0.80, "X_z_i(FE56, cadena 1) = 0.80 (P=80%)")
+    check_close(fila_fe1["y_z_i"], 0.336, "Y_z_i(FE56, cadena 1) = 0.42 * 0.80 = 0.336")
+    check_close(fila_fe2["x_z_i"], 0.20, "X_z_i(FE56, cadena 2) = 0.20 (P=20%)")
+    check_close(fila_fe2["y_z_i"], 0.084, "Y_z_i(FE56, cadena 2) = 0.42 * 0.20 = 0.084")
+    check(fila_fe1["nmax"] == 5 and abs(fila_fe1["pcnt"] - 0.01) < 1e-6,
+          f"NMAX/PCNT viajan junto a la fila (obtenido NMAX={fila_fe1['nmax']}, PCNT={fila_fe1['pcnt']})")
+    check(fila_fe1["cadena_label"] == "FE56->FE57->CO57",
+          f"cadena_label de la cadena 1 de FE56 (obtenido {fila_fe1['cadena_label']!r})")
+
+    suma_y = sum(f["y_z_i"] for f in r["tabla2"])
+    check_close(suma_y, r["suma_r_i"], "Σ Y_z_i = Σ R_i (sin cola PCNT descartada en este fixture: NCH cubre el 100% de PTOT)")
+
+    # ── Selector de instante manual (t_h explícito, no el t_pico) ──────────
+    r0 = fa.calcular_analisis_cadenas(str(CHAINS_SYNTHETIC), t_h=0.0)
+    check(r0["t_star_fuente"] == "manual", "t_star_fuente='manual' cuando se pasa t_h explícito")
+    check_close(r0["a_ref"], 40.0, "A_ref(t=0) = 40 Bq/cm3 (instante manual, no el pico)")
+    tabla1_t0 = {f["isotopo"]: f for f in r0["tabla1"]}
+    check_close(tabla1_t0["FE56"]["r_i"], 15.0 / 40.0, "R_FE56(t=0) = 15/40")
+
+
+def test_construir_diagrama_cadena_caso_real() -> None:
+    section("construir_diagrama_cadena — cadena dominante Te130->Te131->I131 "
+            "(caso oro real, T½ de DECAY.dat)")
+
+    r = fa.leer_output_chains(OUTPUT_CHAIN)
+    t12 = fa.leer_decay_dat(DECAY)
+    c1, c2, c3 = r["cadenas"]
+
+    d1 = fa.construir_diagrama_cadena(c1, t12)
+    check([n["nombre"] for n in d1["nodos"]] == ["TE130", "TE131", "I131"],
+          f"nodos de la cadena dominante: TE130 -> TE131 -> I131 (obtenido {[n['nombre'] for n in d1['nodos']]})")
+    check_close(d1["nodos"][0]["t12_s"], 2.493e31, "T½(TE130) = 2.493E31 s (DECAY.dat)")
+    check_close(d1["nodos"][1]["t12_s"], 1500.0, "T½(TE131) = 1500 s = 25 min (DECAY.dat)")
+    check_close(d1["nodos"][2]["t12_s"], 6.932e5, "T½(I131) = 6.932E5 s (DECAY.dat)")
+    check(all(n["conocido"] and not n["estable"] for n in d1["nodos"]),
+          "los 3 nucleidos están en DECAY.dat y ninguno es estable (T½ finita)")
+
+    check(len(d1["aristas"]) == 2, f"2 aristas (obtenido {len(d1['aristas'])})")
+    a1, a2 = d1["aristas"]
+    check(a1["desde"] == "TE130" and a1["proceso"] == "N,G-g" and a1["hasta"] == "TE131",
+          f"arista 1: TE130 --(N,G-g)--> TE131 (obtenido {a1})")
+    check_close(a1["xsec"], 1.1084e-11, "XSEC de la arista 1 = 1.1084E-11")
+    check(a1["delta"] is None, "arista 1 (captura) no tiene DELTA")
+    check(a2["desde"] == "TE131" and a2["proceso"] == "B-" and a2["hasta"] == "I131",
+          f"arista 2: TE131 --(B-)--> I131 (obtenido {a2})")
+    check_close(a2["delta"], 4.6210e-04, "DELTA de la arista 2 = 4.6210E-04")
+    check(a2["xsec"] is None, "arista 2 (decaimiento) no tiene XSEC")
+
+    # Cadena 2: pasa por el isómero TE131M -- T½ distinto del fundamental.
+    d2 = fa.construir_diagrama_cadena(c2, t12)
+    check([n["nombre"] for n in d2["nodos"]] == ["TE130", "TE131M", "I131"],
+          f"cadena 2 pasa por TE131M (obtenido {[n['nombre'] for n in d2['nodos']]})")
+    check_close(d2["nodos"][1]["t12_s"], 1.08e5, "T½(TE131M) = 1.08E5 s (isómero, distinto de TE131)")
+
+    # Nucleido ausente de la librería (t12_dict vacío): no rompe, marca "no conocido".
+    d_vacio = fa.construir_diagrama_cadena(c1, {})
+    check(all(not n["conocido"] and n["t12_s"] is None for n in d_vacio["nodos"]),
+          "sin librería T½, los 3 nodos quedan como 'no conocido' sin romper")
+
+
 def main() -> int:
-    print("Tests oro de F9 del BACKLOG (Fase 1: parsers + códec)")
+    print("Tests oro de F9 del BACKLOG (Fase 1: parsers + códec; Fase 4: tablas; Fase 5: diagrama)")
 
     test_leer_output_chains_caso_oro()
     test_leer_concentraciones_iniciales_ref_sim()
     test_nombre_a_zzaaas_casos_directos()
     test_nombre_a_zzaaas_ida_y_vuelta()
+    test_calcular_analisis_cadenas_sintetico()
+    test_construir_diagrama_cadena_caso_real()
 
     print(f"\n{'-' * 50}")
     print(f"Resultado: {_PASSED} pasados, {_FAILED} fallidos")

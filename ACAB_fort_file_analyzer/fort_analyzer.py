@@ -1727,3 +1727,211 @@ def calcular_tablas_comparativas(
         tabla2[sim_name] = {"rows": rows2}
 
     return tabla1, tabla2
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# F9 del BACKLOG, Fase 4 — análisis de contribución por cadenas (tablas)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def leer_chains_manifest(root: str) -> Optional[dict]:
+    """Lee ``chains_manifest.json`` de *root* (carpeta del análisis de
+    cadenas generada por ``ACAB_inp_file_configurator/chains_analysis.py``).
+
+    ``None`` si no existe o no es JSON válido — mismo criterio que
+    ``leer_sweep_manifest``.
+    """
+    path = pathlib.Path(root) / "chains_manifest.json"
+    if not path.exists():
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
+
+
+def _chain_label(cadena: dict) -> str:
+    """'TE130->TE131->I131' a partir de los pasos de una cadena de CHAINS."""
+    pasos = cadena.get("pasos") or []
+    if not pasos:
+        return ""
+    nombres = [pasos[0]["desde"]] + [p["hasta"] for p in pasos]
+    return "->".join(nombres)
+
+
+def _nodo_diagrama(nombre: str, t12_dict: dict[str, float]) -> dict:
+    """Info de un nodo del diagrama de cadena (Fase 5): nombre + T½.
+
+    ``estable=True`` (T½ = math.inf en DECAY.dat) y ``conocido=False`` (el
+    nucleido no está en DECAY.dat) son casos distintos: el primero muestra
+    "estable" en la UI, el segundo "T½ desconocido" — no se confunden.
+    """
+    t12 = t12_dict.get(nombre)
+    if t12 is None:
+        return {"nombre": nombre, "t12_s": None, "estable": False, "conocido": False}
+    if t12 == math.inf:
+        return {"nombre": nombre, "t12_s": None, "estable": True, "conocido": True}
+    return {"nombre": nombre, "t12_s": float(t12), "estable": False, "conocido": True}
+
+
+def construir_diagrama_cadena(cadena: dict, t12_dict: dict[str, float]) -> dict:
+    """F9 del BACKLOG, Fase 5 — diagrama lineal (v1) de UNA cadena ya
+    seleccionada: secuencia de nodos (nombre + T½ de DECAY.dat) unidos por
+    aristas etiquetadas con el proceso y su XSEC (capturas) o DELTA
+    (decaimientos), tal cual del output de CHAINS (``leer_output_chains``).
+
+    El grafo fusionado estilo Fig. 1 del paper (varias cadenas superpuestas)
+    queda fuera de alcance v1 (F9b del BACKLOG) — aquí solo se representa la
+    cadena YA elegida por el usuario, como secuencia lineal.
+    """
+    pasos = cadena.get("pasos") or []
+    nombres = ([pasos[0]["desde"]] + [p["hasta"] for p in pasos]) if pasos else []
+    nodos = [_nodo_diagrama(n, t12_dict) for n in nombres]
+    aristas = [
+        {
+            "desde":   p["desde"],
+            "hasta":   p["hasta"],
+            "proceso": p["proceso"],
+            "xsec":    _safe_val(p.get("xsec")),
+            "delta":   _safe_val(p.get("delta")),
+        }
+        for p in pasos
+    ]
+    return {"nodos": nodos, "aristas": aristas, "p": cadena.get("p")}
+
+
+def calcular_analisis_cadenas(root: str, t_h: Optional[float] = None,
+                               manifest: Optional[dict] = None) -> dict:
+    """F9 del BACKLOG, Fase 4 — tablas de contribución por isótopo (R_i) y
+    por cadena (Y_z_i = R_i·X_z_i) de un análisis ya generado y (al menos
+    parcialmente) ejecutado por ``chains_analysis.py``.
+
+    R_i = A_i(IFINAL, t*) / A_ref(IFINAL, t*): A_i viene del fort.6
+    monoisotópico de cada isótopo (``iso_<nombre>/``), A_ref del fort.6 de
+    la carpeta de referencia (fuera de *root*, apuntada por el manifest).
+    t* por defecto es el t_pico de IFINAL en la referencia (selector de
+    instante, mismo patrón que la pestaña "Espectro gamma"). X_z_i sale del
+    output de CHAINS de cada isótopo (``chains_<nombre>/output_chain.txt``,
+    ``leer_output_chains``): X_z_i = P_z_i / 100.
+
+    Isótopos cuyo fort.6/output_chain.txt aún no existen (pipeline no
+    ejecutado o parcial) se omiten de las tablas sin romper el resto —
+    mismo criterio de tolerancia que el resto del análisis F9.
+
+    *manifest*, si se pasa, sustituye la lectura de ``chains_manifest.json``
+    de *root* (usado por los tests oro con fixtures sintéticos, donde el
+    manifest se ajusta en memoria antes de calcular).
+    """
+    root_p = pathlib.Path(root)
+    if manifest is None:
+        manifest = leer_chains_manifest(root)
+    if manifest is None:
+        raise ValueError(f"No se encontró chains_manifest.json en '{root}'")
+
+    ref_folder = pathlib.Path(manifest["reference_folder"])
+    if not ref_folder.is_absolute():
+        ref_folder = root_p / ref_folder
+    ref_fort6 = ref_folder / "fort.6"
+    if not ref_fort6.is_file():
+        raise ValueError(f"No se encontró fort.6 en la carpeta de referencia '{ref_folder}'")
+
+    decay_path = ref_folder / "DECAY.dat"
+    t12_dict = leer_decay_dat(str(decay_path)) if decay_path.is_file() else {}
+
+    ifinal = str(manifest["ifinal"]).strip().upper()
+
+    ref_all, ref_errors = analizar_carpeta(str(ref_folder), t12_dict)
+    if not ref_all:
+        raise ValueError(f"No se pudo analizar la referencia '{ref_folder}': {ref_errors}")
+    ref_sim = next(iter(ref_all.values()))
+
+    t_pico_ref = calcular_pico(ref_sim, ifinal)["t_pico"]
+    if t_h is None:
+        t_star = t_pico_ref if t_pico_ref is not None else 0.0
+        t_star_fuente = "pico_referencia"
+    else:
+        t_star = float(t_h)
+        t_star_fuente = "manual"
+
+    a_ref = actividad_en_t(ref_sim, t_star, ifinal)
+
+    inventario_inicial = leer_concentraciones_iniciales(str(ref_fort6))
+    isotopos = manifest.get("isotopes") or []
+    nombres_sel = {str(iso["name"]).strip().upper() for iso in isotopos}
+
+    tabla1: list[dict] = []
+    tabla2: list[dict] = []
+    for iso in isotopos:
+        name = str(iso["name"]).strip().upper()
+        iso_folder = root_p / iso["iso_folder"]
+        iso_fort6 = iso_folder / "fort.6"
+        if not iso_fort6.is_file():
+            continue
+
+        iso_all, _ = analizar_carpeta(str(iso_folder), t12_dict)
+        if not iso_all:
+            continue
+        iso_sim = next(iter(iso_all.values()))
+        a_i = actividad_en_t(iso_sim, t_star, ifinal)
+        r_i = (a_i / a_ref) if a_ref else None
+
+        tabla1.append({
+            "isotopo": name,
+            "c_i":     _safe_val(iso.get("c_i")),
+            "a_i":     _safe_val(a_i),
+            "a_ref":   _safe_val(a_ref),
+            "r_i":     _safe_val(r_i),
+        })
+
+        chains_folder = root_p / iso["chains_folder"]
+        output_path = chains_folder / "output_chain.txt"
+        if not output_path.is_file():
+            continue
+        chains_data = leer_output_chains(str(output_path))
+        for z_idx, cadena in enumerate(chains_data["cadenas"], start=1):
+            x_z_i = cadena["p"] / 100.0
+            y_z_i = (r_i * x_z_i) if r_i is not None else None
+            tabla2.append({
+                "isotopo":      name,
+                "cadena_idx":   z_idx,
+                "cadena_label": _chain_label(cadena),
+                "p":            _safe_val(cadena["p"]),
+                "x_z_i":        _safe_val(x_z_i),
+                "r_i":          _safe_val(r_i),
+                "y_z_i":        _safe_val(y_z_i),
+                "nmax":         chains_data["nmax"],
+                "pcnt":         chains_data["pcnt"],
+                "ptot":         _safe_val(chains_data["ptot"]),
+                "diagrama":     construir_diagrama_cadena(cadena, t12_dict),
+            })
+
+    tabla2.sort(key=lambda f: (f["y_z_i"] if f["y_z_i"] is not None else -1.0), reverse=True)
+
+    suma_r_i = sum(f["r_i"] for f in tabla1 if f["r_i"] is not None)
+
+    t_cool = ref_sim.get("t_cool") or []
+    T_irr = ref_sim.get("T_IRR_h") or 0.0
+    t_candidatos = sorted({0.0}
+                           | {float(v) for v in (ref_sim.get("t_irr") or [])}
+                           | {float(T_irr) + float(v) for v in t_cool})
+
+    return {
+        "root":             str(root_p),
+        "reference_folder": str(ref_folder),
+        "ifinal":           ifinal,
+        "pcnt":             manifest.get("pcnt"),
+        "nmax":             manifest.get("nmax"),
+        "t_star_h":         _safe_val(t_star),
+        "t_star_fuente":    t_star_fuente,
+        "t_pico_referencia_h": _safe_val(t_pico_ref),
+        "t_candidatos_h":   t_candidatos,
+        "a_ref":            _safe_val(a_ref),
+        "tabla1":           tabla1,
+        "suma_r_i":         _safe_val(suma_r_i),
+        "cobertura": {
+            "n_seleccionados":     len(isotopos),
+            "n_total_inventario":  len(inventario_inicial),
+            "completa":            nombres_sel >= set(inventario_inicial.keys()),
+        },
+        "tabla2": tabla2,
+    }

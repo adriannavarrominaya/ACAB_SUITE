@@ -24,10 +24,12 @@ from fort_analyzer import (
     GAMMA_I131,
     analizar_carpeta,
     build_t12_dict,
+    calcular_analisis_cadenas,
     calcular_espectro_gamma,
     calcular_informe_isotopo,
     calcular_tablas_comparativas,
     descubrir_simulaciones,
+    leer_chains_manifest,
     leer_decay_dat,
     leer_photon_dat,
     leer_sweep_manifest,
@@ -389,6 +391,43 @@ def api_espectro_gamma():
         "photon_dat_path": entry.get("photon_dat_path"),
         "espectro":        espectro,
     }))
+
+
+@app.route("/api/chains_report", methods=["POST"])
+def api_chains_report():
+    """F9 del BACKLOG, Fase 4 — tablas de contribución por isótopo/cadena de
+    un análisis de cadenas ya generado (y al menos parcialmente ejecutado)
+    por el ACAB INP File Configurator (``chains_analysis.py``).
+
+    Independiente del flujo normal de "carpeta de simulaciones" (no requiere
+    un ``/api/analyze`` previo): *root* es la carpeta del análisis, con su
+    propio ``chains_manifest.json``. Sin caché propia (recalcula en cada
+    petición): el volumen de datos por análisis es pequeño (como mucho
+    ``MAX_ISOTOPES`` fort.6/output_chain.txt individuales) y el cambio más
+    frecuente — el selector de instante t* — necesita releer las
+    actividades igualmente.
+    """
+    payload = request.get_json(force=True, silent=True) or {}
+    root = (payload.get("root") or "").strip()
+    t_h = _safe_float(payload.get("t_h"))
+
+    if not root:
+        return jsonify({"error": "Debe especificar la carpeta del análisis."}), 400
+
+    manifest = leer_chains_manifest(root)
+    if manifest is None:
+        return jsonify({
+            "error": f"No se encontró 'chains_manifest.json' en '{root}'."
+        }), 404
+
+    try:
+        resultado = calcular_analisis_cadenas(root, t_h, manifest=manifest)
+    except (FileNotFoundError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 422
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+    return jsonify(_sanitize_for_json({"ok": True, **resultado}))
 
 
 @app.route("/api/isotopo_report", methods=["POST"])

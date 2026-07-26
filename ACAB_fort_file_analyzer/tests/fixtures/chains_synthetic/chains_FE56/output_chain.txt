@@ -1,0 +1,35 @@
+ IFLAG =            2
+ INITIAL =       260560
+ IFINAL =       270570
+ NMAX =            5
+ PCNT =   1.0000000E-02
+
+NUMBER OF ENCOUNTERED CHAINS,  NCHAIN = 2
+
+NUMBER OF CHAINS WITH RELATIVE PROBABILITY HIGHER THAN PCNT, NCH=   2
+
+PTOT=  0.1000E+03
+
+
+**********************************************************************
+
+P=  0.8000E+02
+
+FE56 (N,G-g)     FE57 (B-)         CO57
+
+
+FE56 (N,G-g)     FE57   XSEC=1.0000E-02
+FE57 (B-)         CO57   DELTA=2.0000E-05
+
+**********************************************************************
+
+P=  0.2000E+02
+
+FE56 (N,G-m)     FE57M(IT)        FE57 (B-)         CO57
+
+
+FE56 (N,G-m)     FE57M   XSEC=3.0000E-04
+FE57M(IT)        FE57   DELTA=5.0000E-05
+FE57 (B-)         CO57   DELTA=2.0000E-05
+
+                    ****** JOB FINISHED ******

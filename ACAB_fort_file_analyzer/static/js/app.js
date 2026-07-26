@@ -88,6 +88,10 @@ function refreshDynamicUI() {
     if (_state.optimRendered) renderOptimizacion();
   }
   if (_state.espectroRendered) renderEspectroGamma();
+  if (_state.chainsPanelBuilt) {
+    renderChainsPanel();
+    if (_state.chainsData) _renderChainsResults();
+  }
 }
 
 /** Translate the backend phase string ("irradiación"/"enfriamiento"/"n/a"). */
@@ -129,6 +133,14 @@ const _state = {
   espectroFiltros:     { eMinKeV: null, eMaxKeV: null, tasaMin: null }, // sobrevive a rebuilds (cambio de idioma, sim, t)
   espectroAutoLoadDone: false, // B1b: intento único de recarga desde la ruta recordada en localStorage por análisis
   espectroTasaMinTouched: false, // B1b: false = el umbral de tasa mínima se recalcula solo (max/1e6); true = manda el valor del usuario
+
+  // F9 del BACKLOG, Fase 4 — pestaña "Análisis de cadenas": independiente de
+  // analysisData/folder de arriba, carga su PROPIA carpeta (chains_manifest.json).
+  chainsPanelBuilt: false, // el esqueleto del panel (input de carpeta, etc.) solo se construye una vez
+  chainsRoot:       null,  // carpeta del análisis de cadenas ya cargada
+  chainsData:       null,  // última respuesta de /api/chains_report
+  chainsTManual:    null,  // t_h elegido a mano en el selector (null = usar el t_pico por defecto del servidor)
+  chainsSelectedRow: null, // índice de la fila de tabla2 elegida para el diagrama (null = ninguna)
 };
 
 // Simulation colour palette (up to 10 simulations)
@@ -547,6 +559,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (_state.analysisData && !_state.espectroRendered) {
       renderEspectroGamma();
       _state.espectroRendered = true;
+    }
+  });
+
+  // Tab: análisis de cadenas (F9 del BACKLOG) — independiente de
+  // analysisData: construye su propio panel de carga la primera vez que se
+  // muestra la pestaña, sin esperar a ningún análisis previo.
+  document.getElementById('tab-chains-btn').addEventListener('shown.bs.tab', () => {
+    if (!_state.chainsPanelBuilt) {
+      renderChainsPanel();
+      _state.chainsPanelBuilt = true;
     }
   });
 
@@ -1459,6 +1481,303 @@ function exportEspectroCSV() {
   const headers = [t('espectro.th_e'), t('espectro.th_nucleido'), t('espectro.th_intensidad'), t('espectro.th_tasa')];
   const title = `${json.sim} t=${json.espectro.t_h}h`;
   emitCSV(`espectro_gamma_t${json.espectro.t_h}_${folderSlug()}.csv`, title, rows, headers);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   F9 del BACKLOG, Fase 4-5 — pestaña "Análisis de cadenas"
+   Independiente de _state.analysisData/folder: carga su PROPIA carpeta de
+   análisis (chains_manifest.json, generado por el ACAB INP File
+   Configurator, sección "Análisis de cadenas"). Sin caché propia: cada
+   cambio de instante t* vuelve a pedir /api/chains_report entero (mismo
+   criterio que el resto de la app: los datos de un análisis de cadenas son
+   pequeños, como mucho MAX_ISOTOPES fort.6/output_chain.txt individuales).
+   ───────────────────────────────────────────────────────────────────────── */
+
+/** Construye el panel una vez: carpeta de análisis + área de resultados. */
+function renderChainsPanel() {
+  const container = document.getElementById('chains-container');
+  if (!container) return;
+
+  container.innerHTML = `
+    <h5 class="mb-2">${t('chains.title')}</h5>
+    <div class="alert alert-secondary small mb-3">
+      <i class="bi bi-info-circle me-1"></i>${t('chains.scope_note')}
+    </div>
+    <div class="row g-2 align-items-end mb-3">
+      <div class="col-auto flex-grow-1" style="max-width:480px">
+        <label class="form-label small mb-1" for="chains-root-input">${t('chains.root_label')}</label>
+        <div class="input-group input-group-sm">
+          <input type="text" class="form-control font-monospace" id="chains-root-input"
+                 placeholder="${escAttr(t('chains.root_ph'))}" value="${escAttr(_state.chainsRoot || '')}">
+          <button class="btn btn-outline-secondary" id="btn-chains-browse" type="button"
+                  title="${escAttr(t('sidebar.browse'))}">
+            <i class="bi bi-folder2-open"></i>
+          </button>
+        </div>
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-primary btn-sm" id="btn-chains-load">
+          <i class="bi bi-arrow-repeat me-1"></i>${t('chains.load')}
+        </button>
+      </div>
+    </div>
+    <div id="chains-results"></div>
+  `;
+
+  document.getElementById('btn-chains-browse')?.addEventListener('click', async () => {
+    const browseBtn = document.getElementById('btn-chains-browse');
+    const icon = browseBtn.querySelector('i');
+    browseBtn.disabled = true;
+    icon.className = 'bi bi-hourglass-split';
+    try {
+      const res = await fetch('/api/browse-folder', { method: 'POST' });
+      const json = await res.json();
+      if (json.folder) {
+        document.getElementById('chains-root-input').value = json.folder;
+      } else if (!json.error) {
+        showToast(t('toast.no_folder_selected'), 'secondary');
+      }
+    } catch {
+      showToast(t('toast.browse_err'), 'warning');
+    } finally {
+      browseBtn.disabled = false;
+      icon.className = 'bi bi-folder2-open';
+    }
+  });
+
+  document.getElementById('btn-chains-load')?.addEventListener('click', () => {
+    const root = document.getElementById('chains-root-input').value.trim();
+    if (!root) { showToast(t('chains.root_required'), 'warning'); return; }
+    _state.chainsRoot = root;
+    _state.chainsTManual = null;
+    _state.chainsSelectedRow = null;
+    fetchChainsReport();
+  });
+  document.getElementById('chains-root-input')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('btn-chains-load').click();
+  });
+
+  if (_state.chainsRoot && _state.chainsData) {
+    _renderChainsResults();
+  }
+}
+
+/** POST /api/chains_report para la carpeta y el instante t* actuales del estado. */
+async function fetchChainsReport() {
+  const resultsDiv = document.getElementById('chains-results');
+  if (!_state.chainsRoot || !resultsDiv) return;
+  resultsDiv.innerHTML = `<div class="text-muted small p-3">${t('chains.loading')}</div>`;
+
+  try {
+    const res = await fetch('/api/chains_report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ root: _state.chainsRoot, t_h: _state.chainsTManual }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) {
+      const msg = (json && json.error) || t('toast.unknown_err');
+      showToast(msg, 'danger');
+      resultsDiv.innerHTML = `<div class="alert alert-danger small mb-0">${escHtml(msg)}</div>`;
+      return;
+    }
+    _state.chainsData = json;
+    _renderChainsResults();
+  } catch (err) {
+    showToast(t('toast.net_err', { msg: err.message }), 'danger');
+  }
+}
+
+/** Pinta tabla 1 (Σ R_i + cobertura), tabla 2 (Y_z_i desc.) y el diagrama de la fila elegida. */
+function _renderChainsResults() {
+  const resultsDiv = document.getElementById('chains-results');
+  const json = _state.chainsData;
+  if (!resultsDiv || !json) return;
+
+  const tCandidatos = json.t_candidatos_h || [];
+  const tSel = _state.chainsTManual != null ? _state.chainsTManual : json.t_star_h;
+  const tPicoRef = json.t_pico_referencia_h;
+
+  const cobertura = json.cobertura || {};
+  const coberturaMsg = cobertura.completa
+    ? t('chains.cobertura_completa')
+    : t('chains.cobertura_parcial', { n: cobertura.n_seleccionados, total: cobertura.n_total_inventario });
+
+  const fmtExp = v => (v != null ? v.toExponential(4) : '');
+  const fmtFix = v => (v != null ? v.toFixed(4) : t('chains.na'));
+
+  const filasT1 = (json.tabla1 || []).map(f => `
+    <tr>
+      <td>${escHtml(f.isotopo)}</td>
+      <td class="font-monospace">${fmtExp(f.c_i)}</td>
+      <td class="font-monospace">${fmtExp(f.a_i)}</td>
+      <td class="font-monospace">${fmtExp(f.a_ref)}</td>
+      <td class="font-monospace">${fmtFix(f.r_i)}</td>
+    </tr>`).join('');
+
+  const filasT2 = (json.tabla2 || []).map((f, idx) => `
+    <tr class="chains-row-select ${idx === _state.chainsSelectedRow ? 'table-primary' : ''}" data-idx="${idx}" style="cursor:pointer">
+      <td>${escHtml(f.isotopo)}</td>
+      <td class="font-monospace small">${escHtml(f.cadena_label)}</td>
+      <td class="font-monospace">${f.p != null ? f.p.toFixed(3) : ''}</td>
+      <td class="font-monospace">${f.x_z_i != null ? f.x_z_i.toFixed(4) : ''}</td>
+      <td class="font-monospace">${fmtFix(f.r_i)}</td>
+      <td class="font-monospace fw-semibold">${fmtFix(f.y_z_i)}</td>
+    </tr>`).join('');
+
+  resultsDiv.innerHTML = `
+    <div class="row g-2 align-items-end mb-3">
+      <div class="col-auto">
+        <label class="form-label small mb-1" for="chains-t-select">${t('chains.t_label')}</label>
+        <select class="form-select form-select-sm" id="chains-t-select">
+          ${tCandidatos.map(tv => `<option value="${tv}" ${Math.abs(tv - tSel) < 1e-9 ? 'selected' : ''}>${tv.toFixed(3)} h${(tPicoRef != null && Math.abs(tv - tPicoRef) < 1e-9) ? ' — ' + t('chains.t_pico_tag') : ''}</option>`).join('')}
+        </select>
+      </div>
+      <div class="col-auto">
+        <span class="badge bg-secondary">${t('chains.ifinal_badge', { iso: escHtml(json.ifinal) })}</span>
+        <span class="badge bg-secondary">NMAX=${json.nmax}</span>
+        <span class="badge bg-secondary">PCNT=${json.pcnt}</span>
+      </div>
+    </div>
+
+    <h6 class="mt-3">${t('chains.tabla1_title')}</h6>
+    <div class="table-responsive mb-1">
+      <table class="table table-sm table-hover">
+        <thead><tr>
+          <th>${t('chains.th_isotopo')}</th><th>C<sub>i</sub> [át/cm³]</th>
+          <th>A<sub>i</sub>(t*) [Bq/cm³]</th><th>A<sub>ref</sub>(t*) [Bq/cm³]</th><th>R<sub>i</sub></th>
+        </tr></thead>
+        <tbody>
+          ${filasT1}
+          <tr class="table-secondary fw-semibold">
+            <td colspan="4">Σ R<sub>i</sub></td>
+            <td class="font-monospace">${fmtFix(json.suma_r_i)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="small text-muted mb-3">${coberturaMsg}</div>
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h6 class="mb-0">${t('chains.tabla2_title')}</h6>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary btn-sm" id="btn-export-chains1">
+          <i class="bi bi-download me-1"></i>${t('chains.export_tabla1')}
+        </button>
+        <button class="btn btn-outline-secondary btn-sm" id="btn-export-chains2">
+          <i class="bi bi-download me-1"></i>${t('chains.export_tabla2')}
+        </button>
+      </div>
+    </div>
+    <div class="table-responsive mb-1">
+      <table class="table table-sm table-hover">
+        <thead><tr>
+          <th>${t('chains.th_isotopo')}</th><th>${t('chains.th_cadena')}</th>
+          <th>P [%]</th><th>X<sub>z,i</sub></th><th>R<sub>i</sub></th><th>Y<sub>z,i</sub></th>
+        </tr></thead>
+        <tbody id="chains-tabla2-body">${filasT2}</tbody>
+      </table>
+    </div>
+    <div class="small text-muted mb-3">${t('chains.ptot_note')}</div>
+    <div class="small text-muted mb-3">${t('chains.row_hint')}</div>
+
+    <div id="chains-diagrama"></div>
+  `;
+
+  document.getElementById('chains-t-select')?.addEventListener('change', e => {
+    _state.chainsTManual = parseFloat(e.target.value);
+    fetchChainsReport();
+  });
+  document.querySelectorAll('#chains-tabla2-body tr.chains-row-select').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const idx = parseInt(tr.dataset.idx, 10);
+      _state.chainsSelectedRow = (_state.chainsSelectedRow === idx) ? null : idx;
+      _renderChainsResults();
+    });
+  });
+  document.getElementById('btn-export-chains1')?.addEventListener('click', exportChainsTabla1CSV);
+  document.getElementById('btn-export-chains2')?.addEventListener('click', exportChainsTabla2CSV);
+
+  if (_state.chainsSelectedRow != null && json.tabla2[_state.chainsSelectedRow]) {
+    _renderChainsDiagram(json.tabla2[_state.chainsSelectedRow]);
+  }
+}
+
+/** T½ legible (d/h/s según magnitud) o "estable"/"desconocido" (Fase 5). */
+function _formatT12Chains(nodo) {
+  if (!nodo) return '';
+  if (nodo.estable) return t('chains.estable');
+  if (!nodo.conocido || nodo.t12_s == null) return t('chains.t12_desconocido');
+  const h = nodo.t12_s / 3600;
+  const d = h / 24;
+  if (d >= 1) return `${d.toExponential(3)} d`;
+  if (h >= 1) return `${h.toExponential(3)} h`;
+  return `${nodo.t12_s.toExponential(3)} s`;
+}
+
+/** Diagrama v1 (Fase 5): la cadena elegida como secuencia lineal de nodos+aristas. */
+function _renderChainsDiagram(fila) {
+  const div = document.getElementById('chains-diagrama');
+  if (!div) return;
+  if (!fila || !fila.diagrama) { div.innerHTML = ''; return; }
+
+  const { nodos, aristas } = fila.diagrama;
+  const parts = [];
+  (nodos || []).forEach((n, i) => {
+    parts.push(`
+      <div class="text-center px-2">
+        <div class="fw-semibold font-monospace border rounded px-2 py-1 bg-white">${escHtml(n.nombre)}</div>
+        <div class="small text-muted mt-1">${escHtml(_formatT12Chains(n))}</div>
+      </div>`);
+    if (aristas && i < aristas.length) {
+      const a = aristas[i];
+      const val = a.xsec != null ? `XSEC=${a.xsec.toExponential(4)}`
+                : (a.delta != null ? `DELTA=${a.delta.toExponential(4)}` : '');
+      parts.push(`
+        <div class="text-center px-2">
+          <div class="small fw-semibold">${escHtml(a.proceso)}</div>
+          <div><i class="bi bi-arrow-right fs-5"></i></div>
+          <div class="small text-muted">${val}</div>
+        </div>`);
+    }
+  });
+
+  div.innerHTML = `
+    <h6 class="mt-3">${t('chains.diagram_title', { iso: escHtml(fila.isotopo), n: fila.cadena_idx })}</h6>
+    <div class="d-flex flex-wrap align-items-center gap-1 p-3 border rounded bg-light">${parts.join('')}</div>
+  `;
+}
+
+function exportChainsTabla1CSV() {
+  const json = _state.chainsData;
+  if (!json) return;
+  const rows = (json.tabla1 || []).map(f => [f.isotopo, f.c_i, f.a_i, f.a_ref, f.r_i]);
+  rows.push([t('chains.suma_row'), null, null, null, json.suma_r_i]);
+  const headers = [t('chains.th_isotopo'), 'C_i [at/cm3]', 'A_i(t*) [Bq/cm3]', 'A_ref(t*) [Bq/cm3]', 'R_i'];
+  const meta = [
+    `# root: ${_state.chainsRoot || ''}`,
+    `# IFINAL: ${json.ifinal}`,
+    `# t*: ${json.t_star_h} h (${json.t_star_fuente})`,
+  ].join('\r\n');
+  const opts = ACABExport.preset(activeCsv());
+  const csv = meta + '\r\n' + ACABExport.toCSV(rows, headers, opts);
+  ACABExport.download(`chains_tabla1_${ACABExport.slug(json.ifinal)}.csv`, csv);
+}
+
+function exportChainsTabla2CSV() {
+  const json = _state.chainsData;
+  if (!json) return;
+  const rows = (json.tabla2 || []).map(f => [f.isotopo, f.cadena_label, f.p, f.x_z_i, f.r_i, f.y_z_i]);
+  const headers = [t('chains.th_isotopo'), t('chains.th_cadena'), 'P [%]', 'X_z_i', 'R_i', 'Y_z_i'];
+  const meta = [
+    `# root: ${_state.chainsRoot || ''}`,
+    `# IFINAL: ${json.ifinal}`,
+    `# NMAX: ${json.nmax}  PCNT: ${json.pcnt}`,
+    `# t*: ${json.t_star_h} h (${json.t_star_fuente})`,
+  ].join('\r\n');
+  const opts = ACABExport.preset(activeCsv());
+  const csv = meta + '\r\n' + ACABExport.toCSV(rows, headers, opts);
+  ACABExport.download(`chains_tabla2_${ACABExport.slug(json.ifinal)}.csv`, csv);
 }
 
 function _renderActivityChart(divId, cfg, simulations) {

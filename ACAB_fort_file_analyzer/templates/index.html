@@ -298,6 +298,12 @@
               <i class="bi bi-sliders me-1"></i>Optimización
             </button>
           </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#pane-chains"
+                    type="button" role="tab" id="tab-chains-btn" data-i18n="tabs.chains">
+              <i class="bi bi-diagram-3 me-1"></i>Análisis de cadenas
+            </button>
+          </li>
         </ul>
 
         <div class="tab-content border border-top-0 rounded-bottom bg-white p-3 shadow-sm">
@@ -377,6 +383,13 @@
                 <span data-i18n-html="optim.placeholder">Selecciona un isótopo en la pestaña <strong>Simulaciones</strong> para ver la optimización del barrido.</span>
               </div>
             </div>
+          </div>
+
+          <!-- TAB: Chains contribution analysis (F9 del BACKLOG, Fase 4-5) —
+               independiente de la carpeta de simulaciones analizada arriba:
+               carga su PROPIA carpeta de análisis (chains_manifest.json). -->
+          <div class="tab-pane fade" id="pane-chains" role="tabpanel">
+            <div id="chains-container"></div>
           </div>
 
         </div>

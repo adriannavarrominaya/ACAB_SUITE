@@ -90,7 +90,8 @@
     "report": "Isotope Report",
     "espectro": "Gamma Spectrum",
     "tables": "Comparison Tables",
-    "optim": "Optimisation"
+    "optim": "Optimisation",
+    "chains": "Chain Analysis"
   },
 
   "overview": {
@@ -425,5 +426,33 @@
     "photon_path_browse_title": "Browse…",
     "photon_path_dialog_title": "Select PHOTON.dat",
     "legend_otros": "other"
+  },
+
+  "chains": {
+    "title": "Chain contribution analysis",
+    "scope_note": "Quantifies, for the target isotope IFINAL, the contribution of each initial isotope of the target (R_i) and of each reaction chain within it (Y_z_i = R_i·X_z_i). Requires an analysis already generated (and at least partially run) from the \"Chain analysis\" section of the ACAB INP File Configurator — load the root folder of that analysis here, independent of the simulations folder above.",
+    "root_label": "Chain analysis folder",
+    "root_ph": "C:\\path\\to\\chain\\analysis\\",
+    "root_required": "Enter the analysis folder before loading.",
+    "load": "Load",
+    "loading": "Computing tables…",
+    "t_label": "Instant t*",
+    "t_pico_tag": "reference peak",
+    "ifinal_badge": "IFINAL={iso}",
+    "tabla1_title": "Table 1 — contribution by initial isotope (R_i)",
+    "th_isotopo": "Isotope",
+    "cobertura_completa": "Full coverage: every isotope in the reference's initial inventory is selected — Σ R_i ≈ 1 is the Bateman linearity control (deviation = numerical rounding + tail dropped by PCNT).",
+    "cobertura_parcial": "Partial coverage: {n} of {total} initial-inventory isotopes selected — Σ R_i represents only that fraction, ≈ 1 is not expected.",
+    "tabla2_title": "Table 2 — contribution by chain (Y_z,i), descending order",
+    "export_tabla1": "Export table 1",
+    "export_tabla2": "Export table 2",
+    "th_cadena": "Chain",
+    "ptot_note": "PTOT=100 renormalises each chain's % ONLY among those above PCNT: Σ_z Y_z,i can fall below R_i due to the dropped tail (not corrected here).",
+    "row_hint": "Select a row in table 2 to see that chain's diagram.",
+    "diagram_title": "Chain diagram — {iso}, chain {n}",
+    "estable": "stable",
+    "t12_desconocido": "T½ unknown",
+    "na": "n/a",
+    "suma_row": "SUM"
   }
 }

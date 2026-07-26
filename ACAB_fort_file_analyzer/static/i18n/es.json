@@ -90,7 +90,8 @@
     "report": "Informe Isótopo",
     "espectro": "Espectro gamma",
     "tables": "Tablas Comparativas",
-    "optim": "Optimización"
+    "optim": "Optimización",
+    "chains": "Análisis de cadenas"
   },
 
   "overview": {
@@ -425,5 +426,33 @@
     "photon_path_browse_title": "Explorar…",
     "photon_path_dialog_title": "Seleccionar PHOTON.dat",
     "legend_otros": "otros"
+  },
+
+  "chains": {
+    "title": "Análisis de contribución por cadenas",
+    "scope_note": "Cuantifica, para el isótopo objetivo IFINAL, la contribución de cada isótopo inicial del blanco (R_i) y de cada cadena de reacción dentro de él (Y_z_i = R_i·X_z_i). Requiere un análisis ya generado (y al menos parcialmente ejecutado) desde la sección «Análisis de cadenas» del ACAB INP File Configurator — carga aquí la carpeta raíz de ese análisis, independiente de la carpeta de simulaciones de arriba.",
+    "root_label": "Carpeta del análisis de cadenas",
+    "root_ph": "C:\\ruta\\al\\análisis\\de\\cadenas\\",
+    "root_required": "Introduce la carpeta del análisis antes de cargar.",
+    "load": "Cargar",
+    "loading": "Calculando tablas…",
+    "t_label": "Instante t*",
+    "t_pico_tag": "pico de la referencia",
+    "ifinal_badge": "IFINAL={iso}",
+    "tabla1_title": "Tabla 1 — contribución por isótopo inicial (R_i)",
+    "th_isotopo": "Isótopo",
+    "cobertura_completa": "Cobertura completa: todos los isótopos del inventario inicial de la referencia están seleccionados — Σ R_i ≈ 1 es el control de linealidad de Bateman (desviación = redondeo numérico + cola descartada por PCNT).",
+    "cobertura_parcial": "Cobertura parcial: {n} de {total} isótopos del inventario inicial seleccionados — Σ R_i representa solo esa fracción, no se espera ≈ 1.",
+    "tabla2_title": "Tabla 2 — contribución por cadena (Y_z,i), orden descendente",
+    "export_tabla1": "Exportar tabla 1",
+    "export_tabla2": "Exportar tabla 2",
+    "th_cadena": "Cadena",
+    "ptot_note": "PTOT=100 renormaliza el % de cada cadena SOLO entre las que superan PCNT: Σ_z Y_z,i puede quedar por debajo de R_i por la cola descartada (no se corrige aquí).",
+    "row_hint": "Selecciona una fila de la tabla 2 para ver el diagrama de esa cadena.",
+    "diagram_title": "Diagrama de la cadena — {iso}, cadena {n}",
+    "estable": "estable",
+    "t12_desconocido": "T½ desconocido",
+    "na": "n/d",
+    "suma_row": "SUMA"
   }
 }

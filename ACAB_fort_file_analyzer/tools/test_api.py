@@ -327,6 +327,36 @@ def test_espectro_gamma(client) -> None:
     check(r4.status_code == 404, f"404 para carpeta no analizada (obtenido {r4.status_code})")
 
 
+def test_chains_report(client) -> None:
+    section("/api/chains_report — F9 del BACKLOG (Fase 4)")
+
+    chains_root = REPO_ROOT / "tests" / "fixtures" / "chains_synthetic"
+
+    r0 = client.post("/api/chains_report", json={})
+    check(r0.status_code == 400, f"400 sin 'root' (obtenido {r0.status_code})")
+
+    r1 = client.post("/api/chains_report",
+                      json={"root": str(REPO_ROOT / "carpeta_sin_manifest")})
+    check(r1.status_code == 404, f"404 sin chains_manifest.json en la carpeta (obtenido {r1.status_code})")
+
+    r2 = client.post("/api/chains_report", json={"root": str(chains_root)})
+    check(r2.status_code == 200, f"200 con el análisis sintético (obtenido {r2.status_code})")
+    j2 = r2.get_json()
+    check(bool(j2.get("ok")), "ok=True")
+    check(j2.get("ifinal") == "CO57", f"ifinal=CO57 (obtenido {j2.get('ifinal')})")
+    check_close_local(j2.get("t_star_h"), 1.0, "t* por defecto = t_pico de la referencia = 1 h")
+    check_close_local(j2.get("suma_r_i"), 1.0, "Σ R_i = 1.0 (mismo caso oro que test_chains.py)")
+    check(len(j2.get("tabla2", [])) == 3, f"tabla2 con 3 filas (obtenido {len(j2.get('tabla2', []))})")
+    check("diagrama" in j2["tabla2"][0], "cada fila de tabla2 trae su diagrama embebido")
+
+    # Selector de instante manual, vía t_h explícito.
+    r3 = client.post("/api/chains_report", json={"root": str(chains_root), "t_h": 0.0})
+    check(r3.status_code == 200, f"200 con t_h manual (obtenido {r3.status_code})")
+    j3 = r3.get_json()
+    check(j3.get("t_star_fuente") == "manual", "t_star_fuente='manual' con t_h explícito")
+    check_close_local(j3.get("a_ref"), 40.0, "A_ref(t=0) = 40 Bq/cm3 con el instante manual")
+
+
 def test_carpeta_inexistente(client) -> None:
     section("/api/analyze — carpeta inexistente")
     r = client.post("/api/analyze", json={"folder": str(REPO_ROOT / "no_existe_xyz")})
@@ -371,6 +401,7 @@ def main() -> int:
     test_sweep_manifest(client)
     test_figuras_save(client)
     test_espectro_gamma(client)
+    test_chains_report(client)
     test_isotopo_sin_analisis(client)
 
     print(f"\n{'-' * 50}")

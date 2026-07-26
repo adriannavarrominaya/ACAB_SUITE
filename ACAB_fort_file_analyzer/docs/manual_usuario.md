@@ -19,7 +19,8 @@
 10. [Pestaña "Espectro gamma"](#10-pestaña-espectro-gamma)
 11. [Tablas Comparativas](#11-tablas-comparativas)
 12. [Pestaña "Optimización" (barrido paramétrico)](#12-pestaña-optimización-barrido-paramétrico)
-13. [Errores y avisos frecuentes](#13-errores-y-avisos-frecuentes)
+13. [Pestaña "Análisis de cadenas"](#13-pestaña-análisis-de-cadenas)
+14. [Errores y avisos frecuentes](#14-errores-y-avisos-frecuentes)
 
 ---
 
@@ -680,7 +681,101 @@ datos.
 
 ---
 
-## 13. Errores y avisos frecuentes
+## 13. Pestaña "Análisis de cadenas"
+
+Cuantifica, para un caso de referencia y un isótopo objetivo (IFINAL), **por
+qué** se produce ese isótopo: la contribución de cada isótopo inicial del
+blanco (R<sub>i</sub>) y, dentro de cada uno, la contribución de cada cadena
+de reacción nuclear concreta (Y<sub>z,i</sub>). Cierra el salto de "cuánto se
+produce" (resto de la app) a "por qué se produce".
+
+**Requiere un análisis ya generado** (y al menos parcialmente ejecutado)
+desde la sección **"Análisis de cadenas"** del **ACAB INP File
+Configurator** — ver su manual de usuario para generarlo. Esta pestaña es
+**independiente** de la carpeta de simulaciones analizada arriba: tiene su
+propio campo de carpeta.
+
+### Cargar un análisis
+
+1. Introduce (o explora con el botón de carpeta) la **carpeta raíz** del
+   análisis de cadenas — la que contiene `chains_manifest.json`, `iso_<isótopo>/`
+   y `chains_<isótopo>/` por cada isótopo seleccionado.
+2. Pulsa **Cargar**. Si algún isótopo aún no tiene su `fort.6` o su
+   `output_chain.txt` (pipeline no ejecutado o parcial), esa fila
+   sencillamente no aparece en las tablas — no rompe la carga del resto.
+
+### Instante t*
+
+Ambas tablas se evalúan en un único instante t*, común a todos los
+isótopos. Por defecto es el **t<sub>pico</sub> de la referencia** para el
+isótopo IFINAL (marcado "— pico de la referencia" en el desplegable), igual
+criterio que el instante por defecto de la pestaña "Espectro gamma". Puedes
+elegir cualquier otro instante real de la simulación de referencia en el
+desplegable **Instante t\***; el servidor recalcula ambas tablas para ese
+instante.
+
+### Tabla 1 — contribución por isótopo inicial
+
+| Columna | Significado |
+|---|---|
+| Isótopo | Isótopo inicial del blanco (del inventario `INITIAL CONCENTRATIONS` de la referencia) |
+| C<sub>i</sub> | Concentración inicial de ese isótopo \[át/cm³\] |
+| A<sub>i</sub>(t\*) | Actividad de IFINAL en t\*, en la simulación **monoisotópica** de ese isótopo |
+| A<sub>ref</sub>(t\*) | Actividad de IFINAL en t\*, en la simulación de **referencia** (composición completa) |
+| R<sub>i</sub> | R<sub>i</sub> = A<sub>i</sub>(t\*) / A<sub>ref</sub>(t\*) — fracción de la producción de IFINAL atribuible a ese isótopo inicial |
+
+La fila **Σ R<sub>i</sub>** es el **control de linealidad de Bateman**: las
+ecuaciones de Bateman son lineales en las concentraciones iniciales, así que
+si se seleccionan **todos** los isótopos del inventario inicial, Σ
+R<sub>i</sub> ≈ 1 (la desviación real es solo redondeo numérico). Debajo de
+la tabla, una nota indica si la selección es completa o parcial — con
+selección parcial, Σ R<sub>i</sub> < 1 es lo esperado (representa solo la
+fracción cubierta), no un error.
+
+### Tabla 2 — contribución por cadena
+
+Una fila por cada cadena de CHAINS por encima de PCNT, de **todos** los
+isótopos seleccionados, ordenada por **Y<sub>z,i</sub> descendente** (las
+cadenas más importantes primero, sea cual sea su isótopo de origen):
+
+| Columna | Significado |
+|---|---|
+| Isótopo | Isótopo inicial del que parte la cadena |
+| Cadena | Secuencia de nucleidos de la cadena (p. ej. `TE130->TE131->I131`) |
+| P \[%\] | Probabilidad relativa de esa cadena dentro de las cadenas de ese isótopo, tal cual la reporta CHAINS |
+| X<sub>z,i</sub> | X<sub>z,i</sub> = P/100 |
+| R<sub>i</sub> | El mismo R<sub>i</sub> de la tabla 1, repetido para el cálculo |
+| Y<sub>z,i</sub> | Y<sub>z,i</sub> = R<sub>i</sub>·X<sub>z,i</sub> — peso real de esa cadena concreta en la producción total de IFINAL |
+
+Los badges junto al selector de instante muestran **NMAX** y **PCNT** del
+análisis — toda cifra de CHAINS depende de estos dos parámetros, así que
+viajan siempre visibles junto a la tabla.
+
+> **Nota de renormalización (PTOT).** CHAINS renormaliza el % de cada
+> cadena a PTOT=100 **solo entre las cadenas que superan PCNT**: la cola de
+> cadenas descartadas por debajo de PCNT no se recupera. Por eso Σ<sub>z</sub>
+> Y<sub>z,i</sub> puede quedar por debajo de R<sub>i</sub> — no es un error,
+> es la cola descartada. La nota aparece siempre bajo la tabla 2.
+
+### Diagrama de la cadena seleccionada
+
+Al hacer clic en una fila de la tabla 2 aparece, debajo, el **diagrama
+lineal** de esa cadena: un nodo por nucleido (nombre + semivida T½, leída de
+`DECAY.dat` — "estable" si T½=∞, "T½ desconocido" si el nucleido no está en
+la librería) unido por flechas etiquetadas con el **proceso** ((N,G-g),
+(B-), (IT)…) y su **XSEC** (capturas) o **DELTA** (decaimientos), tal cual
+los reporta CHAINS. Es la cadena **ya elegida**, como secuencia; el grafo
+fusionado con varias cadenas superpuestas queda fuera de esta versión.
+
+### Exportar a CSV
+
+Botones **Exportar tabla 1** / **Exportar tabla 2**, independientes de la
+unidad de actividad activa (esta pestaña siempre trabaja en Bq/cm³, la
+unidad interna del fort.6).
+
+---
+
+## 14. Errores y avisos frecuentes
 
 | Aviso / mensaje | Dónde aparece | Qué significa | Qué hacer |
 |---|---|---|---|
