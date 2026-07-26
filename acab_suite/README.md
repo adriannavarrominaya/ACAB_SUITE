@@ -253,3 +253,17 @@ Se persiste por app en `suite_config.json`, clave `runner` dentro de cada app: `
   `acab.exe`/`chains.exe` reales.
 - **Recuento de suite** (2026-07-26): 883 tests, 0 fallos
   (run_all_tests.ps1; sustituye al 830 de esta misma fecha, Fases 4-5 de F9).
+- **Control F9d — primera ejecución real completa (11 isótopos)** ✅
+  (2026-07-26): sobre la carpeta real del análisis (8 isótopos de Te +
+  O16/O17/O18, IFINAL=I131, NMAX=5, PCNT=0.01), el informe carga entero
+  (antes bloqueaba con `ValueError: NCHAIN` en O16). O16/O17/O18 sin camino
+  físico O→I131 en ≤ NMAX pasos: R_i≈0 (coherente) y sin filas de tabla 2,
+  sin nota (no es un error); Te con sus cadenas normales. Fixture congelado
+  `output_chain_no_pathways_O16.txt` (idéntica forma en O17/O18, solo
+  difiere INITIAL). Degradación por isótopo verificada con casos sintéticos
+  (output corrupto/ausente): R_i intacto + nota, resto del informe sin
+  afectar. Exclusión de tape22/tape24 del descubrimiento de simulaciones
+  verificada contra la propia carpeta real (antes generaba el aviso "No se
+  encontró NUMBER OF ATOMS" por cada tape).
+- **Recuento de suite** (2026-07-26): 929 tests, 0 fallos
+  (run_all_tests.ps1; sustituye al 883 de esta misma fecha, hotfix F9d).
