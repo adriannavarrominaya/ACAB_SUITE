@@ -68,12 +68,15 @@ entorno virtual (`...\venv\Scripts\python app.py`) y abre
 
 ### Tour rápido de la barra superior
 
-- **Archivo** — Nuevo, Cargar COLL.inp…, Guardar como…, Validar, Vista previa
+- **Archivo** — Nuevo, Cargar COLL.inp…, Descargar, Validar, Vista previa
   del fichero. Es el menú que usarás en casi cada sesión (secciones 3, 4 y 8).
 - **Secciones** — atajo para saltar directamente a cada una de las cuatro
   pestañas del formulario (Biblioteca, Fisión, Flujo Neutrónico, Opciones).
 - **Selector de idioma** (esquina superior derecha) — Español/English; la
   preferencia se guarda en el navegador.
+- **Botón "Guardar en carpeta…"** (azul, barra superior) — acción primaria de
+  guardado: escribe `COLL.inp` directamente en una carpeta del disco, sin
+  pasar por la descarga del navegador (sección 8).
 - **Botón Ejecutar** (verde, barra superior) — abre el modal "Ejecución de
   COLLAPS" (sección 8).
 - **Estado del fichero** (texto junto al botón Ejecutar) — indica si hay un
@@ -148,10 +151,10 @@ formulario tal como lo dejaste (aviso "Sesión anterior restaurada").
      advertencias pendientes.
    - Si todo es correcto, el modal muestra "Validación correcta. No se han
      detectado errores ni advertencias."
-3. La misma validación se ejecuta automáticamente al pulsar **Guardar
-   como…**: si hay errores o advertencias, se muestra el modal antes de
-   descargar el fichero (con la opción de continuar si son solo
-   advertencias).
+3. La misma validación se ejecuta automáticamente al pulsar **Guardar en
+   carpeta…** o **Descargar**: si hay errores o advertencias, se muestra el
+   modal antes de escribir/descargar el fichero (con la opción de continuar
+   si son solo advertencias).
 
 ---
 
@@ -266,15 +269,32 @@ Controla si COLLAPS hace el colapso completo o solo informa del espectro:
 
 ## 8. Guardar y ejecutar COLLAPS sin salir del navegador
 
-### Vista previa y guardado
+### Guardar en carpeta… (acción primaria)
+
+El botón **"Guardar en carpeta…"** (azul, barra superior) es la forma
+recomendada de guardar: valida el fichero (sección 4) y, si no hay errores
+bloqueantes, abre un modal donde indicas la **carpeta de destino** — a mano o
+con el botón de diálogo nativo de carpeta (icono junto al campo) — y escribe
+`COLL.inp` directamente ahí, sin pasar por la descarga del navegador.
+
+- La última carpeta usada se recuerda en el navegador (`localStorage`) y se
+  ofrece como valor inicial la próxima vez que abras este modal.
+- Si ya existe un `COLL.inp` en la carpeta elegida, la app pide confirmación
+  explícita (cuadro de confirmación del navegador) antes de sobrescribirlo.
+- Si el diálogo nativo de carpeta no está disponible en tu entorno, puedes
+  escribir la ruta a mano en el mismo campo (fallback manual).
+
+### Vista previa y descarga (opción secundaria)
 
 - **Archivo → Vista previa del fichero** abre un modal de solo lectura con el
   `COLL.inp` completo tal como se generaría, con contador de líneas y botón
   **"Copiar al portapapeles"**. Útil para revisar el resultado antes de
-  descargarlo.
-- **Archivo → Guardar como…** valida el fichero (sección 4) y, si no hay
-  errores bloqueantes, pide un nombre (por defecto `COLL.inp`) y descarga el
-  fichero generado.
+  guardarlo o descargarlo.
+- **Archivo → Descargar** (antes "Guardar como…") valida el fichero
+  (sección 4) y, si no hay errores bloqueantes, pide un nombre (por defecto
+  `COLL.inp`) y descarga el fichero generado por el navegador. Es el flujo de
+  descarga clásico; para escribir directamente en disco usa "Guardar en
+  carpeta…", la opción primaria.
 
 ### Ejecutar COLLAPS
 
@@ -286,16 +306,22 @@ COLLAPS"**:
    `XSBL.dat` (la librería de secciones eficaces a colapsar), y además
    `FYBL.dat`/`UNCBL.dat` si usas modo fisión o incertidumbres. COLLAPS se
    ejecuta siempre por `cwd`, sin argumentos: todo lo que necesite debe estar
-   ya en esa carpeta.
+   ya en esa carpeta. Si ya has usado "Guardar en carpeta…" en esta sesión,
+   el campo se precarga automáticamente con esa misma carpeta (con prioridad
+   sobre el directorio de la última ejecución); sin guardado previo, cae al
+   directorio de la última ejecución o queda vacío — siempre editable, y con
+   su propio botón de diálogo de carpeta.
 2. **Ejecutable** (por defecto `collaps.exe`) y **Timeout (s)** (por defecto
    60; súbelo si el colapso tarda más).
 3. Casilla **"Guardar el fichero actual (COLL.inp) en el directorio de
    trabajo antes de ejecutar"**, marcada por defecto: sobrescribe el
    `COLL.inp` de esa carpeta con el que tienes abierto en el formulario.
-4. Pulsa **Ejecutar**: el log de COLLAPS se muestra en vivo en el área de
-   texto oscura, con un cronómetro y una insignia de estado (En ejecución… /
-   OK / Timeout / Cancelado / Error con el código de salida). **Cancelar**
-   detiene la ejecución en curso.
+4. Pulsa **Ejecutar**: si en esa carpeta ya existe un `XSECTION.dat` de una
+   ejecución anterior, la app pide confirmación (cuadro de confirmación del
+   navegador) antes de sobrescribirlo. El log de COLLAPS se muestra en vivo
+   en el área de texto oscura, con un cronómetro y una insignia de estado (En
+   ejecución… / OK / Timeout / Cancelado / Error con el código de salida).
+   **Cancelar** detiene la ejecución en curso.
 
 Si no indicas directorio de trabajo antes de pulsar Ejecutar, la app avisa
 ("Indica el directorio de trabajo antes de ejecutar") y no lanza nada.
@@ -348,7 +374,7 @@ construir el `inp.5` (ver el manual de usuario de esa app).
 
 | Aviso / error | Dónde aparece | Qué significa | Qué hacer |
 |---|---|---|---|
-| Errores en el modal de Validación | Archivo → Validar, y automáticamente al Guardar como… | Inconsistencia que impide generar el `COLL.inp` correctamente | Corrige el campo señalado; el mensaje indica el valor esperado frente al introducido |
+| Errores en el modal de Validación | Archivo → Validar, y automáticamente al Guardar en carpeta…/Descargar | Inconsistencia que impide generar el `COLL.inp` correctamente | Corrige el campo señalado; el mensaje indica el valor esperado frente al introducido |
 | "NGROUP no puede ser 0" | Validación | Falta indicar el número de grupos del espectro | Rellena `NGROUP` (Card #5) con un valor distinto de cero, con el signo correcto según el orden de tus datos |
 | "Card #7 (FT) debe contener N valores… pero contiene M" | Validación | El número de valores de `FT` no coincide con `\|NGROUP\|` | Añade o quita valores en el campo FT, o corrige `NGROUP`; el contador "N valores" junto al campo ayuda a cuadrarlo |
 | "Card #6 (CX) debe contener N valores… pero contiene M" | Validación, solo con `IESF = 5` | El número de fronteras de `CX` no es `\|NGROUP\|+1` | Añade o quita fronteras en el campo CX |
@@ -360,7 +386,9 @@ construir el `inp.5` (ver el manual de usuario de esa app).
 | Aviso ISFIS=1 + ISOCA=0 | Validación (advertencia) | COLLAPS leerá una librería EFY externa (Unit 18 / `EFYBL.dat`) que debe existir ya en el directorio de ejecución | Asegúrate de que ese fichero está en el directorio de trabajo antes de ejecutar, o cambia `ISOCA = 1` para procesar la librería básica desde cero |
 | Aviso ILIB ≠ IESF | Validación (advertencia) | La librería de secciones eficaces y el espectro usan estructuras de grupos distintas | Informativo: COLLAPS convierte internamente el espectro antes de colapsar; no bloquea, pero conviene saber que ocurre esa conversión |
 | Error al cargar un fichero | Archivo → Cargar COLL.inp… | El fichero no se pudo parsear como `COLL.inp` (formato no reconocido) | Comprueba que el fichero corresponde realmente a una entrada de COLLAPS y no está truncado |
+| "Ya existe un COLL.inp en esta carpeta. ¿Deseas sobrescribirlo?" | Guardar en carpeta… | La carpeta elegida ya contiene un `COLL.inp` | Confirma para sobrescribirlo, o cambia la carpeta de destino |
 | "Indica el directorio de trabajo antes de ejecutar" | Modal de Ejecución de COLLAPS | No se ha rellenado el campo Directorio de trabajo | Indica la carpeta donde está `collaps.exe` junto con `XSBL.dat` y el resto de librerías que necesite el modo activado |
+| "Ya existe un fichero de salida previo (XSECTION.dat)…" | Modal de Ejecución de COLLAPS, al pulsar Ejecutar | El directorio de trabajo ya tiene un `XSECTION.dat` de una ejecución anterior | Confirma para sobrescribirlo, o cambia de directorio de trabajo si quieres conservar el resultado previo |
 | Ejecución con Timeout | Modal de Ejecución de COLLAPS | El cálculo no terminó dentro del tiempo indicado en "Timeout (s)" | Sube el timeout, especialmente con librerías grandes o modo incertidumbres |
 | Ejecución con código de error | Modal de Ejecución de COLLAPS | `collaps.exe` terminó con código de salida distinto de 0 | Revisa el log de la ejecución (área de texto del modal) para el mensaje de error de COLLAPS; suele deberse a ficheros auxiliares (`XSBL.dat`, `FYBL.dat`, `UNCBL.dat`) ausentes del directorio de trabajo o a inconsistencias del `COLL.inp` no cubiertas por la validación del formulario |
 
