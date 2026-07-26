@@ -333,6 +333,22 @@ def api_run_cancel():
     return jsonify({'ok': True})
 
 
+@app.route('/api/run/log', methods=['GET'])
+def api_run_log():
+    """Devuelve el run.log de una carpeta arbitraria (F9c, sincronizado
+    desde ACAB_inp_file_configurator/app.py): necesario para que la UI
+    enseñe el run.log del sub-paso que de verdad falló en un pipeline
+    multi-carpeta (p. ej. el pipeline de cadenas del INP configurator, cuyo
+    workdir de nivel job puede diferir del cwd de un paso concreto)."""
+    workdir = (request.args.get('workdir') or '').strip()
+    if not workdir:
+        return jsonify({'error': 'Falta el parámetro workdir.'}), 422
+    wd_path = Path(workdir)
+    if not wd_path.is_dir():
+        return jsonify({'error': f'No existe el directorio: {workdir}'}), 422
+    return jsonify({'ok': True, 'workdir': str(wd_path), 'log': runner.read_log_tail(wd_path)})
+
+
 # ---------------------------------------------------------------------------
 # Writer:  dict  →  COLLAPS COLL.inp text
 # ---------------------------------------------------------------------------

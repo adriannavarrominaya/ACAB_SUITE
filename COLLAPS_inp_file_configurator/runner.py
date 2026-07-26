@@ -151,6 +151,13 @@ class _Runner:
         self._batch_results: list[dict] = []
         self._batch_current_index: int = -1
         self._batch_results_path: str | None = None
+        # cwd REAL del paso 'run' en curso (F9c): un job puede tener pasos
+        # en carpetas distintas del workdir del job (p. ej. el pipeline de
+        # cadenas del INP configurator: el job vive en iso_<isótopo>/ pero
+        # su paso CHAINS corre en chains_<isótopo>/) -- sin esto, status()
+        # solo podía enseñar el run.log del workdir de nivel job, nunca el
+        # de la carpeta donde falló de verdad el paso en curso.
+        self._current_step_cwd: str | None = None
 
     # ── Helpers ──────────────────────────────────────────────────────
 
@@ -483,6 +490,8 @@ class _Runner:
         stdout_f = None
         timed_out = False
         returncode = None
+        with self._lock:
+            self._current_step_cwd = cwd
         try:
             if stdin_path:
                 stdin_f = open(stdin_path, 'rb')
@@ -647,10 +656,13 @@ class _Runner:
             if mode == 'running_batch' or (
                     mode == 'idle' and self._batch_results):
                 running = mode == 'running_batch'
-                # log_tail del job en curso (o el último)
-                cur_wd = None
+                # log_tail del PASO en curso (o el último ejecutado): usa el
+                # cwd real del paso (F9c) si se conoce -- puede diferir del
+                # workdir de nivel job (ver _current_step_cwd) -- y si no,
+                # cae al workdir del job como antes (jobs de un solo paso).
+                cur_wd = self._current_step_cwd
                 cur_idx = self._batch_current_index
-                if 0 <= cur_idx < len(self._batch_jobs):
+                if not cur_wd and 0 <= cur_idx < len(self._batch_jobs):
                     cur_wd = self._batch_jobs[cur_idx]['workdir']
                 return {
                     'mode': 'batch',
@@ -688,3 +700,9 @@ start = _runner.start
 start_batch = _runner.start_batch
 status = _runner.status
 cancel = _runner.cancel
+
+# Lectura del run.log de una carpeta arbitraria (F9c): permite a la UI
+# consultar el run.log de la carpeta EXACTA donde falló un sub-paso (p. ej.
+# chains_<isótopo>/, distinta del workdir de nivel job), no solo el del
+# job/paso en curso que ya expone status().
+read_log_tail = _Runner._read_log_tail

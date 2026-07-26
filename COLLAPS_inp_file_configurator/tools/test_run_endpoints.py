@@ -176,6 +176,25 @@ class RunEndpointsTestCase(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertTrue(res.get_json()['ok'])
 
+    # ── /api/run/log (F9c, sincronizado desde ACAB_inp_file_configurator) ──
+
+    def test_run_log_missing_workdir_param(self):
+        res = self.client.get('/api/run/log')
+        self.assertEqual(res.status_code, 422)
+
+    def test_run_log_workdir_does_not_exist(self):
+        res = self.client.get(
+            '/api/run/log?workdir=' + str(self.tmp / 'no-existe'))
+        self.assertEqual(res.status_code, 422)
+
+    def test_run_log_reads_arbitrary_folder(self):
+        (self.tmp / 'run.log').write_text('linea de error real\n', encoding='utf-8')
+        res = self.client.get('/api/run/log?workdir=' + str(self.tmp))
+        self.assertEqual(res.status_code, 200)
+        body = res.get_json()
+        self.assertTrue(body['ok'])
+        self.assertIn('linea de error real', body['log'])
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
