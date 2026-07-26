@@ -267,3 +267,39 @@ Se persiste por app en `suite_config.json`, clave `runner` dentro de cada app: `
   encontró NUMBER OF ATOMS" por cada tape).
 - **Recuento de suite** (2026-07-26): 929 tests, 0 fallos
   (run_all_tests.ps1; sustituye al 883 de esta misma fecha, hotfix F9d).
+- **Control F9e — causa raíz del análisis inválido del 2026-07-26 (INPT=1)**
+  ✅ (2026-07-26): la primera ejecución real completa de F9d (control de
+  arriba) dio R_i inválidos — R_i eran en realidad abundancias isotópicas de
+  Te natural, no fracciones de contribución por isótopo. Causa raíz:
+  `iso_<isótopo>/` heredaba INPT=1 ("read as elements") de la referencia;
+  ACAB expande INUCL=ZZAAAS(i) a la composición NATURAL del elemento
+  ignorando la masa. Confirmado con un extracto real del `fort.6` de
+  `iso_TE130/` de esa ejecución (los 8 isótopos de Te natural en el eco
+  INITIAL CONCENTRATIONS, no solo TE130). Arreglo: `_monoisotopic_patch`
+  fija `block1.INPT=2` SOLO en el patch de `iso_<isótopo>/` (tape22/tape24
+  conservan el INPT de la referencia); unidades de XCOMP sin cambios (INPT=1
+  y 2 comparten át/barn·cm, solo INPT=3 es g/cc). Pendiente: no hay binarios
+  reales de ACAB en el entorno de desarrollo para regenerar el `fort.6`
+  YA CORREGIDO de `iso_TE130/` y congelarlo como caso oro positivo — queda
+  para la próxima ejecución real del pipeline.
+  Hermano de C6 del BACKLOG: el parser de CHAINS del analyzer
+  (`leer_output_chains`) perdía silenciosamente los pasos cuyo ORIGEN es un
+  elemento de símbolo de una letra con espacio inicial de columna (yodo,
+  " I129 (N,G-g)  I130"), truncando cadenas reales antes de llegar a I131.
+  Confirmado y arreglado con el fixture real `output_chain_TE128_to_I131.txt`
+  de la misma ejecución (13 cadenas, NCH=12, PTOT=0.02304 — este último dato
+  desmiente también la nota de F9 que asumía PTOT=100 siempre a partir de un
+  único caso, TE130→I131; PTOT es la probabilidad TOTAL de que INITIAL
+  acabe en IFINAL, varía, mientras que el "P=" de cada cadena sí está
+  siempre normalizado a 100 entre las devueltas). Tabla 2 del analyzer:
+  `cadena_label` incluye ahora el proceso de cada paso (distingue cadenas
+  con la misma secuencia de nucleidos y proceso distinto en algún paso).
+  Botón "Abrir en Fort Analyzer" del análisis de cadenas: nuevo deep link
+  `?chains_root=` (antes reutilizaba `?folder=`, que aterrizaba en la
+  pestaña "Simulaciones" en vez de "Análisis de cadenas" — un
+  `chains_manifest.json` no es una carpeta de simulaciones normal).
+  Cambio JS-only sin test automático (patrón DOM-wiring existente,
+  p. ej. U1); sin acceso a navegador real en esta sesión para verificación
+  visual con Playwright, pendiente de verificación manual.
+- **Recuento de suite** (2026-07-26): 961 tests, 0 fallos
+  (run_all_tests.ps1; sustituye al 929 de esta misma fecha, hotfix F9e).
