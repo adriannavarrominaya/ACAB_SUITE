@@ -89,7 +89,9 @@ arriba), IFINAL=I131, NMAX=5, PCNT=0.01 — verificados a mano una vez
 (2026-07-26) y congelados como el "caso oro construido a mano" que exige el
 runbook para el patch monoisotópico del Bloque #5:
 
-- `inp.5_iso_TE130`: idéntico a `inp.5_original` salvo Bloque #2 NUCZO
+- `inp.5_iso_TE130`: idéntico a `inp.5_original` salvo Bloque #1 card #3
+  (INPT `1` → `2`, "read initial concentrations as isotopes" — ver F9e más
+  abajo, causa raíz del análisis inválido del 2026-07-26), Bloque #2 NUCZO
   (`2` → `1`, ajuste necesario no explícito en el runbook pero obligatorio
   por el formato — ver docstring de `chains_analysis.py`) y Bloque #5
   (`520000 80000` / `4.644800E-04 9.289600E-04` → `521300` /
@@ -102,10 +104,46 @@ runbook para el patch monoisotópico del Bloque #5:
   este caso de prueba, no los NMAX=14/PCNT=0.01 del caso manual) y las
   etiquetas de campo (`INITIAL`/`Te-130` en vez de `IINICIAL`/`Te130`):
   chains.exe hace una lectura FORTRAN posicional, las etiquetas son solo
-  para lectura humana y no afectan al resultado.
+  para lectura humana y no afectan al resultado. No depende de INPT, no
+  cambia con F9e.
 
-SHA256 (verificado 2026-07-26):
+SHA256 (verificado 2026-07-26, tras F9e):
 ```
-112649CB045C61D9667BB6CDCE85DBDA0558C945376F7193C9CA621BF20ABD33  inp.5_iso_TE130
+96A2B3671C471DB80202567E351540B6DF55FCE586C5A777FC3504A6F76F6095  inp.5_iso_TE130
 03BB237BC3331567FD2D4524CD3D40F44FCC5EEF7E2655B5F20DBA654ECD66B8  input_chain_generated_TE130_to_I131.txt
 ```
+
+## F9e — causa raíz del análisis inválido del 2026-07-26 (INPT=1)
+
+El primer análisis real de cadenas (TE128/TE130 → I131) generado ANTES de
+este hotfix usaba `inp.5_iso_TE130`/`inp.5_iso_TE128` con INPT=1 heredado
+de la referencia (ver versión anterior de este fichero, `git log -p`). Con
+INPT=1 ("read initial concentrations as ELEMENTS"), ACAB interpreta
+INUCL=521300 como el ELEMENTO Te (ignora los dígitos de masa "130") y
+expande XCOMP=1.57E-4 (át/barn·cm) a la composición isotópica NATURAL de
+Te escalada a ese total — NO al isótopo puro TE130.
+
+Evidencia congelada (extracto real, no sintético):
+`fort6_iso_TE130_INPT1_invalido_extracto.txt` — recorte del `fort.6` real
+de `iso_TE130/` generado con el `inp.5` INPT=1 de la primera ejecución
+(2026-07-26): el eco `NUMBER OF ATOMS` en t=0 (columna INITIAL) muestra
+los 8 isótopos de Te de abundancia natural no nula (TE120/122/123/124/
+125/126/128/130), pese a que el Bloque #5 de ese `inp.5` solo declaraba
+`521300`/`1.570000E-04` — confirma que INPT=1 expande a Te natural en vez
+de dejar solo TE130. Extracto recortado (se omiten las líneas de
+nucleido con C_i=0, igual que el `_SYNTHETIC_FORT6` de
+`tools/test_chains_analysis.py`) del fichero real, no regenerable sin los
+binarios reales de ACAB.
+
+Arreglo: `_monoisotopic_patch` fija `block1.INPT=2` ("read as isotopes")
+en el patch de cada `iso_<isótopo>/` — con INPT=2, INUCL=521300 se
+interpreta como el ISÓTOPO TE130 y XCOMP no se expande. **Pendiente**: no
+se dispone de binarios reales de ACAB en este entorno de desarrollo para
+regenerar el `fort.6` de `iso_TE130/` YA CORREGIDO (INPT=2) y congelarlo
+como el caso oro positivo ("el eco contiene SOLO TE130"); esa verificación
+queda para la próxima ejecución real del pipeline (ver nota bajo F9 en
+`acab_suite/BACKLOG.md`). Mientras tanto, `tools/test_chains_analysis.py`
+cubre el patch (`test_iso_monoisotopic_matches_frozen_fixture`,
+`test_iso_monoisotopic_nuczo_and_block5_content` — ahora también
+verifica `INPT=2`) y este extracto documenta el bug ya corregido en el
+código pero pendiente de reverificación con ejecución real.

@@ -46,6 +46,28 @@ F9c (hotfix tras la primera ejecución real, ver BACKLOG bajo F9):
     de la referencia (``_CHAINS_BASE_EXCLUDE_EXTRA``) -- la referencia real
     usada en la primera ejecución llevaba tapes obsoletos de otra
     ejecución sin relación con este pipeline.
+
+F9e (hotfix de causa raíz, 2026-07-26 -- el análisis de cadenas del
+26-07 con TE128/TE130→I131 dio R_i inválidos, R_i eran en realidad
+abundancias isotópicas de Te natural, no fracciones de contribución):
+  - Causa raíz: los ``iso_<isótopo>/`` heredaban INPT=1 ("read initial
+    concentrations as elements", Bloque #1 card #3) de la referencia. Con
+    INPT=1, ACAB interpreta INUCL=ZZAAAS(i) (p. ej. 521300) como el
+    ELEMENTO Te (ignora los dígitos de masa) y expande XCOMP a la
+    composición isotópica NATURAL de Te escalada al XCOMP total dado --
+    verificado con la ejecución real del 2026-07-26 (fort.6 de iso_TE130,
+    ``tests/fixtures/chains/fort6_iso_TE130_INPT1_invalido.txt``): el eco
+    INITIAL CONCENTRATIONS muestra los 8 isótopos de Te con abundancia
+    natural no nula (TE120/122/123/124/125/126/128/130), no solo TE130.
+  - Arreglo: ``_monoisotopic_patch`` añade ``block1.INPT=2`` ("read as
+    isotopes") SOLO al patch de los ``iso_<isótopo>/`` -- tape22/tape24
+    (que reutilizan la composición de referencia SIN modificar) no llevan
+    este campo en su patch y conservan el INPT de la referencia.
+  - Verificación de unidades (docs/Block#5.md): "Concentrations of the
+    initial elements or isotopes given in units of atoms/barn-cm ... If
+    INPT=3, initial elements in units g/cc" -- INPT=1 e INPT=2 comparten
+    unidad (át/barn·cm), solo INPT=3 (g/cc) difiere. El XCOMP=C_i×1e-24 de
+    ``UNIT_FACTOR_ATOMS_TO_XCOMP`` no cambia con este fix.
 """
 
 from __future__ import annotations
@@ -133,6 +155,7 @@ def _monoisotopic_patch(nuczo_idx: int, nuczo: list, zzaaas: int, xcomp: float) 
     new_nuczo = list(nuczo)
     new_nuczo[nuczo_idx] = 1
     return {
+        'block1': {'INPT': 2},
         'block2': {'NUCZO': new_nuczo},
         'block5': [{'INUCL': [zzaaas], 'XCOMP': [xcomp]}],
     }

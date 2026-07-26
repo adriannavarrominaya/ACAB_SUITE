@@ -116,8 +116,11 @@ class ChainsAnalysisGenerationTests(unittest.TestCase):
 
     def test_iso_monoisotopic_matches_frozen_fixture(self):
         # Caso oro de la Fase 2: firma numérica de la Fase 0 (Σ C_i(Te) ->
-        # XCOMP_i = C_i * 1e-24, INPT=1) para TE130, C_i=1.57E20 át/cm³
-        # (mismo valor leído del fort.6 real de referencia).
+        # XCOMP_i = C_i * 1e-24) para TE130, C_i=1.57E20 át/cm³ (mismo
+        # valor leído del fort.6 real de referencia). INPT=2 ("read as
+        # isotopes") desde F9e -- el fixture original (INPT=1 heredado de
+        # la referencia) codificaba el bug de causa raíz que expandía a
+        # Te natural en vez del isótopo puro (ver PROCEDENCIA.md).
         ca.generate_chains_analysis(self._payload(), _write_inp5)
         got = (self.root / 'iso_TE130' / 'inp.5').read_text(encoding='utf-8')
         want = (FIXTURES / 'inp.5_iso_TE130').read_text(encoding='utf-8')
@@ -126,11 +129,21 @@ class ChainsAnalysisGenerationTests(unittest.TestCase):
     def test_iso_monoisotopic_nuczo_and_block5_content(self):
         res = ca.generate_chains_analysis(self._payload(), _write_inp5)
         data = ACABParser().read_inp5(self.root / 'iso_TE130' / 'inp.5')
+        self.assertEqual(data['block1']['INPT'], 2)
         self.assertEqual(data['block2']['NUCZO'], [1])
         self.assertEqual(data['block5'], [{'INUCL': [521300], 'XCOMP': [1.57e-4]}])
         iso = res['manifest']['isotopes'][0]
         self.assertEqual(iso['zzaaas'], 521300)
         self.assertAlmostEqual(iso['xcomp'], 1.57e-4)
+
+    def test_tape_patches_do_not_touch_inpt(self):
+        # F9e: solo el patch monoisotópico fija INPT=2 -- tape22/tape24
+        # reutilizan la composición de referencia SIN modificar y deben
+        # conservar el INPT de la referencia (INPT=1 en inp.5_original).
+        ca.generate_chains_analysis(self._payload(), _write_inp5)
+        for folder in ('tape22', 'tape24'):
+            data = ACABParser().read_inp5(self.root / folder / 'inp.5')
+            self.assertEqual(data['block1']['INPT'], 1, folder)
 
     def test_input_chain_txt_matches_frozen_fixture(self):
         ca.generate_chains_analysis(self._payload(), _write_inp5)
