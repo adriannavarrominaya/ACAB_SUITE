@@ -127,6 +127,43 @@ Convención de la suite: **simulaciones autocontenidas**. Cada carpeta de simula
 - Salidas generadas: `XSECTION.dat`, `FLUX.inf`, `XS.inf`, `REACTIONS.dat`, `XSZERO.dat`.
 - Duración típica: ~2 s. Timeout por defecto del runner: 60 s.
 
+### CHAINS (F9 del BACKLOG — análisis de contribución por cadenas)
+- Ejecutable: `chains.exe`, convención fija (no configurable vía
+  `suite_config.json`, igual que `collaps.exe`), presente EN cada carpeta
+  `chains_<isótopo>/` del análisis.
+- **ROMPE la convención de "sin argumentos, todo por cwd"** de arriba:
+  CHAINS lee su entrada por stdin y escribe su salida por stdout —
+  `chains.exe < input_chain.txt > output_chain.txt`, con `cwd = carpeta
+  chains_<isótopo>` y `fort.22`/`fort.24` presentes en ese cwd (copiados
+  ahí por el pipeline desde `tape22/`/`tape24/`, ver más abajo).
+  El runner (`runner.py`, paso `'run'` de un job) admite esta extensión vía
+  las claves opcionales `'stdin'`/`'stdout_file'`: con ellas presentes, el
+  stdout del proceso va al fichero indicado (no a `run.log`); `run.log`
+  sigue recibiendo stderr por separado, para no perder diagnóstico si
+  falla.
+- Fichero de entrada: `input_chain.txt` (IFLAG=2, INITIAL=ZZAAAS del
+  isótopo, IFINAL=ZZAAAS del objetivo, NMAX, PCNT), generado por la app en
+  la Fase 2 (`chains_handler.write_chains_inp`).
+- Ficheros requeridos en `chains_<isótopo>/`: `chains.exe`,
+  `input_chain.txt`, `fort.22`, `fort.24` (estos dos últimos, copiados por
+  el pipeline de ejecución antes del paso CHAINS).
+- Salida: `output_chain.txt` (parseado por el analyzer,
+  `fort_analyzer.leer_output_chains`).
+- Duración típica: instantánea (< 1 s).
+- Tapes compartidos (composición de referencia SIN modificar, UN único run
+  de cada uno por análisis, con `acab.exe`): `tape22/` (Bloque #11 IWP=3 →
+  escribe `fort.22`, pathway analysis) y `tape24/` (Bloque #11 IMTX=1 →
+  escribe `fort.24` y ACAB PARA tras escribirlo). El run de `tape24/`
+  termina SIN generar `fort.6` — es éxito igualmente (el runner evalúa el
+  paso `'run'` por código de salida 0, nunca por la presencia de un
+  fichero de salida concreto, así que esta parada temprana no necesita
+  ningún caso especial).
+- Pipeline completo de un análisis (`chains_analysis.build_chains_pipeline_jobs`):
+  `tape22` → `tape24` → por cada isótopo seleccionado, un job con los pasos
+  `run acab.exe` (en `iso_<isótopo>/`, monoisotópico, genera `fort.6` para
+  A_i(t)) → `copy fort.22` → `copy fort.24` (de `tape22/`/`tape24/` a
+  `chains_<isótopo>/`) → `run chains.exe` (stdin/stdout).
+
 ### Configuración del runner (a implementar en las fases R1-R4)
 Se persiste por app en `suite_config.json`, clave `runner` dentro de cada app: `{"exe_name": "acab.exe", "required_files": [...], "output_file": "fort.6", "timeout_s": 60, "default_workdir": "..."}`. Los pre-checks del runner leen esta configuración, no listas hardcodeadas en el código. `exe_name` es un fichero requerido más: si no está en el workdir, error 422 con mensaje indicándolo.
 
@@ -184,3 +221,17 @@ Se persiste por app en `suite_config.json`, clave `runner` dentro de cada app: `
   en át/barn·cm (factor 1e-24), corrección incorporada al runbook de F9.
 - **Recuento de suite** (2026-07-25): 794 tests, 0 fallos
   (run_all_tests.ps1; sustituye al 757 del 2026-07-23).
+- **Control F9 Fases 2-3 — generación y orquestación** ✅ (2026-07-26): patch
+  monoisotópico del Bloque #5 (INUCL/XCOMP + ajuste de NUCZO a 1) verificado
+  byte a byte contra `inp.5_original` para TE130 (C_i=1.57E20 át/cm³,
+  XCOMP=1.570000E-04); tapes `tape22`/`tape24` generados por la app
+  reproducen byte a byte los fixtures de Fase 0. Pipeline de ejecución
+  (tape22→tape24→N×[ACAB, copiar tapes, CHAINS]) verificado con ejecutables
+  falsos multiplataforma (patrón D1): el run IMTX=1 termina sin fort.6 y es
+  éxito, chains.exe falso confirma la redirección stdin/stdout del runner
+  (lee input_chain.txt, escribe output_chain.txt). UI ("Análisis de
+  cadenas") verificada en navegador real (Playwright): carga de inventario,
+  selección de isótopos, previsualizar/generar y estructura de carpetas en
+  disco correcta.
+- **Recuento de suite** (2026-07-26): 830 tests, 0 fallos
+  (run_all_tests.ps1; sustituye al 794 del 2026-07-25).
