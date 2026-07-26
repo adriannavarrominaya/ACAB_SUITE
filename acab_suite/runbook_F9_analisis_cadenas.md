@@ -1,6 +1,6 @@
 # Runbook F9 — Análisis de contribución por cadenas (ACAB + CHAINS)
 
-**Estado (2026-07-26): Fases 0-3 ✅ (inp-conf + analyzer). Fases 4-5 pendientes.**
+**Estado (2026-07-26): Fases 0-5 ✅ (inp-conf + analyzer). Runbook completo.**
 Estado global de runbooks en README.md de `acab_suite/`.
 
 Ítem F9 del BACKLOG (inp-conf + analyzer, A/L). Objetivo: para un caso de

@@ -235,3 +235,21 @@ Se persiste por app en `suite_config.json`, clave `runner` dentro de cada app: `
   disco correcta.
 - **Recuento de suite** (2026-07-26): 830 tests, 0 fallos
   (run_all_tests.ps1; sustituye al 794 del 2026-07-25).
+- **Control F9 Fases 4-5 — tablas, diagrama y cierre** ✅ (2026-07-26): sobre
+  el análisis sintético mínimo `tests/fixtures/chains_synthetic/` (2 isótopos
+  ficticios FE56/MN55→CO57, PROCEDENCIA.md con la derivación a mano): t*
+  por defecto = t_pico de la referencia = 1 h, A_ref(t*)=100, R_FE56=0.42,
+  R_MN55=0.58, **Σ R_i=1.00** (cobertura completa, control de linealidad de
+  Bateman) — tabla 2 de 3 filas ordenada por Y_z_i descendente
+  (0.580/0.336/0.084). Diagrama de cadena (Fase 5) verificado aparte contra
+  el caso REAL de Fase 1 (Te130→I131, T½ de `ref_sim/DECAY.dat`: TE130
+  2.493E31 s, TE131 1500 s, TE131M 1.08E5 s, I131 6.932E5 s), sin fixture
+  nuevo. Pestaña "Análisis de cadenas" del Fort Analyzer verificada contra
+  un servidor Flask real (HTML de la pestaña, endpoint `/api/chains_report`
+  con el caso sintético) y `node --check` sobre `app.js`; sin acceso a
+  Playwright en esta sesión, pendiente la verificación visual completa en
+  navegador. La firma numérica Σ R_i≈1 sobre un caso físico real (no
+  sintético) queda pendiente de ejecutar el pipeline completo con
+  `acab.exe`/`chains.exe` reales.
+- **Recuento de suite** (2026-07-26): 883 tests, 0 fallos
+  (run_all_tests.ps1; sustituye al 830 de esta misma fecha, Fases 4-5 de F9).
