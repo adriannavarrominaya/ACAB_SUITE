@@ -83,5 +83,5 @@ DATA = flujo integral por grupo; línea final `TOTAL <valor>` con Σ(DATA) — u
 
 1. **Round-trip de identidad:** exportar el FT actual (211 grupos) a un fichero con formato CONDERC de juguete, importarlo por la pestaña → COLL.inp equivalente al original (NGROUP/FT idénticos).
 2. **Control MURR:** barrido de un solo espectro = MURR-G1 de CONDERC (112 grupos, medido) vs el caso base con vuestro MURR analítico de 211 → producción de ¹³¹I comparable (anotar la desviación; es LA validación del barrido espectral con
-   datos independientes del OIEA, y figura directa para la memoria).
-3. **El barrido de la memoria:** MURR + TRIGA + HFIR + un rápido (EBR-2/Phénix) (+ ITER-DT si apetece el contraste extremo) a φ_ref idéntico → tabla y gráfica A_pico vs fracción térmica.
+   datos independientes del OIEA).
+3. **El barrido:** MURR + TRIGA + HFIR + un rápido (EBR-2/Phénix) (+ ITER-DT si apetece el contraste extremo) a φ_ref idéntico → tabla y gráfica A_pico vs fracción térmica.

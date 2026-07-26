@@ -143,7 +143,7 @@ cada una con su baseline y cierre de suite en verde.
 3. Cotejo cualitativo del diagrama de la cadena dominante contra la Fig. 1
    (T½: Te131 25 min, Te131m 33.25 h, I131 8.025 d).
 
-## Valor para la memoria
+## Valor añadido
 
 Cierra el salto de "cuánto se produce" a "POR QUÉ se produce": el índice
 Y_z_i jerarquiza las reacciones nucleares por su importancia real en la

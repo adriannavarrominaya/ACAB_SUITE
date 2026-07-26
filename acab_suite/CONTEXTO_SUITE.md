@@ -45,7 +45,7 @@ Ejecutar con log en vivo, pipelines y deep links entre apps).
    densidad del propio fort.6; actividad total), exportación CSV, superposición
    de datos experimentales con métricas de desviación, métricas de optimización
    (curva de saturación teórica, rendimiento, pureza radionucleídica — criterio
-   validado con el tutor: impurezas = otros isótopos de yodo, umbral 99.9 %),
+   validado: impurezas = otros isótopos de yodo, umbral 99.9 %),
    i18n es/en, detección de resultados obsoletos (inp.5 más nuevo que fort.6).
 4. **Barridos paramétricos** (pestaña del INP configurator): genera N carpetas
    de simulación autocontenidas a partir de un caso base + manifest de

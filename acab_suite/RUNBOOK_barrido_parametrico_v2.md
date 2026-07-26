@@ -238,11 +238,10 @@ t_pico y gráfica A_pico vs parámetro; exportación CSV. La descripción del ba
 
 - **Control XNORM (antes de fiarse del barrido de flujo):** dos ejecuciones reales,
   XNORM=1 y XNORM=0.5, con t_irr corto (régimen lineal): la actividad debe escalar
-  ≈ ×0.5. Confirmar en fort.6 el eco del flujo normalizado. Documentar el resultado
-  (sirve además para la memoria del TFG).
+  ≈ ×0.5. Confirmar en fort.6 el eco del flujo normalizado. Documentar el resultado.
 - **Control de malla:** un inp.5 con historial regenerado por el barrido vs el mismo
   generado a mano con la pestaña temporal → fort.6 idénticos.
-- **Aclaración física para la memoria:** el barrido de flujo asume espectro de forma
+- **Aclaración física:** el barrido de flujo asume espectro de forma
   fija (MURR colapsado con COLLAPS); si el escenario real cambia la forma del
   espectro, se debe regenerar con COLLAPS, no con XNORM.
 - **Carpeta base:** decidir su contenido canónico (librerías, DECAY.dat, etc.) y

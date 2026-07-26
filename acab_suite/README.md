@@ -188,157 +188,23 @@ Se persiste por app en `suite_config.json`, clave `runner` dentro de cada app: `
 - **Control B1 — espectro gamma (línea de 364 keV)** ✅ (2026-07-22): sobre la referencia v.5 en t = 3.750 h (instante del pico): tasa esperada a mano = A_pico(I131) × I(364,49 keV) = 1.6500E+04 × 0.812 = 1.340E+04 fot/s·cm³. La pestaña Espectro gamma reporta: 364.49 keV / I131 / 81.200 % / 1.340e+4 — coincidencia exacta. La vista lista además 11 nucleidos del inventario sin líneas gamma en PHOTON.dat (I130M entre ellos), conforme al diseño. Observación física: en t_pico las líneas de TE131/TE131M siguen presentes (precursores activos alimentando el pico), coherente con la cinética de Bateman del caso pulso.
 - **Recuento de suite** ✅ (2026-07-22): 661 tests automáticos en verde, 0 fallos, vía `acab_suite\tools\run_all_tests.ps1` (analyzer 438, inp-conf 198, collaps 25) + `regression_roundtrip.py` (OK, sin recuento numérico).
 - **Control de equivalencia de generadores** — re-verificado tras U7 (2026-07-23): historial 2+2 tramos generado por el Generador manual y por barrido de 1 simulación → inp.5 idénticos (SHA1 ffa423ca0207...b773). Automatizado además como test de bytes del camino de escritura (test_sweep_endpoint.py).
-- - **Control de invariancia del reagrupado (F7)** ✅ (2026-07-23): la malla de ref_sim ejecutada en ACAB con el formato compactado histórico (2 TIME SETs, fixture ref_sim) y con el formato por fases del tutor (3 TIME SETs, fixture ref_sim_f7) reproduce física idéntica: todos los valores oro de ref_sim (A_pico=1.6500E+04, t_pico=3.753 h, A(I131,t=0)=3.842E+01, 19 timesteps fusionados) coinciden en ambos. El reagrupado de tarjetas es puramente de presentación. Automatizado en los tests oro de ref_sim_f7.
+- - **Control de invariancia del reagrupado (F7)** ✅ (2026-07-23): la malla de ref_sim ejecutada en ACAB con el formato compactado histórico (2 TIME SETs, fixture ref_sim) y con el formato por fases (3 TIME SETs, fixture ref_sim_f7) reproduce física idéntica: todos los valores oro de ref_sim (A_pico=1.6500E+04, t_pico=3.753 h, A(I131,t=0)=3.842E+01, 19 timesteps fusionados) coinciden en ambos. El reagrupado de tarjetas es puramente de presentación. Automatizado en los tests oro de ref_sim_f7.
 - **Recuento de suite** (2026-07-23): 753 tests, 0 fallos (run_all_tests.ps1).
 - **Control de invariancia del reagrupado (F7)** ✅ (2026-07-23): la malla de
-  ref_sim ejecutada en ACAB con el formato compactado histórico (2 TIME SETs,
-  fixture `ref_sim`) y con el formato por fases del tutor (3 TIME SETs,
-  fixture `ref_sim_f7`, ejecución real de ACAB) reproduce física idéntica:
-  todos los valores oro de ref_sim (A_pico=1.6500E+04 Bq/cm³, t_pico=3.753 h,
-  A(I131,t=0)=3.842E+01, 19 timesteps fusionados) coinciden en ambos. El
-  reagrupado de tarjetas es puramente de presentación. Automatizado en los
-  tests oro de `ref_sim_f7`; ambos fixtures con PROCEDENCIA.md.
-- **Control F8 — sincronización NOTTS/ITSO** ✅ (2026-07-23): historial con
-  más tarjetas que el fichero base → generación y validación limpias a la
-  primera, sin editar ITSO a mano (el escenario que antes disparaba V17e).
-  Automatizado en test_validate_all.js; en barridos, block13.ITSO viaja en
-  el patch junto a block11.NOTTS (test_sweep_utils.js). Semántica confirmada
-  contra el manual ACAB 2008: NOTTS = nº total de tarjetas; ITSO = vector
-  [NOTTS] de flags de salida por set (un 0 amputa ese set del fort.6).
-- **Recuento de suite** (2026-07-23): 757 tests, 0 fallos, vía
-  `acab_suite\tools\run_all_tests.ps1` (sustituye al recuento de 689 del
-  2026-07-22; regression_roundtrip.py aparte, OK sin recuento numérico).
-  - **Control F9 Fase 0 — reproducibilidad de CHAINS** ✅ (2026-07-25): re-ejecución
-  limpia de `runchains.bat` (chains.exe real, fort.22/24 de las ejecuciones
-  reales de ACAB con IWP=3 / IMTX=1) → el `output_chain_Te130_to_I131.txt`
-  regenerado es idéntico por hash al fixture congelado (3 cadenas,
-  P=95.79/3.119/1.090 %). CHAINS es determinista: la salida queda fijada por
-  input_chain (IFLAG, IINICIAL, IFINAL, NMAX, PCNT) + fort.22/24 — en
-  particular NMAX condiciona qué cadenas existen, así que toda firma de
-  CHAINS del tablón debe citar su NMAX (aquí NMAX=5, PCNT=0.01).
-  Verificación de unidades de Fase 0: Σ C_i(Te) del eco del fort.6 =
-  4.6451E20 át/cm³ ↔ XCOMP(Te)=4.6448E-04 át/barn·cm (INPT=1): XCOMP está
-  en át/barn·cm (factor 1e-24), corrección incorporada al runbook de F9.
-- **Recuento de suite** (2026-07-25): 794 tests, 0 fallos
-  (run_all_tests.ps1; sustituye al 757 del 2026-07-23).
-- **Control F9 Fases 2-3 — generación y orquestación** ✅ (2026-07-26): patch
-  monoisotópico del Bloque #5 (INUCL/XCOMP + ajuste de NUCZO a 1) verificado
-  byte a byte contra `inp.5_original` para TE130 (C_i=1.57E20 át/cm³,
-  XCOMP=1.570000E-04); tapes `tape22`/`tape24` generados por la app
-  reproducen byte a byte los fixtures de Fase 0. Pipeline de ejecución
-  (tape22→tape24→N×[ACAB, copiar tapes, CHAINS]) verificado con ejecutables
-  falsos multiplataforma (patrón D1): el run IMTX=1 termina sin fort.6 y es
-  éxito, chains.exe falso confirma la redirección stdin/stdout del runner
-  (lee input_chain.txt, escribe output_chain.txt). UI ("Análisis de
-  cadenas") verificada en navegador real (Playwright): carga de inventario,
-  selección de isótopos, previsualizar/generar y estructura de carpetas en
-  disco correcta.
-- **Recuento de suite** (2026-07-26): 830 tests, 0 fallos
-  (run_all_tests.ps1; sustituye al 794 del 2026-07-25).
-- **Control F9 Fases 4-5 — tablas, diagrama y cierre** ✅ (2026-07-26): sobre
-  el análisis sintético mínimo `tests/fixtures/chains_synthetic/` (2 isótopos
-  ficticios FE56/MN55→CO57, PROCEDENCIA.md con la derivación a mano): t*
-  por defecto = t_pico de la referencia = 1 h, A_ref(t*)=100, R_FE56=0.42,
-  R_MN55=0.58, **Σ R_i=1.00** (cobertura completa, control de linealidad de
-  Bateman) — tabla 2 de 3 filas ordenada por Y_z_i descendente
-  (0.580/0.336/0.084). Diagrama de cadena (Fase 5) verificado aparte contra
-  el caso REAL de Fase 1 (Te130→I131, T½ de `ref_sim/DECAY.dat`: TE130
-  2.493E31 s, TE131 1500 s, TE131M 1.08E5 s, I131 6.932E5 s), sin fixture
-  nuevo. Pestaña "Análisis de cadenas" del Fort Analyzer verificada contra
-  un servidor Flask real (HTML de la pestaña, endpoint `/api/chains_report`
-  con el caso sintético) y `node --check` sobre `app.js`; sin acceso a
-  Playwright en esta sesión, pendiente la verificación visual completa en
-  navegador. La firma numérica Σ R_i≈1 sobre un caso físico real (no
-  sintético) queda pendiente de ejecutar el pipeline completo con
-  `acab.exe`/`chains.exe` reales.
-- **Recuento de suite** (2026-07-26): 883 tests, 0 fallos
-  (run_all_tests.ps1; sustituye al 830 de esta misma fecha, Fases 4-5 de F9).
-- **Control F9d — primera ejecución real completa (11 isótopos)** ✅
-  (2026-07-26): sobre la carpeta real del análisis (8 isótopos de Te +
-  O16/O17/O18, IFINAL=I131, NMAX=5, PCNT=0.01), el informe carga entero
-  (antes bloqueaba con `ValueError: NCHAIN` en O16). O16/O17/O18 sin camino
-  físico O→I131 en ≤ NMAX pasos: R_i≈0 (coherente) y sin filas de tabla 2,
-  sin nota (no es un error); Te con sus cadenas normales. Fixture congelado
-  `output_chain_no_pathways_O16.txt` (idéntica forma en O17/O18, solo
-  difiere INITIAL). Degradación por isótopo verificada con casos sintéticos
-  (output corrupto/ausente): R_i intacto + nota, resto del informe sin
-  afectar. Exclusión de tape22/tape24 del descubrimiento de simulaciones
-  verificada contra la propia carpeta real (antes generaba el aviso "No se
-  encontró NUMBER OF ATOMS" por cada tape).
-- **Recuento de suite** (2026-07-26): 929 tests, 0 fallos
-  (run_all_tests.ps1; sustituye al 883 de esta misma fecha, hotfix F9d).
-- **Control F9e — causa raíz del análisis inválido del 2026-07-26 (INPT=1)**
-  ✅ (2026-07-26): la primera ejecución real completa de F9d (control de
-  arriba) dio R_i inválidos — R_i eran en realidad abundancias isotópicas de
-  Te natural, no fracciones de contribución por isótopo. Causa raíz:
-  `iso_<isótopo>/` heredaba INPT=1 ("read as elements") de la referencia;
-  ACAB expande INUCL=ZZAAAS(i) a la composición NATURAL del elemento
-  ignorando la masa. Confirmado con un extracto real del `fort.6` de
-  `iso_TE130/` de esa ejecución (los 8 isótopos de Te natural en el eco
-  INITIAL CONCENTRATIONS, no solo TE130). Arreglo: `_monoisotopic_patch`
-  fija `block1.INPT=2` SOLO en el patch de `iso_<isótopo>/` (tape22/tape24
-  conservan el INPT de la referencia); unidades de XCOMP sin cambios (INPT=1
-  y 2 comparten át/barn·cm, solo INPT=3 es g/cc). Pendiente: no hay binarios
-  reales de ACAB en el entorno de desarrollo para regenerar el `fort.6`
-  YA CORREGIDO de `iso_TE130/` y congelarlo como caso oro positivo — queda
-  para la próxima ejecución real del pipeline.
-  Hermano de C6 del BACKLOG: el parser de CHAINS del analyzer
-  (`leer_output_chains`) perdía silenciosamente los pasos cuyo ORIGEN es un
-  elemento de símbolo de una letra con espacio inicial de columna (yodo,
-  " I129 (N,G-g)  I130"), truncando cadenas reales antes de llegar a I131.
-  Confirmado y arreglado con el fixture real `output_chain_TE128_to_I131.txt`
-  de la misma ejecución (13 cadenas, NCH=12, PTOT=0.02304 — este último dato
-  desmiente también la nota de F9 que asumía PTOT=100 siempre a partir de un
-  único caso, TE130→I131; PTOT es la probabilidad TOTAL de que INITIAL
-  acabe en IFINAL, varía, mientras que el "P=" de cada cadena sí está
-  siempre normalizado a 100 entre las devueltas). Tabla 2 del analyzer:
-  `cadena_label` incluye ahora el proceso de cada paso (distingue cadenas
-  con la misma secuencia de nucleidos y proceso distinto en algún paso).
-  Botón "Abrir en Fort Analyzer" del análisis de cadenas: nuevo deep link
-  `?chains_root=` (antes reutilizaba `?folder=`, que aterrizaba en la
-  pestaña "Simulaciones" en vez de "Análisis de cadenas" — un
-  `chains_manifest.json` no es una carpeta de simulaciones normal).
-  Cambio JS-only sin test automático (patrón DOM-wiring existente,
-  p. ej. U1); sin acceso a navegador real en esta sesión para verificación
-  visual con Playwright, pendiente de verificación manual.
-- **Recuento de suite** (2026-07-26): 961 tests, 0 fallos
-  (run_all_tests.ps1; sustituye al 929 de esta misma fecha, hotfix F9e).
-- **Control F9 — linealidad de Bateman (Σ R_i)** ✅ (2026-07-26): análisis de
-  cadenas sobre v.5 (INPT=2, t*=3.753 h), 8/8 isótopos de Te seleccionados:
-  R(TE130)=1.0000 (A_i=1.6500E+04 = A_ref a 5 cifras), R(TE128)=4e-24
-  (A_i=7.176E-20, traza de doble captura), resto 0 → Σ R_i = 1.0000.
-  Superposición lineal de Bateman verificada; en pulso de 10 s el 100% del
-  I131 procede del Te130. Los isótopos de O: sin camino estructural a I131
-  (CHAINS: "no pathways", fixture congelado). NOTA de método: el primer
-  análisis (2026-07-26 a.m.) dio Σ=0.9999 con R_i = abundancias naturales
-  — falso positivo por INPT=1 heredado (ACAB expandía a Te natural);
-  detectado porque R_i/C_i salía constante, físicamente imposible.
-  Corregido en F9e.
-- **Control F9 — cadenas del Te130** ✅ (2026-07-26): pestaña sobre v.5:
-  3 cadenas (NMAX=5, PCNT=0.01, tapes de v.5): P=94.550/4.303/1.144 %,
-  dominante TE130→(n,γ-g)→TE131→(β⁻)→I131, coherente con la Fig. 1 del
-  paper. Con tapes de la familia original (caso manual congelado):
-  95.79/3.119/1.090 — la diferencia es huella espectral de los fort.22/24;
-  REGLA: toda firma de CHAINS cita NMAX, PCNT y la referencia de sus tapes.
-- **F9f (cierre)** ✅ (2026-07-26), 1 commit `analyzer:` + 1 commit `suite:`.
-  Causa raíz del contradicho "pestaña independiente de la carpeta de
-  simulaciones": vivía dentro de `#results-panel` con `d-none` hasta el
-  primer `/api/analyze` con éxito — arreglado, la barra de pestañas es
-  visible desde el arranque (la guía de bienvenida pasa a ser el contenido
-  inicial de la pestaña "Simulaciones", como el resto de pestañas ya
-  degradaban con placeholder estático). Verificado en navegador real
-  (Playwright): pestaña accesible sin analizar antes, y flujo COMPLETO
-  real inp-conf→botón→pestaña de punta a punta (referencia real +
-  `acab.exe`/`chains.exe` falsos D1: generar→ejecutar→"Abrir en Fort
-  Analyzer"→pestaña activa con resultados). Fixture oro positivo
-  pendiente desde F9e ya congelado: `fort.6`/`inp.5` reales de
-  `iso_TE130/` con INPT=2 (`tests/fixtures/chains/iso_TE130_real/`,
-  analyzer) — eco `INITIAL CONCENTRATIONS` con SOLO TE130
-  (C_i=1.570E20 át/cm³) y A_pico(I131)=1.6500E4 Bq/cm³, `inp.5`
-  byte-idéntico a `inp.5_iso_TE130`. Regla de procedencia de las P de
-  CHAINS (control "cadenas del Te130" de arriba) documentada en ambos
-  manuales de usuario + badge de carpeta de referencia junto a NMAX/PCNT
-  en la UI (el manifest ya la guardaba).
-- **Recuento de suite** (2026-07-26): 965 tests, 0 fallos
-  (run_all_tests.ps1; sustituye al 961 de esta misma fecha, F9e). F9 del
-  BACKLOG cierra completo.
+  ref_sim ejecutada en ACAB con el formato compactado histórico (2 TIME SETs, fixture `ref_sim`) y con el formato por fases (3 TIME SETs, fixture `ref_sim_f7`, ejecución real de ACAB) reproduce física idéntica: todos los valores oro de ref_sim (A_pico=1.6500E+04 Bq/cm³, t_pico=3.753 h, A(I131,t=0)=3.842E+01, 19 timesteps fusionados) coinciden en ambos. El reagrupado de tarjetas es puramente de presentación. Automatizado en los tests oro de `ref_sim_f7`; ambos fixtures con PROCEDENCIA.md.
+- **Control F8 — sincronización NOTTS/ITSO** ✅ (2026-07-23): historial con más tarjetas que el fichero base → generación y validación limpias a la primera, sin editar ITSO a mano (el escenario que antes disparaba V17e). Automatizado en test_validate_all.js; en barridos, block13.ITSO viaja en el patch junto a block11.NOTTS (test_sweep_utils.js). Semántica confirmada contra el manual ACAB 2008: NOTTS = nº total de tarjetas; ITSO = vector [NOTTS] de flags de salida por set (un 0 amputa ese set del fort.6).
+- **Recuento de suite** (2026-07-23): 757 tests, 0 fallos, vía   `acab_suite\tools\run_all_tests.ps1` (sustituye al recuento de 689 del 2026-07-22; regression_roundtrip.py aparte, OK sin recuento numérico).
+  - **Control F9 Fase 0 — reproducibilidad de CHAINS** ✅ (2026-07-25): re-ejecución limpia de `runchains.bat` (chains.exe real, fort.22/24 de las ejecuciones reales de ACAB con IWP=3 / IMTX=1) → el `output_chain_Te130_to_I131.txt` regenerado es idéntico por hash al fixture congelado (3 cadenas, P=95.79/3.119/1.090 %). CHAINS es determinista: la salida queda fijada por input_chain (IFLAG, IINICIAL, IFINAL, NMAX, PCNT) + fort.22/24 — en particular NMAX condiciona qué cadenas existen, así que toda firma de CHAINS del tablón debe citar su NMAX (aquí NMAX=5, PCNT=0.01). Verificación de unidades de Fase 0: Σ C_i(Te) del eco del fort.6 = 4.6451E20 át/cm³ ↔ XCOMP(Te)=4.6448E-04 át/barn·cm (INPT=1): XCOMP está en át/barn·cm (factor 1e-24), corrección incorporada al runbook de F9.
+- **Recuento de suite** (2026-07-25): 794 tests, 0 fallos (run_all_tests.ps1; sustituye al 757 del 2026-07-23).
+- **Control F9 Fases 2-3 — generación y orquestación** ✅ (2026-07-26): patch monoisotópico del Bloque #5 (INUCL/XCOMP + ajuste de NUCZO a 1) verificado byte a byte contra `inp.5_original` para TE130 (C_i=1.57E20 át/cm³, XCOMP=1.570000E-04); tapes `tape22`/`tape24` generados por la app reproducen byte a byte los fixtures de Fase 0. Pipeline de ejecución (tape22→tape24→N×[ACAB, copiar tapes, CHAINS]) verificado con ejecutables falsos multiplataforma (patrón D1): el run IMTX=1 termina sin fort.6 y es  éxito, chains.exe falso confirma la redirección stdin/stdout del runner (lee input_chain.txt, escribe output_chain.txt). UI ("Análisis de cadenas") verificada en navegador real (Playwright): carga de inventario, selección de isótopos, previsualizar/generar y estructura de carpetas en disco correcta.
+- **Recuento de suite** (2026-07-26): 830 tests, 0 fallos (run_all_tests.ps1; sustituye al 794 del 2026-07-25).
+- **Control F9 Fases 4-5 — tablas, diagrama y cierre** ✅ (2026-07-26): sobre el análisis sintético mínimo `tests/fixtures/chains_synthetic/` (2 isótopos ficticios FE56/MN55→CO57, PROCEDENCIA.md con la derivación a mano): t* por defecto = t_pico de la referencia = 1 h, A_ref(t*)=100, R_FE56=0.42, R_MN55=0.58, **Σ R_i=1.00** (cobertura completa, control de linealidad de Bateman) — tabla 2 de 3 filas ordenada por Y_z_i descendente (0.580/0.336/0.084). Diagrama de cadena (Fase 5) verificado aparte contra el caso REAL de Fase 1 (Te130→I131, T½ de `ref_sim/DECAY.dat`: TE130 2.493E31 s, TE131 1500 s, TE131M 1.08E5 s, I131 6.932E5 s), sin fixture nuevo. Pestaña "Análisis de cadenas" del Fort Analyzer verificada contra un servidor Flask real (HTML de la pestaña, endpoint `/api/chains_report` con el caso sintético) y `node --check` sobre `app.js`; sin acceso a Playwright en esta sesión, pendiente la verificación visual completa en navegador. La firma numérica Σ R_i≈1 sobre un caso físico real (no sintético) queda pendiente de ejecutar el pipeline completo con `acab.exe`/`chains.exe` reales.
+- **Recuento de suite** (2026-07-26): 883 tests, 0 fallos (run_all_tests.ps1; sustituye al 830 de esta misma fecha, Fases 4-5 de F9).
+- **Control F9d — primera ejecución real completa (11 isótopos)** ✅ (2026-07-26): sobre la carpeta real del análisis (8 isótopos de Te + O16/O17/O18, IFINAL=I131, NMAX=5, PCNT=0.01), el informe carga entero (antes bloqueaba con `ValueError: NCHAIN` en O16). O16/O17/O18 sin camino físico O→I131 en ≤ NMAX pasos: R_i≈0 (coherente) y sin filas de tabla 2, sin nota (no es un error); Te con sus cadenas normales. Fixture congelado `output_chain_no_pathways_O16.txt` (idéntica forma en O17/O18, solo difiere INITIAL). Degradación por isótopo verificada con casos sintéticos (output corrupto/ausente): R_i intacto + nota, resto del informe sin afectar. Exclusión de tape22/tape24 del descubrimiento de simulaciones verificada contra la propia carpeta real (antes generaba el aviso "No se encontró NUMBER OF ATOMS" por cada tape).
+- **Recuento de suite** (2026-07-26): 929 tests, 0 fallos (run_all_tests.ps1; sustituye al 883 de esta misma fecha, hotfix F9d).
+- **Control F9e — causa raíz del análisis inválido del 2026-07-26 (INPT=1)** ✅ (2026-07-26): la primera ejecución real completa de F9d (control de arriba) dio R_i inválidos — R_i eran en realidad abundancias isotópicas de Te natural, no fracciones de contribución por isótopo. Causa raíz: `iso_<isótopo>/` heredaba INPT=1 ("read as elements") de la referencia; ACAB expande INUCL=ZZAAAS(i) a la composición NATURAL del elemento ignorando la masa. Confirmado con un extracto real del `fort.6` de `iso_TE130/` de esa ejecución (los 8 isótopos de Te natural en el eco INITIAL CONCENTRATIONS, no solo TE130). Arreglo: `_monoisotopic_patch` fija `block1.INPT=2` SOLO en el patch de `iso_<isótopo>/` (tape22/tape24 conservan el INPT de la referencia); unidades de XCOMP sin cambios (INPT=1 y 2 comparten át/barn·cm, solo INPT=3 es g/cc). Pendiente: no hay binarios reales de ACAB en el entorno de desarrollo para regenerar el `fort.6` YA CORREGIDO de `iso_TE130/` y congelarlo como caso oro positivo — queda para la próxima ejecución real del pipeline. Hermano de C6 del BACKLOG: el parser de CHAINS del analyzer (`leer_output_chains`) perdía silenciosamente los pasos cuyo ORIGEN es un elemento de símbolo de una letra con espacio inicial de columna (yodo, " I129 (N,G-g)  I130"), truncando cadenas reales antes de llegar a I131. Confirmado y arreglado con el fixture real `output_chain_TE128_to_I131.txt` de la misma ejecución (13 cadenas, NCH=12, PTOT=0.02304 — este último dato desmiente también la nota de F9 que asumía PTOT=100 siempre a partir de un único caso, TE130→I131; PTOT es la probabilidad TOTAL de que INITIAL acabe en IFINAL, varía, mientras que el "P=" de cada cadena sí está siempre normalizado a 100 entre las devueltas). Tabla 2 del analyzer: `cadena_label` incluye ahora el proceso de cada paso (distingue cadenas con la misma secuencia de nucleidos y proceso distinto en algún paso). Botón "Abrir en Fort Analyzer" del análisis de cadenas: nuevo deep link `?chains_root=` (antes reutilizaba `?folder=`, que aterrizaba en la pestaña "Simulaciones" en vez de "Análisis de cadenas" — un `chains_manifest.json` no es una carpeta de simulaciones normal). Cambio JS-only sin test automático (patrón DOM-wiring existente, p. ej. U1); sin acceso a navegador real en esta sesión para verificación visual con Playwright, pendiente de verificación manual.
+- **Recuento de suite** (2026-07-26): 961 tests, 0 fallos (run_all_tests.ps1; sustituye al 929 de esta misma fecha, hotfix F9e).
+- **Control F9 — linealidad de Bateman (Σ R_i)** ✅ (2026-07-26): análisis de cadenas sobre v.5 (INPT=2, t*=3.753 h), 8/8 isótopos de Te seleccionados: R(TE130)=1.0000 (A_i=1.6500E+04 = A_ref a 5 cifras), R(TE128)=4e-24 (A_i=7.176E-20, traza de doble captura), resto 0 → Σ R_i = 1.0000. Superposición lineal de Bateman verificada; en pulso de 10 s el 100% del I131 procede del Te130. Los isótopos de O: sin camino estructural a I131 (CHAINS: "no pathways", fixture congelado). NOTA de método: el primer análisis (2026-07-26 a.m.) dio Σ=0.9999 con R_i = abundancias naturales — falso positivo por INPT=1 heredado (ACAB expandía a Te natural); detectado porque R_i/C_i salía constante, físicamente imposible.  Corregido en F9e.
+- **Control F9 — cadenas del Te130** ✅ (2026-07-26): pestaña sobre v.5: 3 cadenas (NMAX=5, PCNT=0.01, tapes de v.5): P=94.550/4.303/1.144 %, dominante TE130→(n,γ-g)→TE131→(β⁻)→I131, coherente con la Fig. 1 del paper. Con tapes de la familia original (caso manual congelado): 95.79/3.119/1.090 — la diferencia es huella espectral de los fort.22/24; REGLA: toda firma de CHAINS cita NMAX, PCNT y la referencia de sus tapes.
+- **F9f (cierre)** ✅ (2026-07-26), 1 commit `analyzer:` + 1 commit `suite:`. Causa raíz del contradicho "pestaña independiente de la carpeta de simulaciones": vivía dentro de `#results-panel` con `d-none` hasta el primer `/api/analyze` con éxito — arreglado, la barra de pestañas es visible desde el arranque (la guía de bienvenida pasa a ser el contenido inicial de la pestaña "Simulaciones", como el resto de pestañas ya degradaban con placeholder estático). Verificado en navegador real (Playwright): pestaña accesible sin analizar antes, y flujo COMPLETO real inp-conf→botón→pestaña de punta a punta (referencia real + `acab.exe`/`chains.exe` falsos D1: generar→ejecutar→"Abrir en Fort Analyzer"→pestaña activa con resultados). Fixture oro positivo pendiente desde F9e ya congelado: `fort.6`/`inp.5` reales de `iso_TE130/` con INPT=2 (`tests/fixtures/chains/iso_TE130_real/`, analyzer) — eco `INITIAL CONCENTRATIONS` con SOLO TE130 (C_i=1.570E20 át/cm³) y A_pico(I131)=1.6500E4 Bq/cm³, `inp.5` byte-idéntico a `inp.5_iso_TE130`. Regla de procedencia de las P de CHAINS (control "cadenas del Te130" de arriba) documentada en ambos manuales de usuario + badge de carpeta de referencia junto a NMAX/PCNT en la UI (el manifest ya la guardaba).
+- **Recuento de suite** (2026-07-26): 965 tests, 0 fallos (run_all_tests.ps1; sustituye al 961 de esta misma fecha, F9e). F9 del BACKLOG cierra completo.

@@ -7,20 +7,46 @@
 
 ## Índice
 
-1. [Introducción](#1-introducción)
-2. [Primeros pasos](#2-primeros-pasos)
-3. [Analizar una carpeta de simulaciones](#3-analizar-una-carpeta-de-simulaciones)
-4. [Pestaña "Simulaciones"](#4-pestaña-simulaciones)
-5. [Unidades y exportación CSV](#5-unidades-y-exportación-csv)
-6. [Pestaña "Actividad por Isótopo"](#6-pestaña-actividad-por-isótopo)
-7. [Informe de un isótopo](#7-informe-de-un-isótopo)
-8. [Métricas de optimización de producción](#8-métricas-de-optimización-de-producción)
-9. [Superponer datos experimentales](#9-superponer-datos-experimentales)
-10. [Pestaña "Espectro gamma"](#10-pestaña-espectro-gamma)
-11. [Tablas Comparativas](#11-tablas-comparativas)
-12. [Pestaña "Optimización" (barrido paramétrico)](#12-pestaña-optimización-barrido-paramétrico)
-13. [Pestaña "Análisis de cadenas"](#13-pestaña-análisis-de-cadenas)
-14. [Errores y avisos frecuentes](#14-errores-y-avisos-frecuentes)
+- [Manual de usuario — ACAB Fort File Analyzer](#manual-de-usuario--acab-fort-file-analyzer)
+  - [Índice](#índice)
+  - [1. Introducción](#1-introducción)
+  - [2. Primeros pasos](#2-primeros-pasos)
+    - [Arrancar la aplicación](#arrancar-la-aplicación)
+    - [Estructura de carpetas que espera la app](#estructura-de-carpetas-que-espera-la-app)
+    - [Tour rápido de la interfaz](#tour-rápido-de-la-interfaz)
+  - [3. Analizar una carpeta de simulaciones](#3-analizar-una-carpeta-de-simulaciones)
+    - [Deep link desde el INP Configurator](#deep-link-desde-el-inp-configurator)
+  - [4. Pestaña "Simulaciones"](#4-pestaña-simulaciones)
+    - [Detección de simulaciones desactualizadas](#detección-de-simulaciones-desactualizadas)
+  - [5. Unidades y exportación CSV](#5-unidades-y-exportación-csv)
+    - [Cambiar de unidades](#cambiar-de-unidades)
+    - [Exportar a CSV](#exportar-a-csv)
+  - [6. Pestaña "Actividad por Isótopo"](#6-pestaña-actividad-por-isótopo)
+    - [Si no hay figuras configuradas](#si-no-hay-figuras-configuradas)
+    - [Editor de Figuras (modal)](#editor-de-figuras-modal)
+  - [7. Informe de un isótopo](#7-informe-de-un-isótopo)
+  - [8. Métricas de optimización de producción](#8-métricas-de-optimización-de-producción)
+    - [Curva de Saturación Teórica](#curva-de-saturación-teórica)
+    - [Rendimiento de Producción](#rendimiento-de-producción)
+    - [Pureza Radionucleídica en el Pico](#pureza-radionucleídica-en-el-pico)
+    - [Pureza P(t) durante el Enfriamiento](#pureza-pt-durante-el-enfriamiento)
+    - [Actividad Específica del Yodo Aesp(t)](#actividad-específica-del-yodo-aespt)
+  - [9. Superponer datos experimentales](#9-superponer-datos-experimentales)
+    - [Métricas de desviación](#métricas-de-desviación)
+  - [10. Pestaña "Espectro gamma"](#10-pestaña-espectro-gamma)
+    - [Cargar la librería PHOTON.dat](#cargar-la-librería-photondat)
+    - [Selección de instante y filtros](#selección-de-instante-y-filtros)
+    - [Gráfica y tabla](#gráfica-y-tabla)
+  - [11. Tablas Comparativas](#11-tablas-comparativas)
+  - [12. Pestaña "Optimización" (barrido paramétrico)](#12-pestaña-optimización-barrido-paramétrico)
+  - [13. Pestaña "Análisis de cadenas"](#13-pestaña-análisis-de-cadenas)
+    - [Cargar un análisis](#cargar-un-análisis)
+    - [Instante t\*](#instante-t)
+    - [Tabla 1 — contribución por isótopo inicial](#tabla-1--contribución-por-isótopo-inicial)
+    - [Tabla 2 — contribución por cadena](#tabla-2--contribución-por-cadena)
+    - [Diagrama de la cadena seleccionada](#diagrama-de-la-cadena-seleccionada)
+    - [Exportar a CSV](#exportar-a-csv-1)
+  - [14. Errores y avisos frecuentes](#14-errores-y-avisos-frecuentes)
 
 ---
 
@@ -404,8 +430,7 @@ físicamente relevante (t<sub>cruce</sub>).
 
 > El criterio por defecto (mismo elemento) es el único validado hasta la
 > fecha; si necesitas otro criterio para un análisis puntual, la casilla te
-> permite ajustarlo, pero no lo tomes como recomendación general sin
-> revisarlo con tu tutor.
+> permite ajustarlo.
 
 ### Pureza P(t) durante el Enfriamiento
 

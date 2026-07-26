@@ -39,7 +39,7 @@ validado".
     líneas débiles de I-132/I-135 ensucian la vista si no).
 - **Fuera de alcance**: respuesta de detector (resolución, eficiencia,
   Compton), atenuación en la muestra, espectro continuo beta/bremsstrahlung.
-  Es el espectro de EMISIÓN, y así debe rotularse en la UI y en la memoria.
+  Es el espectro de EMISIÓN, y así debe rotularse en la UI.
 
 ## Fase 1 — Parser de PHOTON.dat
 Parser + modelo de datos (nucleido → lista de líneas). Tests oro sobre el
@@ -66,7 +66,7 @@ recálculo a mano de la tasa de la línea de 364 keV en un instante del caso
 de referencia (A(¹³¹I) del fort.6 × 0,812) cotejado con la tabla de la
 pestaña — firma numérica.
 
-## Valor para la memoria
+## Valor añadido
 Cierra el círculo de la aplicación: la suite pasa de "cuánto ¹³¹I y cuándo"
 a "qué verá el detector" — las líneas gamma son la firma con la que se
 identifica el producto y sus impurezas en la práctica. Candidata a figura:

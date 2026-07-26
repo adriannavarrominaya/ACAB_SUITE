@@ -1306,7 +1306,7 @@ def calcular_pureza(
     }
 
 
-# F1 (runbook_F1_pureza_temporal.md): umbral farmacéutico validado con el tutor.
+# F1 (runbook_F1_pureza_temporal.md): umbral farmacéutico validado.
 UMBRAL_PUREZA_PCT = 99.9
 
 
@@ -1487,7 +1487,7 @@ def calcular_actividad_especifica_yodo_serie(
     t_destacado_h: Optional[float] = None,
 ) -> Optional[dict]:
     """Iodine specific activity A_esp(t) = A(iso_key,t) / m(yodo_total,t) [MBq/g],
-    through the whole cooling phase (F2 del BACKLOG, criterio del tutor,
+    through the whole cooling phase (F2 del BACKLOG,
     2026-07-09; denominador corregido en F2b, 2026-07-21). Same domain/family
     as ``calcular_pureza_serie`` (F1).
 

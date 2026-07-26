@@ -1,8 +1,8 @@
 
 $py = "C:\venv\acab-venv\Scripts\python"
-$roots = "C:\trabajo\Jose\git\ACAB_SUITE\ACAB_fort_file_analyzer",
-         "C:\trabajo\Jose\git\ACAB_SUITE\ACAB_inp_file_configurator",
-         "C:\trabajo\Jose\git\ACAB_SUITE\COLLAPS_inp_file_configurator"
+$roots = "C:\git\ACAB_SUITE\ACAB_fort_file_analyzer",
+         "C:\git\ACAB_SUITE\ACAB_inp_file_configurator",
+         "C:\git\ACAB_SUITE\COLLAPS_inp_file_configurator"
 
 # Scripts que exigen argumentos (fichero de referencia) para no confundir
 # "sin argumentos" (código 2, imprime __doc__) con un fallo real.

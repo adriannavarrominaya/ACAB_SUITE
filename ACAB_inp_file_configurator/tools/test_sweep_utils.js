@@ -57,7 +57,7 @@ check('buildBlocks78: times marca fases (1=irr, 0=cool)',
   b2.times.length === 15 && b2.times[0][1] === 1 && b2.times[14][1] === 0);
 
 // ── buildBlocks78 (F7): sin compactación — irr y cool NUNCA comparten tarjeta ──
-// Caso oro literal del tutor: irr 2.778e-3 h / 1 paso + cool 4.5 h / 18 pasos
+// Caso oro literal: irr 2.778e-3 h / 1 paso + cool 4.5 h / 18 pasos
 // (entrados como 2 tramos de <=10 pasos cada uno, límite de calcularVectorTiempos).
 const bGolden = buildBlocks78(
   [{ t_fin: 2.778e-3, pasos: 1 }],

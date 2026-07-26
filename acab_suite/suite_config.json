@@ -14,7 +14,7 @@
         ],
         "output_file": "fort.6",
         "timeout_s": 60,
-        "default_workdir": "C:\\trabajo\\Jose\\git\\ACAB_SUITE\\ACAB_fort_file_analyzer\\simulaciones\\simulaciones 1er Exp\\Simulacion v.7 - DECAY - copia"
+        "default_workdir": "C:\\git\\ACAB_SUITE\\ACAB_fort_file_analyzer\\simulaciones\\simulaciones 1er Exp\\Simulacion v.7 - DECAY - copia"
       }
     },
     {
@@ -34,7 +34,7 @@
         ],
         "output_file": "XSECTION.dat",
         "timeout_s": 60,
-        "default_workdir": "C:\\trabajo\\Jose\\acab\\Programa COLLAPS - Neutrones Térmicos"
+        "default_workdir": "C:\\acab\\Programa COLLAPS - Neutrones Térmicos"
       }
     }
   ],

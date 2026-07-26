@@ -184,7 +184,7 @@ App web Flask (monousuario, 127.0.0.1:5001) para analizar ficheros de salida `fo
   referencia (tapes fort.22/fort.24), no son una propiedad fija del par
   isótopo/IFINAL — verificado con el mismo TE130→I131 dando 95,79/3,12/
   1,09 % con una referencia y 94,550/4,303/1,144 % con otra (v.5, tapes
-  reales de `C:\trabajo\Jose\Simulaciones\Analisis de cadenas\chains_TE130\`,
+  reales de `C:\Simulaciones\Analisis de cadenas\chains_TE130\`,
   fuera del repo). Fixture oro positivo pendiente desde F9e ya congelado:
   `tests/fixtures/chains/iso_TE130_real/` (fort.6 real, INPT=2, el eco
   contiene SOLO TE130 con C_i=1.570E20 át/cm³, A_pico(I131)=1.6500E4 —
