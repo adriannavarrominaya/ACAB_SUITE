@@ -205,13 +205,16 @@
     return workdir;
   }
 
-  function stepLabel(job) {
-    // El paso en curso ya viaja como step_type ('run'/'copy') en cada job;
-    // la carpeta (folderOf) ya deja claro la fase (tape22/tape24/iso_.../
-    // chains_...), así que no hace falta traducir un pipeline con nombre.
-    if (job.step_type == null) return '';
-    return job.step_type === 'run' ? t('chainsan.step_run')
-      : job.step_type === 'copy' ? t('chainsan.step_copy') : job.step_type;
+  function stepLabel(job, pipelineSteps) {
+    // step_type por sí solo no distingue el run de ACAB del run de CHAINS
+    // (ambos son 'run') -- pipelineSteps (de /api/run/status, F9c) da la
+    // etiqueta real por step_index: ['acab','copy','copy','chains'].
+    if (job.step_index == null) return '';
+    const kind = (pipelineSteps && pipelineSteps[job.step_index]) || job.step_type;
+    if (kind === 'acab') return t('chainsan.step_acab');
+    if (kind === 'chains') return t('chainsan.step_chains');
+    if (kind === 'copy') return t('chainsan.step_copy');
+    return kind || '';
   }
 
   function showRunPanel(root) {
@@ -228,20 +231,64 @@
     $('btn-chainsan-run-open-analyzer').classList.add('d-none');
   }
 
-  function renderRunRows(jobs, root) {
+  // Último jobs[]/root pintados (F9c): permite al botón "ver run.log" de
+  // cada fila resolver su job por índice sin serializar datos en el DOM.
+  let _lastRunJobs = [];
+  let _lastRunRoot = '';
+
+  function renderRunRows(jobs, root, pipelineSteps) {
+    _lastRunJobs = jobs;
+    _lastRunRoot = root;
     const tb = $('chainsan-run-tbody');
-    tb.innerHTML = jobs.map(j => {
+    tb.innerHTML = jobs.map((j, idx) => {
       const folder = folderOf(j.workdir, root);
       const dur = j.duracion_s != null ? `${j.duracion_s.toFixed(1)} s` : '—';
       const variant = STATE_VARIANT[j.estado] || 'secondary';
       const icon = STATE_ICON[j.estado] || 'bi-question-circle';
+      // Botón "ver run.log" (F9c, UX de fallo): solo tiene sentido con el
+      // job ya terminado (steps[] completo) y en estado fallido/timeout --
+      // el error FORTRAN existía en disco y antes la UI no lo enseñaba.
+      const canShowDetail = (j.estado === 'failed' || j.estado === 'timeout')
+        && Array.isArray(j.steps) && j.steps.length > 0;
+      const detailBtn = canShowDetail
+        ? `<button type="button" class="btn btn-sm btn-outline-secondary chainsan-viewlog-btn"
+             data-job-idx="${idx}"><i class="bi bi-file-text me-1"></i>${t('chainsan.view_log_btn')}</button>`
+        : '';
       return `<tr>
         <td class="font-monospace small">${folder}</td>
         <td><span class="badge bg-${variant}"><i class="bi ${icon} me-1"></i>${t('sweep.run_state_' + j.estado)}</span></td>
-        <td class="small">${stepLabel(j)}</td>
+        <td class="small">${stepLabel(j, pipelineSteps)}</td>
         <td class="small">${dur}</td>
+        <td class="small">${detailBtn}</td>
       </tr>`;
     }).join('');
+    tb.querySelectorAll('.chainsan-viewlog-btn').forEach(btn => btn.addEventListener('click', () => {
+      const job = _lastRunJobs[parseInt(btn.dataset.jobIdx, 10)];
+      if (job) showStepFailureDetail(job, _lastRunRoot);
+    }));
+  }
+
+  // Muestra en el panel de log el detalle del paso que falló (F9c): si es
+  // un paso 'run' con cwd propio (puede ser una carpeta distinta del
+  // workdir del job, p. ej. chains_<isótopo>/ dentro del job de
+  // iso_<isótopo>/), pide su run.log a /api/run/log; si es un paso 'copy'
+  // fallido, no hay run.log -- el motivo ya viene en el propio resultado.
+  async function showStepFailureDetail(job, root) {
+    const idx = job.step_index;
+    const step = Array.isArray(job.steps) && idx != null ? job.steps[idx] : null;
+    if (!step) { $('chainsan-run-log').textContent = ''; return; }
+    const stepFolder = step.cwd ? folderOf(step.cwd, root) : folderOf(job.workdir, root);
+    if (step.type === 'run' && step.cwd) {
+      let logText = '';
+      try {
+        const r = await fetch('/api/run/log?workdir=' + encodeURIComponent(step.cwd));
+        const json = await r.json();
+        logText = (r.ok && json.ok) ? (json.log || '') : (json.error || '');
+      } catch (e) { logText = String(e); }
+      $('chainsan-run-log').textContent = `[${stepFolder}]\n` + (logText || t('chainsan.no_log'));
+    } else {
+      $('chainsan-run-log').textContent = `[${stepFolder}] ` + (step.error || t('chainsan.no_log'));
+    }
   }
 
   function stopPolling() { if (runState.polling) { clearInterval(runState.polling); runState.polling = null; } }
@@ -259,7 +306,7 @@
     const root = s.root || runState.root || '';
     $('chainsan-run-log').textContent = s.log_tail || '';
     const jobs = s.jobs || [];
-    renderRunRows(jobs, root);
+    renderRunRows(jobs, root, s.pipeline_steps);
 
     const total = jobs.length;
     const ok = jobs.filter(j => j.estado === 'ok').length;

@@ -31,6 +31,21 @@ Decisiones de diseño (ver runbook, Fase 0 y Fase 2):
   - CHAINS: ejecutable fijo ``chains.exe`` (misma convención que
     ``collaps.exe``, no configurable), se copia desde la carpeta de
     referencia a cada ``chains_<isótopo>/`` si está presente allí.
+
+F9c (hotfix tras la primera ejecución real, ver BACKLOG bajo F9):
+  - ``chains_<isótopo>/`` también se siembra con ``REACTIONS.dat`` y
+    ``DECAY.dat`` (``CHAINS_SEED_DATA_FILES``): sin ellos chains.exe aborta
+    al arrancar (unit 122) -- confirmado en el run.log de la primera
+    ejecución real (forrtl, end-of-file leyendo REACTIONS.dat).
+  - Antes de (re)lanzar CHAINS, ``_clean_chains_dir_before_run`` limpia
+    restos de un intento fallido anterior y re-siembra REACTIONS.dat/
+    DECAY.dat sin condiciones -- sin esto, el re-run de una carpeta ya
+    generada (sin regenerar) hereda la trampa.
+  - Sembrado de tape22/tape24/iso_*: además de las salidas de ACAB de
+    ``sweep_writer._base_exclusion_names``, se excluyen fort.17/22/23/24
+    de la referencia (``_CHAINS_BASE_EXCLUDE_EXTRA``) -- la referencia real
+    usada en la primera ejecución llevaba tapes obsoletos de otra
+    ejecución sin relación con este pipeline.
 """
 
 from __future__ import annotations
@@ -53,6 +68,28 @@ from sweep_writer import (
 MAX_ISOTOPES = 100
 CHAINS_EXE_NAME = 'chains.exe'
 UNIT_FACTOR_ATOMS_TO_XCOMP = 1e-24  # át/cm³ -> át/barn·cm (INPT=1, Fase 0)
+
+# Ficheros de datos que chains.exe necesita ADEMÁS de fort.22/fort.24 (F9c,
+# hotfix tras la primera ejecución real): REACTIONS.dat lo abre en el
+# arranque (unit 122, chains.f) y su ausencia aborta con "forrtl: severe
+# (24): end-of-file during read, unit 122, REACTIONS.dat" (evidencia en el
+# run.log de la ejecución real). DECAY.dat está presente en todas las
+# carpetas donde CHAINS se ha ejecutado a mano con éxito. Se siembran los
+# dos desde la referencia -- coste de disco despreciable frente al de la
+# carpeta de referencia completa que ya copian iso_*/tape22/tape24.
+CHAINS_SEED_DATA_FILES = ('REACTIONS.dat', 'DECAY.dat')
+
+# Restos de un chains.exe anterior que no llegó a completar (F9c): si no se
+# limpian antes de relanzar, el re-run de una carpeta chains_<isótopo> ya
+# generada hereda la trampa (ver _clean_chains_dir_before_run).
+_CHAINS_RUN_STALE_NAMES = ('output_chain.txt', 'fort.23', 'fort.31')
+
+# Salidas obsoletas que puede llevar la carpeta de referencia y que NO deben
+# arrastrarse a tape22/tape24/iso_* (F9c, patrón C4 de sweep_writer): la
+# referencia real usada en la primera ejecución llevaba fort.22/23/24 de
+# una ejecución anterior sin relación con este pipeline y un fort.17 de 0
+# bytes -- confunden la traza de qué tape pertenece a ESTE análisis.
+_CHAINS_BASE_EXCLUDE_EXTRA = ('fort.17', 'fort.22', 'fort.23', 'fort.24')
 
 _SAFE_ISO_NAME = re.compile(r'^[A-Z]{1,2}\d{1,3}M?$')
 
@@ -227,7 +264,7 @@ def generate_chains_analysis(payload: dict, write_fn: Callable[[dict], str]) -> 
                              + ', '.join(collisions), 409)
 
     root_p.mkdir(parents=True, exist_ok=True)
-    exclude_names = _base_exclusion_names('')
+    exclude_names = _base_exclusion_names('') | set(_CHAINS_BASE_EXCLUDE_EXTRA)
     excluded_base_files: set[str] = set()
     created: list[Path] = []
 
@@ -262,6 +299,10 @@ def generate_chains_analysis(payload: dict, write_fn: Callable[[dict], str]) -> 
             chains_sub.mkdir(parents=True, exist_ok=True)
             if not existed:
                 created.append(chains_sub)
+            for seed_name in CHAINS_SEED_DATA_FILES:
+                seed_src = ref_p / seed_name
+                if seed_src.is_file():
+                    shutil.copy2(seed_src, chains_sub / seed_name)
             if chains_exe_src.is_file():
                 shutil.copy2(chains_exe_src, chains_sub / CHAINS_EXE_NAME)
             input_chain = write_chains_inp({
@@ -307,6 +348,40 @@ def generate_chains_analysis(payload: dict, write_fn: Callable[[dict], str]) -> 
 # Ejecución (Fase 3): jobs del pipeline para runner.start_batch
 # ---------------------------------------------------------------------------
 
+def _clean_chains_dir_before_run(chains_dir: Path, reference_folder: Path | None) -> None:
+    """Limpia una carpeta chains_<isótopo> antes de (re)lanzar CHAINS (F9c,
+    patrón C4 aplicado a este pipeline).
+
+    Sin esto, el re-run de un análisis ya generado (sin regenerar) hereda
+    los restos de un intento fallido anterior:
+      - ``output_chain.txt``/``fort.23``/``fort.31``: residuos de un
+        chains.exe que no llegó a completar; se eliminan sin más, el
+        propio run los regenera (o no).
+      - ``REACTIONS.dat``/``DECAY.dat``: se re-siembran SIEMPRE desde la
+        carpeta de referencia (sobrescritura simple, sin comprobar si el
+        fichero actual está "sano") en vez de detectar el caso concreto del
+        0 bytes que deja el OPEN de Fortran al no encontrar el fichero real
+        -- más simple y cubre también una carpeta generada ANTES de este
+        hotfix, que nunca llegó a recibirlos.
+    """
+    for name in _CHAINS_RUN_STALE_NAMES:
+        f = chains_dir / name
+        try:
+            if f.is_file():
+                f.unlink()
+        except OSError:
+            pass
+    if reference_folder is None:
+        return
+    for name in CHAINS_SEED_DATA_FILES:
+        src = reference_folder / name
+        if src.is_file():
+            try:
+                shutil.copy2(src, chains_dir / name)
+            except OSError:
+                pass
+
+
 def build_chains_pipeline_jobs(root_p: Path, manifest: dict, acab_exe_name: str,
                                chains_exe_name: str) -> list[dict]:
     """Jobs del pipeline F9: tape22 y tape24 (runs de ACAB compartidos,
@@ -319,9 +394,18 @@ def build_chains_pipeline_jobs(root_p: Path, manifest: dict, acab_exe_name: str,
     es éxito (decisión de diseño F9, ver runbook): el runner considera un
     paso 'run' ok por código de salida 0, no por la presencia de fort.6,
     así que no hace falta ningún caso especial aquí ni en runner.py.
+
+    Antes de construir el job de cada isótopo (F9c), limpia/re-siembra su
+    carpeta chains_<isótopo> vía ``_clean_chains_dir_before_run`` -- usa
+    ``manifest['reference_folder']`` si está presente (siempre lo está en
+    un ``chains_manifest.json`` real; ausente solo en tests sintéticos de
+    la estructura de jobs, donde la limpieza se reduce a los residuos sin
+    re-siembra).
     """
     tape22_dir = root_p / manifest['tape22_folder']
     tape24_dir = root_p / manifest['tape24_folder']
+    reference_folder = manifest.get('reference_folder')
+    reference_p = Path(reference_folder) if reference_folder else None
 
     jobs = [
         {'workdir': str(tape22_dir), 'steps': [
@@ -335,6 +419,7 @@ def build_chains_pipeline_jobs(root_p: Path, manifest: dict, acab_exe_name: str,
     for iso in manifest['isotopes']:
         iso_dir = root_p / iso['iso_folder']
         chains_dir = root_p / iso['chains_folder']
+        _clean_chains_dir_before_run(chains_dir, reference_p)
         jobs.append({'workdir': str(iso_dir), 'steps': [
             {'type': 'run', 'cmd': [str(iso_dir / acab_exe_name)], 'cwd': str(iso_dir)},
             {'type': 'copy', 'src': str(tape22_dir / 'fort.22'),

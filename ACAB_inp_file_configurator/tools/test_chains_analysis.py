@@ -158,6 +158,44 @@ class ChainsAnalysisGenerationTests(unittest.TestCase):
             self.assertTrue((self.root / folder / 'acab.exe').is_file(), folder)
             self.assertTrue((self.root / folder / 'DECAY.dat').is_file(), folder)
 
+    # ── F9c: sembrado de REACTIONS.dat/DECAY.dat en chains_<isótopo> ──────
+
+    def test_reactions_dat_and_decay_dat_seeded_into_chains_folder(self):
+        # Sin esto chains.exe aborta al arrancar (unit 122, ver
+        # chains_analysis.CHAINS_SEED_DATA_FILES) -- bug real de la primera
+        # ejecución (evidencia en run.log: "forrtl: severe (24):
+        # end-of-file during read, unit 122, REACTIONS.dat").
+        (self.ref / 'REACTIONS.dat').write_text('fake reactions', encoding='utf-8')
+        (self.ref / 'DECAY.dat').write_text('fake decay', encoding='utf-8')
+        ca.generate_chains_analysis(self._payload(), _write_inp5)
+        self.assertEqual((self.root / 'chains_TE130' / 'REACTIONS.dat').read_text(encoding='utf-8'),
+                         'fake reactions')
+        self.assertEqual((self.root / 'chains_TE130' / 'DECAY.dat').read_text(encoding='utf-8'),
+                         'fake decay')
+
+    def test_reactions_dat_absent_in_reference_does_not_fail_generation(self):
+        # Como chains.exe (ausencia solo rompe el pre-check de ejecución,
+        # no la generación).
+        ca.generate_chains_analysis(self._payload(), _write_inp5)
+        self.assertFalse((self.root / 'chains_TE130' / 'REACTIONS.dat').exists())
+
+    # ── F9c: exclusión de salidas obsoletas del material base ─────────────
+
+    def test_stale_fort_outputs_excluded_from_tapes_and_iso_folders(self):
+        # La carpeta de referencia real usada en la primera ejecución
+        # llevaba fort.22/23/24 (de una ejecución sin relación con este
+        # pipeline) y un fort.17 de 0 bytes -- confunden la traza de qué
+        # tape pertenece a ESTE análisis (patrón C4).
+        for name in ('fort.17', 'fort.22', 'fort.23', 'fort.24'):
+            (self.ref / name).write_text('stale', encoding='utf-8')
+        res = ca.generate_chains_analysis(self._payload(), _write_inp5)
+        for folder in ('tape22', 'tape24', 'iso_TE130'):
+            for name in ('fort.17', 'fort.22', 'fort.23', 'fort.24'):
+                self.assertFalse((self.root / folder / name).exists(), f'{folder}/{name}')
+        excluded = set(res['manifest']['excluded_base_files'])
+        for name in ('fort.17', 'fort.22', 'fort.23', 'fort.24'):
+            self.assertIn(name, excluded)
+
     def test_manifest_written(self):
         res = ca.generate_chains_analysis(self._payload(), _write_inp5)
         import json
@@ -302,6 +340,72 @@ class BuildChainsPipelineJobsTests(unittest.TestCase):
         self.assertEqual(chains_step['cwd'], str(root_p / 'chains_TE130'))
         self.assertEqual(chains_step['stdin'], str(root_p / 'chains_TE130' / 'input_chain.txt'))
         self.assertEqual(chains_step['stdout_file'], str(root_p / 'chains_TE130' / 'output_chain.txt'))
+
+    def test_reference_folder_absent_from_manifest_does_not_raise(self):
+        # Manifest sintético (sin 'reference_folder', a diferencia de un
+        # chains_manifest.json real): la limpieza pre-run (F9c) debe
+        # degradar sin más, no reventar la construcción de jobs.
+        root_p = Path('/root')
+        manifest = {
+            'tape22_folder': 'tape22', 'tape24_folder': 'tape24',
+            'isotopes': [
+                {'name': 'TE130', 'iso_folder': 'iso_TE130', 'chains_folder': 'chains_TE130'},
+            ],
+        }
+        jobs = ca.build_chains_pipeline_jobs(root_p, manifest, 'acab.exe', 'chains.exe')
+        self.assertEqual(len(jobs), 3)  # tape22, tape24, 1 isótopo
+
+
+class CleanChainsDirBeforeRunTests(unittest.TestCase):
+    """F9c: limpieza/re-siembra de una carpeta chains_<isótopo> antes de
+    (re)lanzar CHAINS -- sin esto, el re-run de un análisis ya generado
+    hereda los restos de un intento fallido anterior."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix='chains_clean_test_'))
+        self.ref = self.tmp / 'ref'
+        self.ref.mkdir()
+        self.chains_dir = self.tmp / 'chains_TE130'
+        self.chains_dir.mkdir()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_removes_stale_residual_files(self):
+        (self.chains_dir / 'output_chain.txt').write_text('', encoding='utf-8')
+        (self.chains_dir / 'fort.23').write_text('scratch', encoding='utf-8')
+        (self.chains_dir / 'fort.31').write_text('scratch', encoding='utf-8')
+        ca._clean_chains_dir_before_run(self.chains_dir, None)
+        for name in ('output_chain.txt', 'fort.23', 'fort.31'):
+            self.assertFalse((self.chains_dir / name).exists(), name)
+
+    def test_reseeds_reactions_and_decay_dat_from_reference(self):
+        # El caso real: la carpeta ya tiene un REACTIONS.dat de 0 bytes
+        # (el que el propio OPEN de Fortran crea al no encontrar el
+        # fichero real en un intento anterior) y ningún DECAY.dat.
+        (self.chains_dir / 'REACTIONS.dat').write_text('', encoding='utf-8')
+        (self.ref / 'REACTIONS.dat').write_text('real reactions data', encoding='utf-8')
+        (self.ref / 'DECAY.dat').write_text('real decay data', encoding='utf-8')
+
+        ca._clean_chains_dir_before_run(self.chains_dir, self.ref)
+
+        self.assertEqual((self.chains_dir / 'REACTIONS.dat').read_text(encoding='utf-8'),
+                         'real reactions data')
+        self.assertEqual((self.chains_dir / 'DECAY.dat').read_text(encoding='utf-8'),
+                         'real decay data')
+
+    def test_no_reference_folder_leaves_data_files_untouched(self):
+        (self.chains_dir / 'REACTIONS.dat').write_text('kept as-is', encoding='utf-8')
+        ca._clean_chains_dir_before_run(self.chains_dir, None)
+        self.assertEqual((self.chains_dir / 'REACTIONS.dat').read_text(encoding='utf-8'),
+                         'kept as-is')
+
+    def test_reference_missing_seed_files_does_not_raise(self):
+        # La referencia no tiene REACTIONS.dat/DECAY.dat (p. ej. el propio
+        # escenario de la regresión de fin a fin): no hay de dónde
+        # resembrar, la limpieza no debe fallar.
+        ca._clean_chains_dir_before_run(self.chains_dir, self.ref)
+        self.assertFalse((self.chains_dir / 'REACTIONS.dat').exists())
 
 
 if __name__ == '__main__':

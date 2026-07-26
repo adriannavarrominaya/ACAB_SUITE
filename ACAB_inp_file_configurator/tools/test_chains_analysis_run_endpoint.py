@@ -85,8 +85,20 @@ def _write_single_file_launcher(directory: Path, name: str, python_body: str) ->
 # fort.22 (pathway analysis); tape24 -> escribe fort.24 y PARA sin fort.6
 # (IMTX=1, éxito igualmente); resto (iso_<isotopo>) -> fort.6 (para A_i(t)
 # del analyzer).
+#
+# F9c (lección de método de esta sesión): un falso QUE NO COMPRUEBA sus
+# ficheros de entrada valida la redirección stdin/stdout del runner pero
+# NUNCA el contrato de ficheros que el binario real exige -- así fue como
+# el bug de REACTIONS.dat/DECAY.dat ausentes en chains_<isótopo> atravesó
+# la suite en verde. Este falso comprueba DECAY.dat/XSECTION.dat (sus
+# propios datos, ver _DEFAULT_RUNNER_CONFIG['required_files'] de app.py) no
+# vacíos antes de escribir nada, igual de exigente que el binario real.
 _ACAB_PY = (
     "import os, sys\n"
+    "for _f in ('DECAY.dat', 'XSECTION.dat'):\n"
+    "    if not os.path.isfile(_f) or os.path.getsize(_f) == 0:\n"
+    "        sys.stderr.write('fake acab.exe: falta o esta vacio: ' + _f + '\\n')\n"
+    "        sys.exit(1)\n"
     "cwd = os.path.basename(os.getcwd())\n"
     "if cwd == 'tape22':\n"
     "    open('fort.22', 'w').write('fake-fort22\\n')\n"
@@ -98,12 +110,23 @@ _ACAB_PY = (
 )
 
 # Falso chains.exe: falla si fort.22/fort.24 no están en el cwd (verifica que
-# los pasos 'copy' corrieron antes); si están, lee TODO su stdin y lo vuelca
-# a stdout con un prefijo -- confirma la redirección stdin/stdout del runner.
+# los pasos 'copy' corrieron antes) O si REACTIONS.dat/DECAY.dat no están o
+# están vacíos (F9c: el contrato de datos real de chains.exe, ver
+# chains_analysis.CHAINS_SEED_DATA_FILES) -- imitando el mensaje real de
+# forrtl visto en producción (unit 122, REACTIONS.dat) para que un test
+# pueda verificar que la UI/el batch_results reportan el fallo de verdad.
+# Si todo está en orden, lee TODO su stdin y lo vuelca a stdout con un
+# prefijo -- confirma la redirección stdin/stdout del runner.
 _CHAINS_PY = (
     "import os, sys\n"
     "if not (os.path.exists('fort.22') and os.path.exists('fort.24')):\n"
     "    sys.exit(1)\n"
+    "for _f in ('REACTIONS.dat', 'DECAY.dat'):\n"
+    "    if not os.path.isfile(_f) or os.path.getsize(_f) == 0:\n"
+    "        sys.stderr.write(\n"
+    "            'forrtl: severe (24): end-of-file during read, unit 122, '\n"
+    "            + _f + '\\n')\n"
+    "        sys.exit(1)\n"
     "data = sys.stdin.read()\n"
     "sys.stdout.write('CHAINS OUTPUT\\n' + data)\n"
     "sys.exit(0)\n"
@@ -284,12 +307,19 @@ class ChainsAnalysisPipelineEndToEndTestCase(unittest.TestCase):
         app_module._last_batch_pipeline_steps = None
         shutil.rmtree(self.tmp, ignore_errors=True)
 
-    def _generate(self, acab_body=_ACAB_PY):
+    def _generate(self, acab_body=_ACAB_PY, chains_body=_CHAINS_PY, seed_reactions_dat=True):
         ref = self.tmp / 'ref'
         ref.mkdir()
         shutil.copy(FIXTURES / 'inp.5_original', ref / 'inp.5')
+        # Datos que el acab.exe/chains.exe falsos ahora exigen (F9c) -- la
+        # referencia real los lleva; aquí se siembran con contenido
+        # cualquiera no vacío, el contenido en sí es irrelevante.
+        (ref / 'DECAY.dat').write_text('fake decay data\n', encoding='utf-8')
+        (ref / 'XSECTION.dat').write_text('fake xsection data\n', encoding='utf-8')
+        if seed_reactions_dat:
+            (ref / 'REACTIONS.dat').write_text('fake reactions data\n', encoding='utf-8')
         _write_fake_launcher(ref, 'acab', acab_body)
-        _write_single_file_launcher(ref, 'chains', _CHAINS_PY)
+        _write_single_file_launcher(ref, 'chains', chains_body)
         root = self.tmp / 'out'
         payload = {
             'root': str(root), 'reference_folder': str(ref),
@@ -370,6 +400,74 @@ class ChainsAnalysisPipelineEndToEndTestCase(unittest.TestCase):
         self.assertEqual(job_iso['estado'], 'failed')
         self.assertEqual(job_iso['steps'][0]['type'], 'run')
         self.assertEqual(job_iso['steps'][0]['estado'], 'failed')
+
+    def test_chains_step_fails_with_reactions_dat_missing_reports_substep_and_log(self):
+        """Regresión F9c: reproduce el bug real -- una carpeta
+        chains_<isótopo> sin REACTIONS.dat (aquí, porque la propia
+        referencia tampoco lo tiene: ni la generación ni la limpieza
+        pre-run de _clean_chains_dir_before_run tienen de dónde
+        resembrarlo, igual que una carpeta generada ANTES de este hotfix).
+        El chains.exe falso reproduce el mensaje forrtl real observado en
+        producción y debe abortar; el batch/UI deben señalar el SUB-PASO
+        que falló de verdad (CHAINS, no ACAB ni la copia de tapes) y dejar
+        el run.log de esa carpeta EXACTA consultable -- antes de F9c este
+        escenario pasaba en verde porque ni el falso comprobaba
+        REACTIONS.dat/DECAY.dat ni la UI sabía distinguir el run de ACAB
+        del de CHAINS."""
+        root, res = self._generate(seed_reactions_dat=False)
+
+        r = self.client.post('/api/chains-analysis/run', json={'root': str(root)})
+        self.assertEqual(r.status_code, 200, r.get_json())
+        s = _wait_batch_done(self.client)
+
+        job_tape22, job_tape24, job_iso = s['jobs']
+        # tape22/tape24 no dependen de REACTIONS.dat (solo lo usa chains.exe).
+        self.assertEqual(job_tape22['estado'], 'ok')
+        self.assertEqual(job_tape24['estado'], 'ok')
+
+        # El job del isótopo falla EXACTAMENTE en el paso CHAINS (índice 3
+        # de [run acab, copy fort.22, copy fort.24, run chains]) -- no en
+        # ACAB (índice 0, que sí tiene sus datos) ni en la copia de tapes.
+        self.assertEqual(job_iso['estado'], 'failed')
+        self.assertEqual(job_iso['step_index'], 3)
+        chains_step = job_iso['steps'][3]
+        self.assertEqual(chains_step['type'], 'run')
+        self.assertEqual(chains_step['estado'], 'failed')
+        self.assertNotEqual(chains_step['returncode'], 0)
+        for prior in job_iso['steps'][:3]:
+            self.assertEqual(prior['estado'], 'ok', prior)
+
+        # La UI traduce step_index vía pipeline_steps (F9c): confirma que
+        # el índice 3 se etiqueta 'chains', distinguible de 'acab' -- antes
+        # ambos eran simplemente 'run', indistinguibles en la fila de
+        # estado ("ACAB/CHAINS" genérico).
+        self.assertEqual(s.get('pipeline_steps'), ['acab', 'copy', 'copy', 'chains'])
+        self.assertEqual(s['pipeline_steps'][job_iso['step_index']], 'chains')
+
+        # run.log de chains_<isótopo> (NO el de iso_<isótopo>, que solo
+        # tiene el run de ACAB, ya terminado con éxito) contiene el error
+        # real -- antes la UI solo enseñaba el run.log de nivel job
+        # (iso_<isótopo>/), nunca el de la carpeta donde falló de verdad.
+        chains_folder = res['manifest']['isotopes'][0]['chains_folder']
+        chains_run_log = (root / chains_folder / 'run.log').read_text(encoding='utf-8')
+        self.assertIn('REACTIONS.dat', chains_run_log)
+        self.assertIn('forrtl', chains_run_log)
+        iso_run_log = (root / res['manifest']['isotopes'][0]['iso_folder']
+                       / 'run.log').read_text(encoding='utf-8')
+        self.assertNotIn('REACTIONS.dat', iso_run_log)
+
+        # /api/run/log (F9c, nuevo endpoint) expone ese mismo run.log a la
+        # UI por carpeta exacta -- lo que permite a la fila de estado
+        # "mostrar/enlazar el run.log de la carpeta correspondiente".
+        log_res = self.client.get('/api/run/log?workdir=' + str(root / chains_folder))
+        log_json = log_res.get_json()
+        self.assertTrue(log_json.get('ok'), log_json)
+        self.assertIn('REACTIONS.dat', log_json['log'])
+
+        with open(root / 'chains_batch_results.json', 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        self.assertEqual(data['resumen']['fallos'], 1)
+        self.assertEqual(data['resumen']['ok'], 2)
 
 
 if __name__ == '__main__':

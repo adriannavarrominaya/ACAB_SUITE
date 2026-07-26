@@ -599,6 +599,21 @@ def api_run_cancel():
     return jsonify({'ok': True})
 
 
+@app.route('/api/run/log', methods=['GET'])
+def api_run_log():
+    """Devuelve el run.log de una carpeta arbitraria (F9c): necesario para
+    que la UI enseñe el run.log del sub-paso que de verdad falló en un
+    pipeline multi-carpeta (p. ej. chains_<isótopo>/, distinta del workdir
+    de nivel job de /api/run/status para el análisis de cadenas)."""
+    workdir = (request.args.get('workdir') or '').strip()
+    if not workdir:
+        return jsonify({'error': 'Falta el parámetro workdir.'}), 422
+    wd_path = Path(workdir)
+    if not wd_path.is_dir():
+        return jsonify({'error': f'No existe el directorio: {workdir}'}), 422
+    return jsonify({'ok': True, 'workdir': str(wd_path), 'log': runner.read_log_tail(wd_path)})
+
+
 # ---------------------------------------------------------------------------
 # Ejecución en cola del barrido (Fase R4 del runbook runner v2)
 # ---------------------------------------------------------------------------

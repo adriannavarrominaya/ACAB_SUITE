@@ -427,6 +427,58 @@ class TestBatchLogTail(unittest.TestCase):
         _wait_done(timeout=15.0)
 
 
+class TestBatchLogTailFollowsStepCwd(unittest.TestCase):
+    """F9c: en un job cuyo workdir de nivel job difiere del cwd del paso en
+    curso (p. ej. el pipeline de cadenas: el job vive en iso_<isótopo>/
+    pero su paso CHAINS corre en chains_<isótopo>/), status() debe enseñar
+    el log_tail de la carpeta REAL donde corre el paso, no el del workdir
+    de nivel job -- antes de este fix la UI solo podía ver el run.log del
+    workdir del job, nunca el de una subcarpeta distinta usada por un paso
+    concreto."""
+
+    def setUp(self):
+        _force_reset()
+        self.tmp = Path(tempfile.mkdtemp(prefix='runner_stepcwd_test_'))
+        self.job_workdir = self.tmp / 'job_level_dir'
+        self.job_workdir.mkdir()
+        self.step_dir = self.tmp / 'other_dir'
+        self.step_dir.mkdir()
+        self.fake = _write_fake_exe(self.step_dir)
+
+    def tearDown(self):
+        _force_reset()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_log_tail_reads_step_cwd_not_job_workdir(self):
+        results_path = str(self.tmp / 'batch_results.json')
+        steps = [
+            {'type': 'run',
+             'cmd': _cmd(self.fake, lines=20, delay=0.1, exit_code=0),
+             'cwd': str(self.step_dir)},
+        ]
+        jobs = [{'workdir': str(self.job_workdir), 'steps': steps}]
+
+        runner.start_batch(
+            jobs=jobs, cmd_template='', timeout_s_per_sim=30,
+            results_path=results_path,
+        )
+        time.sleep(0.5)
+
+        s = runner.status()
+        self.assertEqual(s['mode'], 'batch')
+        self.assertTrue(s['running'])
+        self.assertIn('Line', s['log_tail'])
+        self.assertFalse((self.job_workdir / 'run.log').exists(),
+                         'el paso corre en step_dir, no debería escribir '
+                         'run.log en el workdir de nivel job')
+
+        _wait_done(timeout=15.0)
+
+    def test_read_log_tail_of_arbitrary_folder(self):
+        (self.step_dir / 'run.log').write_text('hola mundo\n', encoding='utf-8')
+        self.assertIn('hola mundo', runner.read_log_tail(self.step_dir))
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Tests — Runner v3: pipelines de pasos (Fase P1, RUNBOOK_barrido_espectral)
 # ═══════════════════════════════════════════════════════════════════════
