@@ -50,3 +50,37 @@ fichero cubre el caso los tres.
 `leer_output_chains` detecta el literal `NO PATHWAYS FOR FORMATION OF
 NUCLIDE` y devuelve `nchain=nch=0`, `ptot=0.0`, `cadenas=[]` en vez de
 lanzar — ver docstring de la función y `test_chains.py`.
+
+## `output_chain_TE128_to_I131.txt` (F9e del BACKLOG, 2026-07-26)
+
+Copia byte a byte (sin copia canónica en otro repo, mismo criterio que
+`output_chain_no_pathways_O16.txt`) de `chains_TE128/output_chain.txt`,
+generado por la misma ejecución real que el fixture anterior (11 isótopos
+del blanco TeO₂, IFINAL=I131, NMAX=5, PCNT=0.01), esta vez para el isótopo
+TE128 (`INITIAL=521280`). Caso oro: NCHAIN=13, NCH=12, PTOT=0.02304 (2,3 %
+— nótese que NO es 100: PTOT aquí es la probabilidad TOTAL de alcanzar
+IFINAL, no una renormalización entre supervivientes de PCNT como en el
+caso TE130→I131 de arriba; ambos son "PTOT" pero de magnitud muy distinta,
+ver nota en la Tabla 2 / docstring de `leer_output_chains`). Las 12 cadenas
+detalladas terminan TODAS en I131 (4 o 5 pasos cada una).
+
+Congelado tras detectar el bug de causa raíz (F9e, hermano de C6 del
+BACKLOG): `_CHAIN_STEP_RE` no toleraba un espacio inicial de relleno de
+columna en el ORIGEN de un paso cuando el nucleido empieza por un símbolo
+de una letra (yodo, "I") — p. ej. la línea " I129 (N,G-g)      I130
+XSEC=1.1305E-09" de la cadena 2 no matcheaba y se perdía, truncando esa
+cadena en TE128→TE129→I129 cuando el fichero real llega a I131. Arreglado
+añadiendo `\s*` al principio del patrón. Casos oro que verifican el
+arreglo:
+
+- Cadena 2 (P=18.61 %): 4 pasos, el último con `hasta="I131"` (antes del
+  fix, solo 2 pasos, truncada en I129).
+- Cadena 3 (P=8.747 %): 5 pasos, el último con `hasta="I131"`; su
+  cabecera de ruta compacta (redundante, no se parsea) ocupa DOS líneas
+  de texto (`... I130 (N,G-g)     \n I131`) — confirma que el header
+  multi-línea no rompe el parseo del bloque de pasos que sigue.
+
+SHA256:
+```text
+1D1EA7B7289CB8AB2A3578FE2A08EA7DC7FD22AF970E503FB9C29EEEE0F3C6A7  output_chain_TE128_to_I131.txt
+```

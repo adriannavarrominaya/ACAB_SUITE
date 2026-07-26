@@ -849,9 +849,13 @@ def leer_concentraciones_iniciales(filepath: str) -> dict[str, float]:
 # Detalle de un paso de cadena: "NUCLIDO (PROCESO)   NUCLIDO   XSEC=valor" o
 # "...DELTA=valor". El símbolo puede o no llevar espacio antes del "(" según
 # la anchura fija de columnas de CHAINS (p. ej. "TE130 (N,G-g)" vs.
-# "TE131M(B-)"), de ahí el \s* opcional.
+# "TE131M(B-)"), de ahí el \s* opcional. F9e (hermano de C6 del BACKLOG):
+# el ORIGEN puede llevar además un espacio inicial de relleno de columna
+# cuando el símbolo del elemento es de una letra (p. ej. " I129 (N,G-g)"
+# para yodo) -- de ahí el ^\s* al principio (antes ^ sin más, que hacía
+# fallar el match y truncaba la cadena justo antes de llegar a I131).
 _CHAIN_STEP_RE = re.compile(
-    r"^(\S+?)\s*\(([^)]+)\)\s+(\S+)\s+(XSEC|DELTA)=\s*([0-9.DEde+\-]+)\s*$"
+    r"^\s*(\S+?)\s*\(([^)]+)\)\s+(\S+)\s+(XSEC|DELTA)=\s*([0-9.DEde+\-]+)\s*$"
 )
 
 

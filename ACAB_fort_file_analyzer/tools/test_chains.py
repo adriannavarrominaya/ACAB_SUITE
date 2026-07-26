@@ -37,6 +37,7 @@ FIXTURES = REPO_ROOT / "tests" / "fixtures"
 REF_SIM = FIXTURES / "ref_sim"
 OUTPUT_CHAIN = str(FIXTURES / "chains" / "output_chain_Te130_to_I131.txt")
 OUTPUT_CHAIN_SIN_CADENAS = str(FIXTURES / "chains" / "output_chain_no_pathways_O16.txt")
+OUTPUT_CHAIN_TE128 = str(FIXTURES / "chains" / "output_chain_TE128_to_I131.txt")
 DECAY = str(REF_SIM / "DECAY.dat")
 FORT6 = str(REF_SIM / "fort.6")
 CHAINS_SYNTHETIC = FIXTURES / "chains_synthetic"
@@ -148,6 +149,64 @@ def test_leer_output_chains_sin_cadenas() -> None:
     check(r["nch"] == 0, f"NCH=0 (ausente del fichero, obtenido {r['nch']})")
     check_close(r["ptot"], 0.0, "PTOT=0.0 (ausente del fichero)", rtol=1e-9, atol=1e-9)
     check(r["cadenas"] == [], f"cadenas=[] (obtenido {r['cadenas']})")
+
+
+def test_leer_output_chains_te128_hermano_de_c6() -> None:
+    section("leer_output_chains — caso oro real TE128→I131 (F9e del BACKLOG: "
+            "origen con espacio inicial de columna, hermano de C6)")
+
+    r = fa.leer_output_chains(OUTPUT_CHAIN_TE128)
+
+    check(r["iflag"] == 2, f"IFLAG=2 (obtenido {r['iflag']})")
+    check(r["inicial"] == 521280, f"INITIAL=521280 = TE128 (obtenido {r['inicial']})")
+    check(r["ifinal"] == 531310, f"IFINAL=531310 = I131 (obtenido {r['ifinal']})")
+    check(r["nmax"] == 5, f"NMAX=5 (obtenido {r['nmax']})")
+    check_close(r["pcnt"], 0.01, "PCNT=0.01", rtol=1e-3)
+    check(r["nchain"] == 13, f"NCHAIN=13 (obtenido {r['nchain']})")
+    check(r["nch"] == 12, f"NCH=12 (obtenido {r['nch']})")
+    # OJO: aquí PTOT NO es 100 -- es la probabilidad TOTAL de alcanzar
+    # IFINAL (2,3 %), muy distinta del caso TE130->I131 de arriba donde
+    # PTOT=100 es una renormalización entre las cadenas supervivientes de
+    # PCNT. Ambos son "PTOT" de leer_output_chains, pero de semántica
+    # numérica distinta según lo que haga CHAINS -- no asumir PTOT=100 en
+    # ningún sitio de la UI (ver Tabla 2 en app.py/static/js).
+    check_close(r["ptot"], 0.02304, "PTOT=0.02304 (NO 100 -- ver nota arriba)", rtol=1e-3)
+
+    check(len(r["cadenas"]) == 12, f"12 cadenas parseadas (obtenido {len(r['cadenas'])})")
+
+    # Antes del fix (F9e), las líneas de paso cuyo ORIGEN es un elemento de
+    # símbolo de una letra (yodo, "I") llevan un espacio inicial de relleno
+    # de columna (" I129 (N,G-g)      I130") que _CHAIN_STEP_RE no
+    # toleraba -- la cadena se truncaba silenciosamente antes de I131. Las
+    # 12 cadenas detalladas del fichero real DEBEN llegar todas a I131.
+    for i, c in enumerate(r["cadenas"], start=1):
+        check(c["pasos"][-1]["hasta"] == "I131",
+              f"cadena {i} termina en I131 (obtenido {c['pasos'][-1]['hasta']!r})")
+
+    # Cadena 2 (P=18.61 %): 4 pasos -- antes del fix se truncaba en 2
+    # (TE128->TE129->I129) por la línea " I129 (N,G-g)  I130" sin parsear.
+    c2 = r["cadenas"][1]
+    check_close(c2["p"], 18.61, "P de la cadena 2 = 18.61 %", rtol=1e-4)
+    check(len(c2["pasos"]) == 4, f"cadena 2 tiene 4 pasos (obtenido {len(c2['pasos'])})")
+    check(c2["pasos"][2]["desde"] == "I129" and c2["pasos"][2]["hasta"] == "I130",
+          f"paso 3 de la cadena 2 (origen con espacio inicial): I129 -> I130 (obtenido {c2['pasos'][2]})")
+    check(c2["pasos"][3]["desde"] == "I130" and c2["pasos"][3]["hasta"] == "I131",
+          f"paso 4 de la cadena 2 (origen con espacio inicial): I130 -> I131 (obtenido {c2['pasos'][3]})")
+
+    # Cadena 3 (P=8.747 %): 5 pasos, vía el isómero I130M; su cabecera de
+    # ruta compacta (redundante, no se parsea) ocupa DOS líneas de texto
+    # -- confirma que el header multi-línea no rompe el parseo de pasos.
+    c3 = r["cadenas"][2]
+    check_close(c3["p"], 8.747, "P de la cadena 3 = 8.747 %", rtol=1e-4)
+    check(len(c3["pasos"]) == 5, f"cadena 3 tiene 5 pasos pese al header multi-línea (obtenido {len(c3['pasos'])})")
+    check(c3["pasos"][2]["desde"] == "I129" and c3["pasos"][2]["proceso"] == "N,G-m"
+          and c3["pasos"][2]["hasta"] == "I130M",
+          f"paso 3 de la cadena 3: I129 --(N,G-m)--> I130M (obtenido {c3['pasos'][2]})")
+    check(c3["pasos"][3]["desde"] == "I130M" and c3["pasos"][3]["proceso"] == "IT"
+          and c3["pasos"][3]["hasta"] == "I130",
+          f"paso 4 de la cadena 3: I130M --(IT)--> I130 (obtenido {c3['pasos'][3]})")
+    check(c3["pasos"][4]["desde"] == "I130" and c3["pasos"][4]["hasta"] == "I131",
+          f"paso 5 de la cadena 3: I130 -> I131 (obtenido {c3['pasos'][4]})")
 
 
 def test_leer_concentraciones_iniciales_ref_sim() -> None:
@@ -374,6 +433,7 @@ def main() -> int:
     print("Tests oro de F9 del BACKLOG (Fase 1: parsers + códec; Fase 4: tablas; Fase 5: diagrama)")
 
     test_leer_output_chains_caso_oro()
+    test_leer_output_chains_te128_hermano_de_c6()
     test_leer_output_chains_sin_cadenas()
     test_leer_concentraciones_iniciales_ref_sim()
     test_nombre_a_zzaaas_casos_directos()
