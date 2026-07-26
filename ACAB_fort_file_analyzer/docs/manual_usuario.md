@@ -50,6 +50,10 @@ sola línea de código:
 - Superposición de datos experimentales o de referencia importados desde CSV.
 - Una pestaña de optimización que combina los resultados con un barrido
   paramétrico generado desde el ACAB INP File Configurator.
+- Una pestaña de **análisis de contribución por cadenas** (ACAB+CHAINS):
+  cuantifica, para un isótopo objetivo, qué isótopo inicial del blanco y qué
+  cadena de reacción nuclear concreta produce esa actividad, a partir de un
+  análisis ya generado desde el ACAB INP File Configurator.
 
 No necesitas conocer el código fuente para usar este manual; cada sección te
 dice qué botón pulsar, qué pestaña abrir y qué significa cada aviso.
@@ -102,10 +106,17 @@ simulación individual.
   (`inp.5` automático u override manual), botón **Analizar**, selector de
   **Unidades**, y (tras analizar) la lista de simulaciones cargadas y el
   resumen del isótopo seleccionado.
-- **Panel principal** — antes de analizar, muestra un panel de bienvenida con
-  instrucciones rápidas; después, seis pestañas de resultados:
-  **Simulaciones**, **Actividad por Isótopo**, **Informe Isótopo**,
-  **Espectro gamma**, **Tablas Comparativas** y **Optimización**.
+- **Panel principal** — la barra de siete pestañas de resultados
+  (**Simulaciones**, **Actividad por Isótopo**, **Informe Isótopo**,
+  **Espectro gamma**, **Tablas Comparativas**, **Optimización** y
+  **Análisis de cadenas**) está visible desde que arranca la aplicación, sin
+  necesidad de analizar nada antes. Antes de analizar, la pestaña
+  **Simulaciones** muestra una guía de bienvenida con instrucciones rápidas
+  (sustituida por la tabla de resultados tras el primer análisis) y el resto
+  de pestañas muestran un aviso de que aún no hay datos que mostrar. La
+  pestaña **Análisis de cadenas** es la única que no depende en absoluto de
+  este primer análisis: tiene su propio flujo de carga, independiente de la
+  carpeta de simulaciones (ver sección 13).
 - **Selector de idioma** (esquina superior derecha, bandera) — Español/English;
   la preferencia se guarda en el navegador. Los nombres de isótopo y las
   unidades físicas (Bq/cm³, MBq/g…) no se traducen: son notación científica,
@@ -131,8 +142,11 @@ simulación individual.
      hubiera leído del `inp.5`. Útil si no tienes `inp.5` a mano o quieres
      forzar un valor concreto.
 3. Pulsa el botón **Analizar**. Mientras se procesa aparece una superposición
-   de carga ("Analizando simulaciones…"); al terminar se activa el panel de
-   resultados con sus seis pestañas.
+   de carga ("Analizando simulaciones…"); al terminar, los avisos de "sin
+   datos" de las pestañas Simulaciones/Actividad por Isótopo/Informe
+   Isótopo/Espectro gamma/Tablas Comparativas/Optimización se sustituyen por
+   los resultados reales (la barra de pestañas ya estaba visible desde el
+   arranque, ver sección 2).
 4. Si la carpeta o su directorio padre contienen un YAML de figuras, se
    carga automáticamente y aparece una alerta verde bajo el botón Analizar
    indicando su origen (ver sección 6). Si no hay ninguno, aparece un aviso
@@ -381,9 +395,12 @@ producto contiene solo ese elemento.
 Debajo de la descripción hay una lista de casillas con todos los isótopos
 disponibles en el informe; marca o desmarca las que quieras incluir como
 "impurezas" y pulsa **"Recalcular pureza"** para volver a pedir el informe al
-servidor con ese criterio. El resultado por simulación muestra una insignia
-`P = valor %` y una tabla de contribuciones (isótopo, actividad y porcentaje)
-ordenada de mayor a menor.
+servidor con ese criterio. El resultado por simulación muestra una tabla de
+contribuciones (isótopo, actividad y porcentaje) ordenada de mayor a menor;
+el valor de pureza puntual en el pico se lee en esa tabla — el valor
+"de un vistazo" en formato insignia se retiró de la UI, absorbido por la
+gráfica P(t) de más abajo, que ya muestra el valor en el instante
+físicamente relevante (t<sub>cruce</sub>).
 
 > El criterio por defecto (mismo elemento) es el único validado hasta la
 > fecha; si necesitas otro criterio para un análisis puntual, la casilla te
@@ -509,10 +526,14 @@ Pasos:
 
 **Tipo de serie:**
 
-- **Experimental** (puntos huecos en la gráfica) — entra en el cálculo de
-  métricas de desviación.
-- **Computacional de referencia** (puntos rellenos) — solo se dibuja, no
-  participa en las métricas.
+- **Experimental** (puntos huecos en la gráfica).
+- **Computacional de referencia** (puntos rellenos).
+
+Esta distinción solo afecta a cómo se dibuja la serie en la gráfica (hueca
+o rellena); **ambos tipos entran en la tabla de métricas de desviación** —
+antes solo lo hacía la experimental, pero la comparación contra una réplica
+computacional de un modelo publicado es tan relevante como la comparación
+contra un dato experimental, así que también genera su propia tabla.
 
 Puedes cargar varias series a la vez; cada una aparece en la lista **"Series
 de referencia cargadas"** con un botón ✕ para retirarla. Las series viven
@@ -520,11 +541,22 @@ solo en memoria del navegador — no se guardan en disco ni en el servidor.
 
 ### Métricas de desviación
 
-Solo para series de tipo **experimental**: para cada punto se interpola la
-curva ACAB de la simulación de referencia en su instante t y se calcula la
-desviación relativa `(A_ACAB − A_exp) / A_exp · 100`. Se muestran el sesgo
-medio, la desviación máxima y una tabla punto a punto, con su propio botón
-Exportar CSV.
+**Todas** las series cargadas del isótopo seleccionado generan su propia
+tabla de métricas, sea su tipo experimental o computacional de referencia:
+para cada punto se interpola la curva ACAB de la simulación **objetivo** en
+su instante t y se calcula la desviación relativa
+`(A_ACAB − A_serie) / A_serie · 100`. Se muestran el sesgo medio, la
+desviación máxima y una tabla punto a punto, con su propio botón Exportar
+CSV; la cabecera de cada tabla y el CSV exportado indican el tipo de la
+serie y la simulación objetivo usada.
+
+Si hay **más de una simulación cargada**, un desplegable **"Simulación
+objetivo (interpolación)"** (visible junto a las tablas solo en ese caso)
+elige contra cuál de todas se interpolan **todas** las tablas a la vez —
+distinto del campo "Simulación de referencia" del importador (paso 3 de
+arriba), que solo afecta a la conversión de unidad (densidad/volumen) de
+cada serie al importarla. Con una única simulación cargada, el desplegable
+no aparece y esa es siempre la simulación objetivo.
 
 ---
 
@@ -696,6 +728,17 @@ Configurator** — ver su manual de usuario para generarlo. Esta pestaña es
 propio campo de carpeta.
 
 ### Cargar un análisis
+
+Si llegas aquí pulsando **"Abrir en Fort Analyzer"** desde el panel de
+ejecución del análisis de cadenas del ACAB INP File Configurator, la URL
+trae ya el parámetro `?chains_root=<carpeta>` (distinto del `?folder=` de la
+sección 3: un `chains_manifest.json` no es una carpeta de "Simulaciones"
+normal): la pestaña **"Análisis de cadenas"** se activa sola y el informe se
+carga automáticamente, sin que tengas que escribir la carpeta ni pulsar
+Cargar. Esto funciona igual sin haber analizado antes ninguna carpeta de
+simulaciones en las demás pestañas.
+
+Para cargar un análisis a mano:
 
 1. Introduce (o explora con el botón de carpeta) la **carpeta raíz** del
    análisis de cadenas — la que contiene `chains_manifest.json`, `iso_<isótopo>/`
