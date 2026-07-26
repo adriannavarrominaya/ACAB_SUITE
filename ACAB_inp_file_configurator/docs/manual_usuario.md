@@ -16,7 +16,8 @@
 7. [Guardar y ejecutar ACAB](#7-guardar-y-ejecutar-acab)
 8. [Herramienta CHAINS](#8-herramienta-chains)
 9. [Barridos paramétricos](#9-barridos-paramétricos)
-10. [Errores y avisos frecuentes](#10-errores-y-avisos-frecuentes)
+10. [Análisis de cadenas (ACAB + CHAINS)](#10-análisis-de-cadenas-acab--chains)
+11. [Errores y avisos frecuentes](#11-errores-y-avisos-frecuentes)
 
 ---
 
@@ -545,7 +546,91 @@ segundo flujo independiente.
 
 ---
 
-## 10. Errores y avisos frecuentes
+## 10. Análisis de cadenas (ACAB + CHAINS)
+
+Pestaña **"Análisis de cadenas"**. Para un caso de referencia y un isótopo
+objetivo (IFINAL), genera y ejecuta el pipeline que permite cuantificar
+**por qué** se produce ese isótopo: la contribución de cada isótopo inicial
+del blanco y, dentro de cada uno, la de cada cadena de reacción nuclear
+concreta. Las tablas de resultados (R<sub>i</sub>, Y<sub>z,i</sub>, diagrama
+de cadena) se consultan en el **Fort Analyzer**, pestaña "Análisis de
+cadenas" — esta pestaña solo genera y ejecuta.
+
+No confundir con la sección **"Herramienta CHAINS"** (sección 8): esa es una
+utilidad manual para convertir un fichero CHAINS suelto; esta pestaña
+orquesta un pipeline completo (N ejecuciones de ACAB + N de CHAINS) sobre
+una referencia ya simulada.
+
+### Requisitos de la referencia
+
+Solo se admiten referencias con **una única zona activa** en el Bloque #5 y
+**sin alimentación continua** (INFD=0, Bloque #6) — si la referencia no
+cumple esto, la generación falla con un mensaje claro (422) explicando cuál
+de las dos condiciones no se cumple.
+
+### Configurar el análisis
+
+1. **Carpeta de referencia** — la carpeta con el `inp.5` e ejecutado (con su
+   `fort.6`) que quieres analizar. La app lee de su `fort.6` el inventario
+   isotópico inicial completo (sección `INITIAL CONCENTRATIONS`) — el
+   desglose por isótopos que el propio ACAB genera al expandir los elementos
+   (ELEMID) del Bloque #5 con las abundancias naturales de la librería; ese
+   desglose no existe en el `inp.5`, solo en el eco del `fort.6`.
+2. **Isótopos iniciales** — lista de checkboxes con cada isótopo del
+   inventario y su C<sub>i</sub>; marca los que quieras incluir en el
+   análisis (cada uno genera un run monoisotópico independiente). El control
+   de linealidad de Bateman (Σ R<sub>i</sub> ≈ 1, ver el manual del Fort
+   Analyzer) solo se cumple con **todos** los isótopos marcados; con una
+   selección parcial, sigue siendo válido, solo cubre esa fracción.
+3. **IFINAL** — el isótopo objetivo (nombre ACAB, p. ej. `I131`).
+4. **PCNT** (por defecto 0.01) y **NMAX** (por defecto 5) — los mismos
+   parámetros de la Herramienta CHAINS (sección 8): PCNT es el umbral de
+   probabilidad relativa por debajo del cual una cadena se descarta; NMAX el
+   número máximo de nucleidos por cadena. **Toda cifra de CHAINS depende de
+   estos dos valores** — se muestran junto a las tablas de resultados en el
+   Fort Analyzer.
+5. **Previsualizar** — muestra la carpeta raíz, las subcarpetas que se van a
+   crear (`tape22/`, `tape24/`, `iso_<isótopo>/` y `chains_<isótopo>/` por
+   cada isótopo marcado), colisiones con carpetas ya existentes y una
+   estimación de espacio en disco.
+6. **Generar** — escribe la estructura completa:
+   - `tape22/` y `tape24/` — dos copias de la referencia SIN modificar su
+     composición, con un patch mínimo del Bloque #11 (`IWP=3` /  `IMTX=1`
+     respectivamente) para que ACAB escriba `fort.22` (análisis de caminos)
+     y `fort.24`.
+   - `iso_<isótopo>/` por cada isótopo marcado — copia de la referencia con
+     un patch **monoisotópico** del Bloque #5 (esa zona pasa a tener un
+     único nucleido, con la C<sub>i</sub> real leída del `fort.6`).
+   - `chains_<isótopo>/` por cada isótopo — carpeta con `input_chain.txt`
+     (IFLAG=2, IINICIAL/IFINAL en código ZZAAAS, NMAX, PCNT) lista para
+     `chains.exe`.
+   - `chains_manifest.json` en la raíz — referencia, parámetros e isótopos
+     con su estado; lo consume el Fort Analyzer.
+
+### Ejecutar el análisis
+
+El panel de ejecución sigue el mismo patrón que el de los barridos
+paramétricos (sección 9): pulsa **"Ejecutar"** y sigue el estado por
+subcarpeta en la tabla (Pendiente / En ejecución / OK / Fallo…). El pipeline
+por isótopo es: `acab.exe` monoisotópico (genera el `fort.6` que usará el
+analyzer para A<sub>i</sub>(t)) → copiar `fort.22`/`fort.24` desde
+`tape22/`/`tape24/` → `chains.exe` (con `input_chain.txt` por su entrada
+estándar y `output_chain.txt` como salida). El run de `tape24/` (IMTX=1)
+termina **sin** generar `fort.6` — es un resultado normal, no un fallo: ese
+run solo existe para producir `fort.24`.
+
+### Consultar un análisis ya generado
+
+Igual que los barridos (sección 9), indicar la carpeta raíz de un análisis
+ya generado (con `chains_manifest.json`) y pulsar **Cargar** muestra su
+configuración y el estado de ejecución de cada isótopo, sin necesidad de
+regenerarlo. Para ver las **tablas de resultados** (R<sub>i</sub>,
+Y<sub>z,i</sub>, diagrama de la cadena elegida), abre esa misma carpeta raíz
+en la pestaña **"Análisis de cadenas"** del **Fort Analyzer**.
+
+---
+
+## 11. Errores y avisos frecuentes
 
 | Aviso / error | Dónde aparece | Qué significa | Qué hacer |
 |---|---|---|---|
