@@ -320,4 +320,25 @@ Se persiste por app en `suite_config.json`, clave `runner` dentro de cada app: `
   paper. Con tapes de la familia original (caso manual congelado):
   95.79/3.119/1.090 — la diferencia es huella espectral de los fort.22/24;
   REGLA: toda firma de CHAINS cita NMAX, PCNT y la referencia de sus tapes.
-- **Recuento de suite** (2026-07-26): 961 tests, 0 fallos.
+- **F9f (cierre)** ✅ (2026-07-26), 1 commit `analyzer:` + 1 commit `suite:`.
+  Causa raíz del contradicho "pestaña independiente de la carpeta de
+  simulaciones": vivía dentro de `#results-panel` con `d-none` hasta el
+  primer `/api/analyze` con éxito — arreglado, la barra de pestañas es
+  visible desde el arranque (la guía de bienvenida pasa a ser el contenido
+  inicial de la pestaña "Simulaciones", como el resto de pestañas ya
+  degradaban con placeholder estático). Verificado en navegador real
+  (Playwright): pestaña accesible sin analizar antes, y flujo COMPLETO
+  real inp-conf→botón→pestaña de punta a punta (referencia real +
+  `acab.exe`/`chains.exe` falsos D1: generar→ejecutar→"Abrir en Fort
+  Analyzer"→pestaña activa con resultados). Fixture oro positivo
+  pendiente desde F9e ya congelado: `fort.6`/`inp.5` reales de
+  `iso_TE130/` con INPT=2 (`tests/fixtures/chains/iso_TE130_real/`,
+  analyzer) — eco `INITIAL CONCENTRATIONS` con SOLO TE130
+  (C_i=1.570E20 át/cm³) y A_pico(I131)=1.6500E4 Bq/cm³, `inp.5`
+  byte-idéntico a `inp.5_iso_TE130`. Regla de procedencia de las P de
+  CHAINS (control "cadenas del Te130" de arriba) documentada en ambos
+  manuales de usuario + badge de carpeta de referencia junto a NMAX/PCNT
+  en la UI (el manifest ya la guardaba).
+- **Recuento de suite** (2026-07-26): 965 tests, 0 fallos
+  (run_all_tests.ps1; sustituye al 961 de esta misma fecha, F9e). F9 del
+  BACKLOG cierra completo.

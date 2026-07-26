@@ -589,6 +589,16 @@ de las dos condiciones no se cumple.
    número máximo de nucleidos por cadena. **Toda cifra de CHAINS depende de
    estos dos valores** — se muestran junto a las tablas de resultados en el
    Fort Analyzer.
+
+   Además de NMAX/PCNT, las probabilidades P que reporta CHAINS dependen de
+   las **tapes** (`fort.22`/`fort.24`) generadas a partir del **espectro
+   neutrónico de la carpeta de referencia** elegida en el paso 1 — la misma
+   cadena con el mismo NMAX/PCNT/IFINAL da P distintos con otra referencia.
+   Ejemplo verificado: TE130→I131 da P = 95,79/3,12/1,09 % con las tapes de
+   una referencia y P = 94,550/4,303/1,144 % con las tapes de otra (espectro
+   v.5 de la tesis). El Fort Analyzer muestra la carpeta de referencia junto
+   a los badges NMAX/PCNT precisamente para poder distinguir de cuál procede
+   cada tabla.
 5. **Previsualizar** — muestra la carpeta raíz, las subcarpetas que se van a
    crear (`tape22/`, `tape24/`, `iso_<isótopo>/` y `chains_<isótopo>/` por
    cada isótopo marcado), colisiones con carpetas ya existentes y una

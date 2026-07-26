@@ -137,13 +137,16 @@ binarios reales de ACAB.
 
 Arreglo: `_monoisotopic_patch` fija `block1.INPT=2` ("read as isotopes")
 en el patch de cada `iso_<isótopo>/` — con INPT=2, INUCL=521300 se
-interpreta como el ISÓTOPO TE130 y XCOMP no se expande. **Pendiente**: no
-se dispone de binarios reales de ACAB en este entorno de desarrollo para
-regenerar el `fort.6` de `iso_TE130/` YA CORREGIDO (INPT=2) y congelarlo
-como el caso oro positivo ("el eco contiene SOLO TE130"); esa verificación
-queda para la próxima ejecución real del pipeline (ver nota bajo F9 en
-`acab_suite/BACKLOG.md`). Mientras tanto, `tools/test_chains_analysis.py`
+interpreta como el ISÓTOPO TE130 y XCOMP no se expande. `tools/test_chains_analysis.py`
 cubre el patch (`test_iso_monoisotopic_matches_frozen_fixture`,
-`test_iso_monoisotopic_nuczo_and_block5_content` — ahora también
-verifica `INPT=2`) y este extracto documenta el bug ya corregido en el
-código pero pendiente de reverificación con ejecución real.
+`test_iso_monoisotopic_nuczo_and_block5_content` — verifica `INPT=2`).
+
+**Verificado con ejecución real (F9f del BACKLOG, 2026-07-26)**: el caso
+oro positivo ("el eco contiene SOLO TE130") ya está congelado —
+`ACAB_fort_file_analyzer/tests/fixtures/chains/iso_TE130_real/fort.6`
+(+ su `inp.5`, byte-idéntico a `inp.5_iso_TE130` de aquí, SHA256
+`96A2B3671C471DB80202567E351540B6DF55FCE586C5A777FC3504A6F76F6095`) —
+confirma que INPT=2 produce el inventario monoisotópico puro (C_i(TE130)
+=1.570E20 át/cm³, ningún otro isótopo de Te) y A_pico(I131)=1.6500E4
+Bq/cm³. Ver el `PROCEDENCIA.md` de esa subcarpeta para el detalle
+completo; test en `tools/test_chains.py` del analyzer.

@@ -1,7 +1,10 @@
 # Runbook F9 — Análisis de contribución por cadenas (ACAB + CHAINS)
 
-**Estado (2026-07-26): Fases 0-5 ✅ (inp-conf + analyzer). Runbook completo.**
-Estado global de runbooks en README.md de `acab_suite/`.
+**Estado (2026-07-26): Fases 0-5 ✅ + F9f (cierre) ✅. Runbook COMPLETO.**
+Estado global de runbooks en README.md de `acab_suite/`. Detalle de F9f
+(pestaña accesible sin analizar antes, deep link verificado en navegador
+real de punta a punta, fixture oro positivo iso_TE130 congelado, regla de
+procedencia de las P documentada) en la entrada F9 de `BACKLOG.md`.
 
 Ítem F9 del BACKLOG (inp-conf + analyzer, A/L). Objetivo: para un caso de
 referencia y un isótopo objetivo IFINAL, cuantificar la contribución de cada
