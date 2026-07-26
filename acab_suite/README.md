@@ -303,3 +303,21 @@ Se persiste por app en `suite_config.json`, clave `runner` dentro de cada app: `
   visual con Playwright, pendiente de verificación manual.
 - **Recuento de suite** (2026-07-26): 961 tests, 0 fallos
   (run_all_tests.ps1; sustituye al 929 de esta misma fecha, hotfix F9e).
+- **Control F9 — linealidad de Bateman (Σ R_i)** ✅ (2026-07-26): análisis de
+  cadenas sobre v.5 (INPT=2, t*=3.753 h), 8/8 isótopos de Te seleccionados:
+  R(TE130)=1.0000 (A_i=1.6500E+04 = A_ref a 5 cifras), R(TE128)=4e-24
+  (A_i=7.176E-20, traza de doble captura), resto 0 → Σ R_i = 1.0000.
+  Superposición lineal de Bateman verificada; en pulso de 10 s el 100% del
+  I131 procede del Te130. Los isótopos de O: sin camino estructural a I131
+  (CHAINS: "no pathways", fixture congelado). NOTA de método: el primer
+  análisis (2026-07-26 a.m.) dio Σ=0.9999 con R_i = abundancias naturales
+  — falso positivo por INPT=1 heredado (ACAB expandía a Te natural);
+  detectado porque R_i/C_i salía constante, físicamente imposible.
+  Corregido en F9e.
+- **Control F9 — cadenas del Te130** ✅ (2026-07-26): pestaña sobre v.5:
+  3 cadenas (NMAX=5, PCNT=0.01, tapes de v.5): P=94.550/4.303/1.144 %,
+  dominante TE130→(n,γ-g)→TE131→(β⁻)→I131, coherente con la Fig. 1 del
+  paper. Con tapes de la familia original (caso manual congelado):
+  95.79/3.119/1.090 — la diferencia es huella espectral de los fort.22/24;
+  REGLA: toda firma de CHAINS cita NMAX, PCNT y la referencia de sus tapes.
+- **Recuento de suite** (2026-07-26): 961 tests, 0 fallos.
