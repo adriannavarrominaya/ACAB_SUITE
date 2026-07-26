@@ -34,7 +34,8 @@
     "temporal": "Temporal History",
     "uncertainties": "Uncertainty Analysis",
     "unc_tip": "Requires IUNC = 1 (Block #1)",
-    "sweep": "Parametric sweep"
+    "sweep": "Parametric sweep",
+    "chains": "Chain contribution analysis"
   },
   "sweep": {
     "title": "Parametric sweep",
@@ -611,5 +612,43 @@
     "toast_applied": "Preset applied: EGRP updated and NOGG set to {nogg} in Block #1.",
     "valid_ok": "EGRP valid: {nogg}+1 boundaries, strictly decreasing, last ≥ 0.",
     "scope_note": "EGRP only affects the output gamma spectrum (ILIB/IPUN options), not the nuclide inventory or the activities."
+  },
+  "chainsan": {
+    "title": "Chain contribution analysis",
+    "intro": "For a reference case and a target isotope, quantifies the contribution of each initial target isotope (R_i) and of each reaction chain within it (Y_z_i), orchestrating N monoisotopic ACAB runs + tapes 22/24 + N CHAINS runs.",
+    "ref_h": "Reference folder",
+    "ref_lbl": "Reference simulation folder",
+    "ref_hint": "Must contain inp.5 and fort.6 (to read the initial isotopic inventory).",
+    "load_inventory_btn": "Load inventory",
+    "inventory_h": "Initial isotopic inventory (t=0)",
+    "select_all": "All",
+    "select_none": "None",
+    "col_isotope": "Isotope",
+    "col_ci": "C_i (atoms/cm³)",
+    "selected_count": "{n} isotope(s) selected",
+    "no_isotopes": "The reference fort.6 has no initial isotopes with C_i > 0.",
+    "err_no_ref": "Enter the reference folder.",
+    "params_h": "Analysis parameters",
+    "ifinal_lbl": "Target isotope (IFINAL)",
+    "pcnt_lbl": "PCNT (min. chain %)",
+    "nmax_lbl": "NMAX (max. chain length)",
+    "root_lbl": "Analysis root folder (output)",
+    "preview_btn": "Preview",
+    "generate_btn": "Generate",
+    "err_no_selection": "Select at least one isotope from the inventory.",
+    "err_no_root": "Enter the output root folder.",
+    "err_no_ifinal": "Enter the target isotope (IFINAL).",
+    "err_bad_pcnt": "PCNT must be a positive number.",
+    "err_bad_nmax": "NMAX must be a positive integer.",
+    "err_preview_first": "Preview before generating.",
+    "preview_n": "Selected isotopes: {n}",
+    "preview_folders": "Subfolders to create: {n}",
+    "warn_no_ref": "The reference folder does not exist.",
+    "warn_no_inp5": "The reference folder has no inp.5.",
+    "warn_collisions": "These subfolders already exist (overwrite will be confirmed): {list}",
+    "warn_over_limit": "Too many isotopes selected.",
+    "done": "Analysis generated: {n} isotope(s) in {root}.",
+    "done_toast": "Chain analysis generated ({n} isotopes).",
+    "browse_title": "Select folder"
   }
 }

@@ -34,7 +34,8 @@
     "temporal": "Historial Temporal",
     "uncertainties": "Análisis de Incertidumbres",
     "unc_tip": "Requiere IUNC = 1 (Block #1)",
-    "sweep": "Barrido paramétrico"
+    "sweep": "Barrido paramétrico",
+    "chains": "Análisis de cadenas"
   },
   "sweep": {
     "title": "Barrido paramétrico",
@@ -611,5 +612,43 @@
     "toast_applied": "Preset aplicado: EGRP actualizado y NOGG fijado a {nogg} en Block #1.",
     "valid_ok": "EGRP válido: {nogg}+1 fronteras, estrictamente decreciente, última ≥ 0.",
     "scope_note": "EGRP solo afecta al espectro gamma de salida (opciones ILIB/IPUN), no al inventario de nucleidos ni a las actividades."
+  },
+  "chainsan": {
+    "title": "Análisis de contribución por cadenas",
+    "intro": "Para un caso de referencia y un isótopo objetivo, cuantifica la contribución de cada isótopo inicial del blanco (R_i) y de cada cadena de reacción dentro de él (Y_z_i), orquestando N runs monoisotópicos de ACAB + tapes 22/24 + N runs de CHAINS.",
+    "ref_h": "Carpeta de referencia",
+    "ref_lbl": "Carpeta de la simulación de referencia",
+    "ref_hint": "Debe contener inp.5 y fort.6 (para leer el inventario isotópico inicial).",
+    "load_inventory_btn": "Cargar inventario",
+    "inventory_h": "Inventario isotópico inicial (t=0)",
+    "select_all": "Todos",
+    "select_none": "Ninguno",
+    "col_isotope": "Isótopo",
+    "col_ci": "C_i (át/cm³)",
+    "selected_count": "{n} isótopo(s) seleccionado(s)",
+    "no_isotopes": "El fort.6 de referencia no tiene isótopos iniciales con C_i > 0.",
+    "err_no_ref": "Indica la carpeta de referencia.",
+    "params_h": "Parámetros del análisis",
+    "ifinal_lbl": "Isótopo objetivo (IFINAL)",
+    "pcnt_lbl": "PCNT (% mínimo de cadena)",
+    "nmax_lbl": "NMAX (longitud máx. de cadena)",
+    "root_lbl": "Carpeta raíz del análisis (salida)",
+    "preview_btn": "Previsualizar",
+    "generate_btn": "Generar",
+    "err_no_selection": "Selecciona al menos un isótopo del inventario.",
+    "err_no_root": "Indica la carpeta raíz de salida.",
+    "err_no_ifinal": "Indica el isótopo objetivo (IFINAL).",
+    "err_bad_pcnt": "PCNT debe ser un número positivo.",
+    "err_bad_nmax": "NMAX debe ser un entero positivo.",
+    "err_preview_first": "Previsualiza antes de generar.",
+    "preview_n": "Isótopos seleccionados: {n}",
+    "preview_folders": "Subcarpetas a crear: {n}",
+    "warn_no_ref": "La carpeta de referencia no existe.",
+    "warn_no_inp5": "La carpeta de referencia no tiene inp.5.",
+    "warn_collisions": "Ya existen estas subcarpetas (se pedirá confirmar sobrescritura): {list}",
+    "warn_over_limit": "Demasiados isótopos seleccionados.",
+    "done": "Análisis generado: {n} isótopo(s) en {root}.",
+    "done_toast": "Análisis de cadenas generado ({n} isótopos).",
+    "browse_title": "Seleccionar carpeta"
   }
 }

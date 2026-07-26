@@ -77,3 +77,35 @@ XCOMP=9.2896E-04 → 9.2896E20 át/cm³ vs. Σ(O16+O17+O18, t=0)=9.28911E20
 
 No modificar estos ficheros sin re-verificar el diff de Bloque #11 y los
 valores de esta nota.
+
+## inp.5_iso_TE130 / input_chain_generated_TE130_to_I131.txt
+
+Casos oro de regresión de bytes de la Fase 2 (generación), a diferencia de
+los ficheros anteriores (ejecutados a mano con los binarios reales): estos
+dos los produce la propia app (`chains_analysis.generate_chains_analysis`)
+a partir de `inp.5_original` como referencia, isótopo TE130
+(C_i=1.57E20 át/cm³, el mismo valor verificado en la nota de unidades de
+arriba), IFINAL=I131, NMAX=5, PCNT=0.01 — verificados a mano una vez
+(2026-07-26) y congelados como el "caso oro construido a mano" que exige el
+runbook para el patch monoisotópico del Bloque #5:
+
+- `inp.5_iso_TE130`: idéntico a `inp.5_original` salvo Bloque #2 NUCZO
+  (`2` → `1`, ajuste necesario no explícito en el runbook pero obligatorio
+  por el formato — ver docstring de `chains_analysis.py`) y Bloque #5
+  (`520000 80000` / `4.644800E-04 9.289600E-04` → `521300` /
+  `1.570000E-04`, INUCL=ZZAAAS(TE130) y XCOMP=C_i×1e-24). Todo lo demás
+  byte-idéntico.
+- `input_chain_generated_TE130_to_I131.txt`: generado con
+  `chains_handler.write_chains_inp` (IFLAG=2, INITIAL=521300, IFINAL=531310,
+  NMAX=5, PCNT=0.01) — mismo contenido NUMÉRICO que
+  `input_chain_Te130_to_I131.txt` de más arriba salvo NMAX/PCNT (los de
+  este caso de prueba, no los NMAX=14/PCNT=0.01 del caso manual) y las
+  etiquetas de campo (`INITIAL`/`Te-130` en vez de `IINICIAL`/`Te130`):
+  chains.exe hace una lectura FORTRAN posicional, las etiquetas son solo
+  para lectura humana y no afectan al resultado.
+
+SHA256 (verificado 2026-07-26):
+```
+112649CB045C61D9667BB6CDCE85DBDA0558C945376F7193C9CA621BF20ABD33  inp.5_iso_TE130
+03BB237BC3331567FD2D4524CD3D40F44FCC5EEF7E2655B5F20DBA654ECD66B8  input_chain_generated_TE130_to_I131.txt
+```

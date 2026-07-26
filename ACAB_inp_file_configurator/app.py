@@ -19,11 +19,13 @@ from threading import Timer
 
 from flask import Flask, jsonify, render_template, request, send_file
 
+import chains_analysis
 import runner
 from acab_parser import ACABParser
 from chains_handler import (
     default_chains_data, is_chains_file, read_chains_inp, write_chains_inp,
 )
+from chains_inventory import leer_concentraciones_iniciales, nombre_a_zzaaas
 from sweep_manifest_view import ManifestCorruptError, build_manifest_view
 from sweep_writer import SweepError, generate_sweep, preview_sweep
 
@@ -296,6 +298,104 @@ def api_sweep():
         return jsonify({'ok': False, 'error': str(exc)}), exc.status
     except Exception as exc:  # noqa: BLE001
         return jsonify({'ok': False, 'error': str(exc)}), 500
+
+
+# ---------------------------------------------------------------------------
+# Análisis de contribución por cadenas (F9 del BACKLOG, Fase 2)
+#
+# Sección nueva, análoga en fontanería al barrido (deep_merge, copia de la
+# carpeta base con exclusión C4) pero con manifest PROPIO
+# (chains_manifest.json, no un sweep_manifest) — ver chains_analysis.py.
+# ---------------------------------------------------------------------------
+
+@app.route('/api/chains-analysis/inventory', methods=['GET'])
+def api_chains_analysis_inventory():
+    """Inventario isotópico inicial (t=0) del fort.6 de una carpeta de
+    referencia, para la UI de selección (checkboxes con C_i)."""
+    reference_folder = (request.args.get('reference_folder') or '').strip()
+    if not reference_folder:
+        return jsonify({'ok': False, 'error': 'Falta la carpeta de referencia.'}), 422
+    ref_p = Path(reference_folder)
+    fort6 = ref_p / 'fort.6'
+    if not fort6.is_file():
+        return jsonify({'ok': False, 'error':
+            f"No se encontró 'fort.6' en la carpeta de referencia: {reference_folder}"}), 422
+    try:
+        concentraciones = leer_concentraciones_iniciales(str(fort6))
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({'ok': False, 'error': str(exc)}), 422
+
+    isotopos = []
+    for name, c_i in concentraciones.items():
+        try:
+            zzaaas = nombre_a_zzaaas(name)
+        except ValueError:
+            continue  # nombre no codificable (no debería pasar, defensivo)
+        isotopos.append({'name': name, 'c_i': c_i, 'zzaaas': zzaaas})
+    isotopos.sort(key=lambda d: d['name'])
+    return jsonify({'ok': True, 'isotopos': isotopos})
+
+
+@app.route('/api/chains-analysis/preview', methods=['POST'])
+def api_chains_analysis_preview():
+    payload = request.get_json(force=True, silent=True) or {}
+    try:
+        res = chains_analysis.preview_chains_analysis(
+            payload.get('root'), payload.get('reference_folder'),
+            payload.get('isotopes') or [])
+        return jsonify({'ok': True, **res})
+    except SweepError as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), exc.status
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({'ok': False, 'error': str(exc)}), 500
+
+
+@app.route('/api/chains-analysis', methods=['POST'])
+def api_chains_analysis_generate():
+    payload = request.get_json(force=True, silent=True) or {}
+    try:
+        res = chains_analysis.generate_chains_analysis(payload, _write_inp5)
+        return jsonify({'ok': True, **res})
+    except SweepError as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), exc.status
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({'ok': False, 'error': str(exc)}), 500
+
+
+@app.route('/api/chains-analysis/manifest', methods=['GET'])
+def api_chains_analysis_manifest():
+    """Vista de solo lectura de un análisis ya generado: lee
+    chains_manifest.json (+ chains_batch_results.json si existe, escrito
+    por /api/chains-analysis/run) de `root`. Nunca escribe nada."""
+    root = (request.args.get('root') or '').strip()
+    if not root:
+        return jsonify({'ok': False, 'error': 'Falta la carpeta raíz del análisis.'}), 422
+    root_p = Path(root)
+    if not root_p.is_dir():
+        return jsonify({'ok': False, 'error': f'La carpeta no existe: {root}'}), 422
+
+    manifest_path = root_p / 'chains_manifest.json'
+    if not manifest_path.is_file():
+        return jsonify({'ok': False, 'error':
+            'Esta carpeta no contiene un análisis de cadenas generado por la '
+            'suite (no se encontró chains_manifest.json).'}), 404
+    try:
+        with open(manifest_path, 'r', encoding='utf-8') as f:
+            manifest = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        return jsonify({'ok': False, 'error':
+            f'chains_manifest.json no se pudo leer (JSON inválido): {exc}'}), 422
+
+    batch_results = None
+    results_path = root_p / 'chains_batch_results.json'
+    if results_path.is_file():
+        try:
+            with open(results_path, 'r', encoding='utf-8') as f:
+                batch_results = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            batch_results = None
+
+    return jsonify({'ok': True, 'manifest': manifest, 'batch_results': batch_results})
 
 
 # ---------------------------------------------------------------------------
