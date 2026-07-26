@@ -441,6 +441,8 @@
     "ifinal_badge": "IFINAL={iso}",
     "tabla1_title": "Tabla 1 — contribución por isótopo inicial (R_i)",
     "th_isotopo": "Isótopo",
+    "th_nota": "Cadenas",
+    "nota_ilegible": "salida de CHAINS ilegible/sin cadenas",
     "cobertura_completa": "Cobertura completa: todos los isótopos del inventario inicial de la referencia están seleccionados — Σ R_i ≈ 1 es el control de linealidad de Bateman (desviación = redondeo numérico + cola descartada por PCNT).",
     "cobertura_parcial": "Cobertura parcial: {n} de {total} isótopos del inventario inicial seleccionados — Σ R_i representa solo esa fracción, no se espera ≈ 1.",
     "tabla2_title": "Tabla 2 — contribución por cadena (Y_z,i), orden descendente",

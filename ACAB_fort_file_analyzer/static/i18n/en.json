@@ -441,6 +441,8 @@
     "ifinal_badge": "IFINAL={iso}",
     "tabla1_title": "Table 1 — contribution by initial isotope (R_i)",
     "th_isotopo": "Isotope",
+    "th_nota": "Chains",
+    "nota_ilegible": "CHAINS output unreadable/no chains",
     "cobertura_completa": "Full coverage: every isotope in the reference's initial inventory is selected — Σ R_i ≈ 1 is the Bateman linearity control (deviation = numerical rounding + tail dropped by PCNT).",
     "cobertura_parcial": "Partial coverage: {n} of {total} initial-inventory isotopes selected — Σ R_i represents only that fraction, ≈ 1 is not expected.",
     "tabla2_title": "Table 2 — contribution by chain (Y_z,i), descending order",

@@ -1613,6 +1613,7 @@ function _renderChainsResults() {
       <td class="font-monospace">${fmtExp(f.a_i)}</td>
       <td class="font-monospace">${fmtExp(f.a_ref)}</td>
       <td class="font-monospace">${fmtFix(f.r_i)}</td>
+      <td class="small text-muted">${f.nota_cadenas ? escHtml(t('chains.nota_ilegible')) : ''}</td>
     </tr>`).join('');
 
   const filasT2 = (json.tabla2 || []).map((f, idx) => `
@@ -1646,12 +1647,14 @@ function _renderChainsResults() {
         <thead><tr>
           <th>${t('chains.th_isotopo')}</th><th>C<sub>i</sub> [át/cm³]</th>
           <th>A<sub>i</sub>(t*) [Bq/cm³]</th><th>A<sub>ref</sub>(t*) [Bq/cm³]</th><th>R<sub>i</sub></th>
+          <th>${t('chains.th_nota')}</th>
         </tr></thead>
         <tbody>
           ${filasT1}
           <tr class="table-secondary fw-semibold">
             <td colspan="4">Σ R<sub>i</sub></td>
             <td class="font-monospace">${fmtFix(json.suma_r_i)}</td>
+            <td></td>
           </tr>
         </tbody>
       </table>
@@ -1751,9 +1754,9 @@ function _renderChainsDiagram(fila) {
 function exportChainsTabla1CSV() {
   const json = _state.chainsData;
   if (!json) return;
-  const rows = (json.tabla1 || []).map(f => [f.isotopo, f.c_i, f.a_i, f.a_ref, f.r_i]);
-  rows.push([t('chains.suma_row'), null, null, null, json.suma_r_i]);
-  const headers = [t('chains.th_isotopo'), 'C_i [at/cm3]', 'A_i(t*) [Bq/cm3]', 'A_ref(t*) [Bq/cm3]', 'R_i'];
+  const rows = (json.tabla1 || []).map(f => [f.isotopo, f.c_i, f.a_i, f.a_ref, f.r_i, f.nota_cadenas || '']);
+  rows.push([t('chains.suma_row'), null, null, null, json.suma_r_i, '']);
+  const headers = [t('chains.th_isotopo'), 'C_i [at/cm3]', 'A_i(t*) [Bq/cm3]', 'A_ref(t*) [Bq/cm3]', 'R_i', t('chains.th_nota')];
   const meta = [
     `# root: ${_state.chainsRoot || ''}`,
     `# IFINAL: ${json.ifinal}`,

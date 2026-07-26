@@ -20,3 +20,33 @@ cadena dominante TE130(N,G-g)→TE131(B-)→I131 con XSEC=1.1084E-11 (paso 1) y
 DELTA=4.6210E-04 (paso 2).
 
 No modificar sin re-verificar el original y sincronizar ambas copias.
+
+## `output_chain_no_pathways_O16.txt` (F9d del BACKLOG, 2026-07-26)
+
+Copia byte a byte (verificada con `Get-FileHash`, no hay copia canónica en
+otro repo — este caso solo lo consume `leer_output_chains` del analyzer,
+`chains_inventory.py` de inp-conf no lo duplica) de
+`chains_O16/output_chain.txt`, generado por la **primera ejecución real
+completa** del pipeline de F9 (11 isótopos del blanco TeO₂: 8 de Te + O16/
+O17/O18, IFINAL=I131, NMAX=5, PCNT=0.01). Congelado tras detectar que
+`leer_output_chains` lanzaba `ValueError: Campo no encontrado... NCHAIN`
+contra este fichero — forma distinta a `output_chain_Te130_to_I131.txt`
+cuando CHAINS **no encuentra ningún camino** INITIAL→IFINAL en ≤ NMAX
+pasos (aquí, ningún isótopo de oxígeno decae a yodo): la cabecera
+(IFLAG/INITIAL/IFINAL/NMAX/PCNT) está, pero no hay NCHAIN/NCH/PTOT ni
+ningún bloque de cadena — solo el literal `THERE ARE NO PATHWAYS FOR
+FORMATION OF NUCLIDE IFINAL`.
+
+SHA256:
+```
+1FE86463516DEFF5F23FA916B0BD0A97DB66E543268E5CF6A83196CEBEC74227  output_chain_no_pathways_O16.txt
+```
+
+Confirmado que O17 (`INITIAL=80170`) y O18 (`INITIAL=80180`) del mismo
+análisis real tienen **exactamente la misma forma** literal (difieren solo
+en INITIAL) — no hace falta congelar fixtures propios para ellos, este
+fichero cubre el caso los tres.
+
+`leer_output_chains` detecta el literal `NO PATHWAYS FOR FORMATION OF
+NUCLIDE` y devuelve `nchain=nch=0`, `ptot=0.0`, `cadenas=[]` en vez de
+lanzar — ver docstring de la función y `test_chains.py`.

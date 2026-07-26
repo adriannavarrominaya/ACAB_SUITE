@@ -356,6 +356,28 @@ def test_chains_report(client) -> None:
     check(j3.get("t_star_fuente") == "manual", "t_star_fuente='manual' con t_h explícito")
     check_close_local(j3.get("a_ref"), 40.0, "A_ref(t=0) = 40 Bq/cm3 con el instante manual")
 
+    # F9d del BACKLOG: output_chain.txt corrupto no rompe el endpoint, degrada
+    # por isótopo (fila de tabla1 anotada, tabla2 sin sus filas).
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_root = Path(tmp) / "chains_analysis"
+        shutil.copytree(chains_root, tmp_root)
+        (tmp_root / "chains_FE56" / "output_chain.txt").write_text(
+            "ESTO NO ES UN OUTPUT DE CHAINS VALIDO\n", encoding="utf-8")
+
+        r4 = client.post("/api/chains_report", json={"root": str(tmp_root)})
+        check(r4.status_code == 200,
+              f"200 pese al output_chain.txt corrupto de un isótopo (obtenido {r4.status_code})")
+        j4 = r4.get_json()
+        tabla1_4 = {f["isotopo"]: f for f in j4.get("tabla1", [])}
+        check(set(tabla1_4.keys()) == {"FE56", "MN55"},
+              f"tabla1 conserva los 2 isótopos (obtenido {sorted(tabla1_4.keys())})")
+        check(tabla1_4.get("FE56", {}).get("nota_cadenas") is not None,
+              f"FE56 anotado en la respuesta JSON (obtenido {tabla1_4.get('FE56', {}).get('nota_cadenas')!r})")
+        check(tabla1_4.get("MN55", {}).get("nota_cadenas") is None,
+              "MN55 sin nota (su output_chain.txt no se tocó)")
+        filas_fe56_4 = [f for f in j4.get("tabla2", []) if f["isotopo"] == "FE56"]
+        check(filas_fe56_4 == [], f"tabla2 sin filas de FE56 (obtenido {len(filas_fe56_4)})")
+
 
 def test_carpeta_inexistente(client) -> None:
     section("/api/analyze — carpeta inexistente")

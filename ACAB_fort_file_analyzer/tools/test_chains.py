@@ -18,7 +18,9 @@ Devuelve código de salida 0 si todo pasa, 1 si algún test falla.
 from __future__ import annotations
 
 import math
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 try:
@@ -34,6 +36,7 @@ import fort_analyzer as fa  # noqa: E402
 FIXTURES = REPO_ROOT / "tests" / "fixtures"
 REF_SIM = FIXTURES / "ref_sim"
 OUTPUT_CHAIN = str(FIXTURES / "chains" / "output_chain_Te130_to_I131.txt")
+OUTPUT_CHAIN_SIN_CADENAS = str(FIXTURES / "chains" / "output_chain_no_pathways_O16.txt")
 DECAY = str(REF_SIM / "DECAY.dat")
 FORT6 = str(REF_SIM / "fort.6")
 CHAINS_SYNTHETIC = FIXTURES / "chains_synthetic"
@@ -128,6 +131,23 @@ def test_leer_output_chains_caso_oro() -> None:
     suma_p = sum(c["p"] for c in r["cadenas"])
     check(suma_p <= r["ptot"] + 1e-6,
           f"Σ P de las 3 cadenas ({suma_p:.4f}) <= PTOT ({r['ptot']})")
+
+
+def test_leer_output_chains_sin_cadenas() -> None:
+    section("leer_output_chains — caso real O16 sin cadenas (F9d del BACKLOG, "
+            "sin camino físico O->I131 en <= NMAX pasos)")
+
+    r = fa.leer_output_chains(OUTPUT_CHAIN_SIN_CADENAS)
+
+    check(r["iflag"] == 2, f"IFLAG=2 (obtenido {r['iflag']})")
+    check(r["inicial"] == 80160, f"INITIAL=80160 = O16 (obtenido {r['inicial']})")
+    check(r["ifinal"] == 531310, f"IFINAL=531310 = I131 (obtenido {r['ifinal']})")
+    check(r["nmax"] == 5, f"NMAX=5 (obtenido {r['nmax']})")
+    check_close(r["pcnt"], 0.01, "PCNT=0.01", rtol=1e-3)
+    check(r["nchain"] == 0, f"NCHAIN=0 (ausente del fichero, obtenido {r['nchain']})")
+    check(r["nch"] == 0, f"NCH=0 (ausente del fichero, obtenido {r['nch']})")
+    check_close(r["ptot"], 0.0, "PTOT=0.0 (ausente del fichero)", rtol=1e-9, atol=1e-9)
+    check(r["cadenas"] == [], f"cadenas=[] (obtenido {r['cadenas']})")
 
 
 def test_leer_concentraciones_iniciales_ref_sim() -> None:
@@ -258,6 +278,58 @@ def test_calcular_analisis_cadenas_sintetico() -> None:
     check_close(tabla1_t0["FE56"]["r_i"], 15.0 / 40.0, "R_FE56(t=0) = 15/40")
 
 
+def test_calcular_analisis_cadenas_output_chain_corrupto() -> None:
+    section("calcular_analisis_cadenas — output_chain.txt corrupto/ausente no rompe "
+            "el informe (F9d del BACKLOG: degradación por isótopo)")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_root = Path(tmp) / "chains_analysis"
+        shutil.copytree(CHAINS_SYNTHETIC, tmp_root)
+
+        # FE56: output_chain.txt corrupto (forma inesperada, sin IFLAG/INITIAL/...).
+        (tmp_root / "chains_FE56" / "output_chain.txt").write_text(
+            "ESTO NO ES UN OUTPUT DE CHAINS VALIDO\n", encoding="utf-8")
+        # MN55: output_chain.txt AUSENTE.
+        (tmp_root / "chains_MN55" / "output_chain.txt").unlink()
+
+        r = fa.calcular_analisis_cadenas(str(tmp_root), t_h=None)
+
+    tabla1 = {f["isotopo"]: f for f in r["tabla1"]}
+    check(set(tabla1.keys()) == {"FE56", "MN55"},
+          f"tabla1 conserva los 2 isótopos pese al output_chain roto/ausente (obtenido {sorted(tabla1.keys())})")
+    check_close(tabla1["FE56"]["r_i"], 0.42, "R_FE56 intacto pese al output_chain.txt corrupto")
+    check_close(tabla1["MN55"]["r_i"], 0.58, "R_MN55 intacto pese al output_chain.txt ausente")
+    check(tabla1["FE56"]["nota_cadenas"] == fa.NOTA_CHAINS_ILEGIBLE,
+          f"FE56 anotado como CHAINS ilegible (obtenido {tabla1['FE56']['nota_cadenas']!r})")
+    check(tabla1["MN55"]["nota_cadenas"] == fa.NOTA_CHAINS_ILEGIBLE,
+          f"MN55 anotado como CHAINS ilegible/ausente (obtenido {tabla1['MN55']['nota_cadenas']!r})")
+    check_close(r["suma_r_i"], 1.00, "Σ R_i sigue siendo 1.00: el fallo de CHAINS no afecta a R_i")
+    check(r["tabla2"] == [],
+          f"tabla2 vacía: ninguno de los 2 isótopos aporta cadenas legibles (obtenido {len(r['tabla2'])} filas)")
+
+
+def test_calcular_analisis_cadenas_sin_cadenas_no_es_error() -> None:
+    section("calcular_analisis_cadenas — output_chain.txt legible SIN cadenas "
+            "(caso real O16/O17/O18) no es un error (F9d del BACKLOG)")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_root = Path(tmp) / "chains_analysis"
+        shutil.copytree(CHAINS_SYNTHETIC, tmp_root)
+        shutil.copyfile(OUTPUT_CHAIN_SIN_CADENAS,
+                         tmp_root / "chains_FE56" / "output_chain.txt")
+
+        r = fa.calcular_analisis_cadenas(str(tmp_root), t_h=None)
+
+    tabla1 = {f["isotopo"]: f for f in r["tabla1"]}
+    check(tabla1["FE56"]["nota_cadenas"] is None,
+          "FE56 sin nota: el output_chain.txt es legible, solo no tiene cadenas por debajo de NMAX")
+    check_close(tabla1["FE56"]["r_i"], 0.42, "R_FE56 se muestra igual que siempre (viene del fort.6, no del output_chain.txt)")
+    filas_fe56 = [f for f in r["tabla2"] if f["isotopo"] == "FE56"]
+    check(filas_fe56 == [], f"tabla2 sin filas de FE56: sin cadenas, sin contribución (obtenido {len(filas_fe56)})")
+    filas_mn55 = [f for f in r["tabla2"] if f["isotopo"] == "MN55"]
+    check(len(filas_mn55) == 1, f"tabla2 conserva la cadena de MN55, no afectada (obtenido {len(filas_mn55)})")
+
+
 def test_construir_diagrama_cadena_caso_real() -> None:
     section("construir_diagrama_cadena — cadena dominante Te130->Te131->I131 "
             "(caso oro real, T½ de DECAY.dat)")
@@ -302,10 +374,13 @@ def main() -> int:
     print("Tests oro de F9 del BACKLOG (Fase 1: parsers + códec; Fase 4: tablas; Fase 5: diagrama)")
 
     test_leer_output_chains_caso_oro()
+    test_leer_output_chains_sin_cadenas()
     test_leer_concentraciones_iniciales_ref_sim()
     test_nombre_a_zzaaas_casos_directos()
     test_nombre_a_zzaaas_ida_y_vuelta()
     test_calcular_analisis_cadenas_sintetico()
+    test_calcular_analisis_cadenas_output_chain_corrupto()
+    test_calcular_analisis_cadenas_sin_cadenas_no_es_error()
     test_construir_diagrama_cadena_caso_real()
 
     print(f"\n{'-' * 50}")

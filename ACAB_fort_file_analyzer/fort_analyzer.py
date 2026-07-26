@@ -874,6 +874,15 @@ def leer_output_chains(filepath: str) -> dict:
     devueltas puede ser menor que 100 por la cola descartada — no se
     corrige aquí, queda para la UI (nota al pie).
 
+    OJO forma sin cadenas (F9d del BACKLOG, detectado en la primera
+    ejecución real: O16/O17/O18, sin camino físico O→I131 en <= NMAX
+    pasos): CHAINS no escribe NCHAIN/NCH/PTOT ni ningún bloque de cadena
+    en este caso, solo la cabecera y el literal "THERE ARE NO PATHWAYS FOR
+    FORMATION OF NUCLIDE IFINAL" (ver tests/fixtures/chains/
+    output_chain_no_pathways_O16.txt). Se detecta por ese literal y se
+    devuelve nchain=nch=0, ptot=0.0, cadenas=[] — nunca lanza por los
+    campos ausentes en esta forma concreta.
+
     Returns:
         {"iflag", "inicial", "ifinal", "nmax", "pcnt", "nchain", "nch",
          "ptot", "cadenas": [{"p": float, "pasos": [
@@ -898,6 +907,15 @@ def leer_output_chains(filepath: str) -> dict:
     ifinal  = int(round(_campo(rf"\bIFINAL\s*=\s*{_flt}")))
     nmax    = int(round(_campo(rf"\bNMAX\s*=\s*{_flt}")))
     pcnt    = _campo(rf"\bPCNT\s*=\s*{_flt}")
+
+    if "NO PATHWAYS FOR FORMATION OF NUCLIDE" in text:
+        return {
+            "iflag": iflag, "inicial": inicial, "ifinal": ifinal,
+            "nmax": nmax, "pcnt": pcnt,
+            "nchain": 0, "nch": 0, "ptot": 0.0,
+            "cadenas": [],
+        }
+
     nchain  = int(round(_campo(rf"\bNCHAIN\s*=\s*{_flt}")))
     nch     = int(round(_campo(rf"\bNCH\s*=\s*{_flt}")))
     ptot    = _campo(rf"\bPTOT\s*=\s*{_flt}")
@@ -939,10 +957,23 @@ def leer_output_chains(filepath: str) -> dict:
 # Simulation discovery
 # ─────────────────────────────────────────────────────────────────────────────
 
+_CHAINS_TAPE_FOLDERS = {"tape22", "tape24"}
+
+
 def descubrir_simulaciones(folder: str) -> list[tuple[str, str]]:
     """Return list of (sim_name, fort6_path) for subfolders containing fort.6.
 
     Also accepts the folder itself if it directly contains fort.6 (single sim).
+
+    F9d del BACKLOG (ruido de tapes): si *folder* es la raíz de un análisis
+    de cadenas (contiene ``chains_manifest.json``), ``tape22``/``tape24``
+    (los runs IWP=3/IMTX=1 de ``chains_analysis.py``) se excluyen del
+    descubrimiento — su fort.6 no tiene sección NUMBER OF ATOMS (no es su
+    propósito, ver DECAY.dat/fort.6 de esos runs) y su rol ya está descrito
+    en el manifest, no en una tabla de simulaciones. Sin esta exclusión,
+    analizar la carpeta raíz del análisis desde la pestaña normal de
+    "Simulaciones" generaba el aviso "No se encontró NUMBER OF ATOMS" por
+    cada una — ruido que entrena a ignorar avisos reales.
     """
     base = pathlib.Path(folder)
     if not base.exists():
@@ -955,8 +986,12 @@ def descubrir_simulaciones(folder: str) -> list[tuple[str, str]]:
         sims.append((base.name, str(base / "fort.6")))
         return sims
 
+    excluir = _CHAINS_TAPE_FOLDERS if (base / "chains_manifest.json").exists() else set()
+
     # Otherwise scan subfolders
     for sub in sorted(base.iterdir()):
+        if sub.name in excluir:
+            continue
         f6 = sub / "fort.6"
         if sub.is_dir() and f6.exists():
             sims.append((sub.name, str(f6)))
@@ -1800,6 +1835,9 @@ def construir_diagrama_cadena(cadena: dict, t12_dict: dict[str, float]) -> dict:
     return {"nodos": nodos, "aristas": aristas, "p": cadena.get("p")}
 
 
+NOTA_CHAINS_ILEGIBLE = "salida de CHAINS ilegible/sin cadenas"
+
+
 def calcular_analisis_cadenas(root: str, t_h: Optional[float] = None,
                                manifest: Optional[dict] = None) -> dict:
     """F9 del BACKLOG, Fase 4 — tablas de contribución por isótopo (R_i) y
@@ -1814,9 +1852,20 @@ def calcular_analisis_cadenas(root: str, t_h: Optional[float] = None,
     output de CHAINS de cada isótopo (``chains_<nombre>/output_chain.txt``,
     ``leer_output_chains``): X_z_i = P_z_i / 100.
 
-    Isótopos cuyo fort.6/output_chain.txt aún no existen (pipeline no
-    ejecutado o parcial) se omiten de las tablas sin romper el resto —
-    mismo criterio de tolerancia que el resto del análisis F9.
+    Degradación POR ISÓTOPO (F9d del BACKLOG, hotfix tras la primera
+    ejecución real): un isótopo cuyo fort.6 monoisotópico aún no existe
+    (pipeline no ejecutado) se omite ENTERO de la tabla 1 — sin ese fort.6
+    no hay R_i que mostrar. Pero un isótopo con fort.6 ya listo cuyo
+    ``output_chain.txt`` está ausente o no se puede parsear (corrupto,
+    forma inesperada) conserva su fila de tabla 1 intacta (R_i sigue siendo
+    un dato físico válido) con ``nota_cadenas`` = ``NOTA_CHAINS_ILEGIBLE``;
+    solo sus filas de tabla 2 se omiten. El caso "output_chain.txt legible
+    pero sin ninguna cadena por debajo de NMAX" (p. ej. O16/O17/O18: no hay
+    camino físico O→I131, ``leer_output_chains`` devuelve ``cadenas=[]``)
+    NO es un error — R_i se muestra igual (≈0, coherente físicamente) sin
+    nota, y la tabla 2 simplemente no tiene filas de ese isótopo. Ningún
+    fallo de un isótopo aislado debe impedir que se muestre el resto del
+    informe.
 
     *manifest*, si se pasa, sustituye la lectura de ``chains_manifest.json``
     de *root* (usado por los tests oro con fixtures sintéticos, donde el
@@ -1881,13 +1930,18 @@ def calcular_analisis_cadenas(root: str, t_h: Optional[float] = None,
             "a_i":     _safe_val(a_i),
             "a_ref":   _safe_val(a_ref),
             "r_i":     _safe_val(r_i),
+            "nota_cadenas": None,
         })
 
         chains_folder = root_p / iso["chains_folder"]
         output_path = chains_folder / "output_chain.txt"
-        if not output_path.is_file():
+        try:
+            if not output_path.is_file():
+                raise FileNotFoundError(str(output_path))
+            chains_data = leer_output_chains(str(output_path))
+        except (OSError, ValueError):
+            tabla1[-1]["nota_cadenas"] = NOTA_CHAINS_ILEGIBLE
             continue
-        chains_data = leer_output_chains(str(output_path))
         for z_idx, cadena in enumerate(chains_data["cadenas"], start=1):
             x_z_i = cadena["p"] / 100.0
             y_z_i = (r_i * x_z_i) if r_i is not None else None

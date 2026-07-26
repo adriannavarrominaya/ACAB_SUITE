@@ -390,6 +390,31 @@ def test_sweep_manifest() -> None:
               "sweep_manifest.json corrupto → None (sin excepción)")
 
 
+def test_descubrir_simulaciones_excluye_tapes_con_chains_manifest() -> None:
+    section("descubrir_simulaciones — excluye tape22/tape24 si hay chains_manifest.json "
+            "(F9d del BACKLOG: ruido de 'No se encontró NUMBER OF ATOMS')")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        for name in ("iso_TE130", "chains_TE130", "tape22", "tape24"):
+            d = root / name
+            d.mkdir()
+            (d / "fort.6").write_text("dummy", encoding="utf-8")
+
+        # Sin chains_manifest.json: comportamiento de siempre, tape22/tape24 SÍ se descubren.
+        sims = fa.descubrir_simulaciones(str(root))
+        nombres = {n for n, _ in sims}
+        check(nombres == {"iso_TE130", "chains_TE130", "tape22", "tape24"},
+              f"sin manifest, las 4 subcarpetas con fort.6 se descubren (obtenido {sorted(nombres)})")
+
+        # Con chains_manifest.json: tape22/tape24 excluidos, el resto intacto.
+        (root / "chains_manifest.json").write_text("{}", encoding="utf-8")
+        sims2 = fa.descubrir_simulaciones(str(root))
+        nombres2 = {n for n, _ in sims2}
+        check(nombres2 == {"iso_TE130", "chains_TE130"},
+              f"con manifest, tape22/tape24 excluidos (obtenido {sorted(nombres2)})")
+
+
 def main() -> int:
     print("Tests oro del motor fort_analyzer.py (Fase 0)")
     print(f"Fixtures: {REF_SIM}")
@@ -417,6 +442,7 @@ def main() -> int:
     test_densidad_en_analisis()
     test_desactualizada()
     test_sweep_manifest()
+    test_descubrir_simulaciones_excluye_tapes_con_chains_manifest()
 
     print(f"\n{'-' * 50}")
     print(f"Resultado: {_PASSED} pasados, {_FAILED} fallidos")

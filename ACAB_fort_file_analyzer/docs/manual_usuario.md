@@ -700,9 +700,18 @@ propio campo de carpeta.
 1. Introduce (o explora con el botón de carpeta) la **carpeta raíz** del
    análisis de cadenas — la que contiene `chains_manifest.json`, `iso_<isótopo>/`
    y `chains_<isótopo>/` por cada isótopo seleccionado.
-2. Pulsa **Cargar**. Si algún isótopo aún no tiene su `fort.6` o su
-   `output_chain.txt` (pipeline no ejecutado o parcial), esa fila
-   sencillamente no aparece en las tablas — no rompe la carga del resto.
+2. Pulsa **Cargar**. Si algún isótopo aún no tiene su `fort.6` (pipeline no
+   ejecutado), esa fila sencillamente no aparece en la tabla 1 — no rompe la
+   carga del resto. Si el `fort.6` sí existe pero su `output_chain.txt` está
+   ausente o no se puede leer (corrupto, forma inesperada de CHAINS), la
+   fila de tabla 1 se muestra igual (R<sub>i</sub> es un dato físico válido
+   con independencia de CHAINS) con una nota en la columna "Cadenas"; solo
+   sus filas de tabla 2 quedan fuera. El caso de un isótopo **sin ningún
+   camino de reacción** hacia IFINAL (p. ej. los isótopos de oxígeno del
+   blanco TeO₂ camino de ¹³¹I: no hay ninguna cadena O→I) tampoco es un
+   error — R<sub>i</sub> se muestra igual (será ≈0, coherente con la
+   física: sin cadenas, sin contribución), sin ninguna nota, y la tabla 2
+   simplemente no tiene filas de ese isótopo.
 
 ### Instante t*
 
@@ -723,6 +732,7 @@ instante.
 | A<sub>i</sub>(t\*) | Actividad de IFINAL en t\*, en la simulación **monoisotópica** de ese isótopo |
 | A<sub>ref</sub>(t\*) | Actividad de IFINAL en t\*, en la simulación de **referencia** (composición completa) |
 | R<sub>i</sub> | R<sub>i</sub> = A<sub>i</sub>(t\*) / A<sub>ref</sub>(t\*) — fracción de la producción de IFINAL atribuible a ese isótopo inicial |
+| Cadenas | Vacía en el caso normal. "salida de CHAINS ilegible/sin cadenas" si el `output_chain.txt` de ese isótopo está ausente o no se pudo leer — R<sub>i</sub> sigue siendo válido, solo faltan sus filas en la tabla 2 |
 
 La fila **Σ R<sub>i</sub>** es el **control de linealidad de Bateman**: las
 ecuaciones de Bateman son lineales en las concentraciones iniciales, así que
