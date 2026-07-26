@@ -1,15 +1,14 @@
-"""Tests del análisis de contribución por cadenas (F9 del BACKLOG, Fase 2).
+"""Tests del análisis de contribución por cadenas (F9 del BACKLOG, Fases 2-3).
 
     C:\\venv\\acab-venv\\Scripts\\python.exe tools/test_chains_analysis.py
 
 Cubre: chains_inventory.py (códec ZZAAAS + parser del inventario inicial,
 con un extracto sintético de fort.6 autocontenido -- el fort.6 real de
 referencia vive en el repo del analyzer, no se duplica aquí solo para estos
-tests unitarios) y chains_analysis.py (generación: patch monoisotópico del
+tests unitarios), chains_analysis.py (generación: patch monoisotópico del
 Bloque #5 + ajuste NUCZO, patches de tapes, validaciones, tests de bytes
-contra los casos oro de tests/fixtures/chains/ construidos en Fase 0/2).
-El pipeline de ejecución (Fase 3) se cubre en
-tools/test_chains_analysis_run_endpoint.py.
+contra los casos oro de tests/fixtures/chains/ construidos en Fase 0/2) y
+build_chains_pipeline_jobs (estructura de jobs de la Fase 3).
 """
 
 import shutil
@@ -268,6 +267,41 @@ class PreviewChainsAnalysisTests(unittest.TestCase):
         isotopes = [{'name': 'TE130', 'c_i': 1.0} for _ in range(ca.MAX_ISOTOPES + 1)]
         res = ca.preview_chains_analysis(str(self.tmp / 'out'), str(self.tmp), isotopes)
         self.assertTrue(res['over_limit'])
+
+
+class BuildChainsPipelineJobsTests(unittest.TestCase):
+
+    def test_job_structure(self):
+        root_p = Path('/root')
+        manifest = {
+            'tape22_folder': 'tape22', 'tape24_folder': 'tape24',
+            'isotopes': [
+                {'name': 'TE130', 'iso_folder': 'iso_TE130', 'chains_folder': 'chains_TE130'},
+                {'name': 'TE128', 'iso_folder': 'iso_TE128', 'chains_folder': 'chains_TE128'},
+            ],
+        }
+        jobs = ca.build_chains_pipeline_jobs(root_p, manifest, 'acab.exe', 'chains.exe')
+        self.assertEqual(len(jobs), 4)  # tape22, tape24, 2 isótopos
+
+        self.assertEqual(jobs[0]['workdir'], str(root_p / 'tape22'))
+        self.assertEqual(len(jobs[0]['steps']), 1)
+        self.assertEqual(jobs[0]['steps'][0]['type'], 'run')
+
+        self.assertEqual(jobs[1]['workdir'], str(root_p / 'tape24'))
+
+        iso_job = jobs[2]
+        self.assertEqual(iso_job['workdir'], str(root_p / 'iso_TE130'))
+        steps = iso_job['steps']
+        self.assertEqual([s['type'] for s in steps], ['run', 'copy', 'copy', 'run'])
+        self.assertEqual(steps[0]['cwd'], str(root_p / 'iso_TE130'))
+        self.assertEqual(steps[1]['src'], str(root_p / 'tape22' / 'fort.22'))
+        self.assertEqual(steps[1]['dst'], str(root_p / 'chains_TE130' / 'fort.22'))
+        self.assertEqual(steps[2]['src'], str(root_p / 'tape24' / 'fort.24'))
+        self.assertEqual(steps[2]['dst'], str(root_p / 'chains_TE130' / 'fort.24'))
+        chains_step = steps[3]
+        self.assertEqual(chains_step['cwd'], str(root_p / 'chains_TE130'))
+        self.assertEqual(chains_step['stdin'], str(root_p / 'chains_TE130' / 'input_chain.txt'))
+        self.assertEqual(chains_step['stdout_file'], str(root_p / 'chains_TE130' / 'output_chain.txt'))
 
 
 if __name__ == '__main__':

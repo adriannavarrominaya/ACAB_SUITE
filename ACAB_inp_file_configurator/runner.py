@@ -24,15 +24,23 @@ de paso soportados:
 
 - ``{'type': 'run', 'cmd': ..., 'cwd': ...}`` — ejecuta *cmd* con cwd dado;
   falla el job (y detiene el pipeline) si el proceso termina con código
-  distinto de 0 o si excede el timeout.
+  distinto de 0 o si excede el timeout. Admite además, opcionalmente,
+  ``'stdin'`` (fichero del que leer stdin) y ``'stdout_file'`` (fichero
+  donde escribir stdout en vez de run.log) — necesario para ejecutables
+  que rompen la convención de "sin argumentos, todo por cwd", como
+  ``chains.exe < input_chain.txt > output_chain.txt`` (F9 del BACKLOG, ver
+  acab_suite/README.md "Invocación de los códigos"). Con ``stdout_file``
+  presente, run.log sigue recibiendo stderr (nunca se pierde el
+  diagnóstico si el proceso falla).
 - ``{'type': 'copy', 'src': ..., 'dst': ...}`` — copia un fichero; falla el
   job si *src* no existe o la copia da error de E/S.
 - ``{'type': 'check_flux', 'path': ...}`` — parsea un FLUX.inf (REAL TOTAL
   FLUX, AVERAGE ENERGY, eco ILIB/IESF/NGROUP). Nunca falla el job: un
   parseo fallido queda como aviso (``estado: 'warning'``) en el resultado.
 
-``cmd``/``cwd``/``src``/``dst``/``path`` admiten el marcador ``{workdir}``,
-que se resuelve con el workdir del job (top-level de la simulación).
+``cmd``/``cwd``/``src``/``dst``/``path``/``stdin``/``stdout_file`` admiten el
+marcador ``{workdir}``, que se resuelve con el workdir del job (top-level de
+la simulación).
 """
 
 from __future__ import annotations
@@ -456,18 +464,35 @@ class _Runner:
 
     def _exec_run_step(self, step: dict, workdir: str,
                        timeout_s: float) -> tuple[dict, bool, int | None]:
-        """Ejecuta un paso 'run'. Devuelve (resultado, timed_out, returncode)."""
+        """Ejecuta un paso 'run'. Devuelve (resultado, timed_out, returncode).
+
+        Con 'stdin'/'stdout_file' presentes en *step* (F9 del BACKLOG,
+        chains.exe), el stdout del proceso va al fichero indicado en vez de
+        a run.log; stderr sigue yendo a run.log por separado (nunca se
+        pierde el diagnóstico de un fallo). Sin esas claves, comportamiento
+        idéntico al de siempre (stdout+stderr fusionados en run.log).
+        """
         cmd = self._resolve_marker(step.get('cmd'), workdir)
         cwd = self._resolve_marker(step.get('cwd'), workdir) or workdir
+        stdin_path = self._resolve_marker(step.get('stdin'), workdir)
+        stdout_path = self._resolve_marker(step.get('stdout_file'), workdir)
         result: dict[str, Any] = {'type': 'run', 'cmd': cmd, 'cwd': cwd}
 
         log_f = self._open_log(cwd)
+        stdin_f = None
+        stdout_f = None
         timed_out = False
         returncode = None
         try:
+            if stdin_path:
+                stdin_f = open(stdin_path, 'rb')
+            if stdout_path:
+                stdout_f = open(stdout_path, 'wb')
             proc = subprocess.Popen(
                 cmd, cwd=cwd,
-                stdout=log_f, stderr=subprocess.STDOUT,
+                stdin=stdin_f,
+                stdout=stdout_f if stdout_f else log_f,
+                stderr=log_f if stdout_f else subprocess.STDOUT,
             )
             with self._lock:
                 self._proc = proc
@@ -500,6 +525,16 @@ class _Runner:
                 log_f.close()
             except Exception:
                 pass
+            if stdin_f:
+                try:
+                    stdin_f.close()
+                except Exception:
+                    pass
+            if stdout_f:
+                try:
+                    stdout_f.close()
+                except Exception:
+                    pass
             with self._lock:
                 self._proc = None
                 self._log_file = None

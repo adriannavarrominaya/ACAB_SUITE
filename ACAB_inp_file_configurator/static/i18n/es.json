@@ -649,6 +649,15 @@
     "warn_over_limit": "Demasiados isótopos seleccionados.",
     "done": "Análisis generado: {n} isótopo(s) en {root}.",
     "done_toast": "Análisis de cadenas generado ({n} isótopos).",
+    "run_h": "Ejecución del análisis",
+    "run_start_btn": "Ejecutar análisis",
+    "step_run": "ACAB/CHAINS",
+    "step_copy": "copiar tape",
+    "load_h": "Cargar un análisis generado",
+    "load_hint": "Selecciona la carpeta raíz de un análisis de cadenas ya generado por la suite.",
+    "load_no_root": "Indica la carpeta raíz del análisis.",
+    "loaded_ifinal_lbl": "IFINAL:",
+    "loaded_pcnt_nmax_lbl": "PCNT/NMAX:",
     "browse_title": "Seleccionar carpeta"
   }
 }

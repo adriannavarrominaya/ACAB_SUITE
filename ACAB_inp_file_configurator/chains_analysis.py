@@ -301,3 +301,49 @@ def generate_chains_analysis(payload: dict, write_fn: Callable[[dict], str]) -> 
         'folders': folders,
         'manifest': manifest,
     }
+
+
+# ---------------------------------------------------------------------------
+# Ejecución (Fase 3): jobs del pipeline para runner.start_batch
+# ---------------------------------------------------------------------------
+
+def build_chains_pipeline_jobs(root_p: Path, manifest: dict, acab_exe_name: str,
+                               chains_exe_name: str) -> list[dict]:
+    """Jobs del pipeline F9: tape22 y tape24 (runs de ACAB compartidos,
+    escriben fort.22/fort.24) seguidos de un job por isótopo que copia
+    fort.22/fort.24 a su carpeta CHAINS, ejecuta ACAB en su carpeta
+    monoisotópica (fort.6, para A_i(t) en el analyzer) y CHAINS con
+    redirección stdin/stdout (input_chain.txt -> output_chain.txt).
+
+    El run IMTX=1 (tape24) para tras escribir fort.24 SIN generar fort.6 —
+    es éxito (decisión de diseño F9, ver runbook): el runner considera un
+    paso 'run' ok por código de salida 0, no por la presencia de fort.6,
+    así que no hace falta ningún caso especial aquí ni en runner.py.
+    """
+    tape22_dir = root_p / manifest['tape22_folder']
+    tape24_dir = root_p / manifest['tape24_folder']
+
+    jobs = [
+        {'workdir': str(tape22_dir), 'steps': [
+            {'type': 'run', 'cmd': [str(tape22_dir / acab_exe_name)], 'cwd': str(tape22_dir)},
+        ]},
+        {'workdir': str(tape24_dir), 'steps': [
+            {'type': 'run', 'cmd': [str(tape24_dir / acab_exe_name)], 'cwd': str(tape24_dir)},
+        ]},
+    ]
+
+    for iso in manifest['isotopes']:
+        iso_dir = root_p / iso['iso_folder']
+        chains_dir = root_p / iso['chains_folder']
+        jobs.append({'workdir': str(iso_dir), 'steps': [
+            {'type': 'run', 'cmd': [str(iso_dir / acab_exe_name)], 'cwd': str(iso_dir)},
+            {'type': 'copy', 'src': str(tape22_dir / 'fort.22'),
+             'dst': str(chains_dir / 'fort.22')},
+            {'type': 'copy', 'src': str(tape24_dir / 'fort.24'),
+             'dst': str(chains_dir / 'fort.24')},
+            {'type': 'run', 'cmd': [str(chains_dir / chains_exe_name)],
+             'cwd': str(chains_dir),
+             'stdin': str(chains_dir / 'input_chain.txt'),
+             'stdout_file': str(chains_dir / 'output_chain.txt')},
+        ]})
+    return jobs

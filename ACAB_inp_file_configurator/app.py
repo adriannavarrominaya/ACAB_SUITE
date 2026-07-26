@@ -424,6 +424,10 @@ _COLLAPS_EXE_NAME = 'collaps.exe'
 _SPECTRUM_SIM_REQUIRED_FILES = ('inp.5', 'DECAY.dat')  # XSECTION.dat lo genera el pipeline
 _SPECTRUM_COLLAPS_REQUIRED_FILES = ('COLL.inp', 'XSBL.dat')
 
+# chains.exe: misma convención fija que collaps.exe (F9 del BACKLOG, no
+# configurable vía suite_config.json).
+_CHAINS_EXE_NAME = chains_analysis.CHAINS_EXE_NAME
+
 # Recordados por /api/run para que /api/run/status pueda informar si el
 # fichero de salida (fort.6) quedó generado tras el último run individual
 # (botón "Abrir en Fort Analyzer" del R3 — el runner común no conoce este
@@ -755,6 +759,106 @@ def api_run_batch():
         ['collaps', 'copy', 'acab', 'check_flux'] if is_spectrum else None)
 
     return jsonify({'ok': True, 'n': len(folders), 'root': str(root_p)})
+
+
+# ---------------------------------------------------------------------------
+# Ejecución del análisis de cadenas (F9 del BACKLOG, Fase 3)
+#
+# Pipeline propio (no reutiliza /api/run/batch: el manifest no es un
+# sweep_manifest.json): tape22 -> tape24 (runs de ACAB compartidos) seguidos
+# de un job por isótopo (ACAB monoisotópico + copiar fort.22/24 + CHAINS con
+# redirección stdin/stdout). Ver chains_analysis.build_chains_pipeline_jobs
+# y acab_suite/README.md "Invocación de los códigos".
+# ---------------------------------------------------------------------------
+
+@app.route('/api/chains-analysis/run', methods=['POST'])
+def api_chains_analysis_run():
+    payload = request.get_json(force=True, silent=True) or {}
+    root = (payload.get('root') or '').strip()
+    overwrite = bool(payload.get('overwrite', False))
+
+    if not root:
+        return jsonify({'error': 'Debes indicar la carpeta raíz del análisis.'}), 422
+    root_p = Path(root)
+    if not root_p.is_dir():
+        return jsonify({'error': f'La carpeta raíz no existe: {root}'}), 422
+
+    manifest_path = root_p / 'chains_manifest.json'
+    if not manifest_path.is_file():
+        return jsonify({'error':
+            f'No se encontró chains_manifest.json en {root}.'}), 404
+    try:
+        with open(manifest_path, 'r', encoding='utf-8') as f:
+            manifest = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        return jsonify({'error': f'No se pudo leer chains_manifest.json: {exc}'}), 422
+
+    cfg = _load_runner_config()
+    acab_exe_name = cfg['exe_name']
+    timeout_s = cfg['timeout_s']
+
+    tape22_dir = root_p / manifest['tape22_folder']
+    tape24_dir = root_p / manifest['tape24_folder']
+    isotopes = manifest.get('isotopes') or []
+
+    required_dirs = [tape22_dir, tape24_dir]
+    for iso in isotopes:
+        required_dirs += [root_p / iso['iso_folder'], root_p / iso['chains_folder']]
+    missing_dirs = [str(d.relative_to(root_p)) for d in required_dirs if not d.is_dir()]
+    if missing_dirs:
+        return jsonify({'error': 'No existen estas subcarpetas del análisis: '
+                                 + ', '.join(missing_dirs)}), 422
+
+    missing_files: dict[str, list[str]] = {}
+    for d, needed in ((tape22_dir, (acab_exe_name, 'inp.5')),
+                      (tape24_dir, (acab_exe_name, 'inp.5'))):
+        miss = [f for f in needed if not (d / f).exists()]
+        if miss:
+            missing_files[str(d.relative_to(root_p))] = miss
+    for iso in isotopes:
+        iso_dir = root_p / iso['iso_folder']
+        chains_dir = root_p / iso['chains_folder']
+        miss = [f for f in (acab_exe_name, 'inp.5') if not (iso_dir / f).exists()]
+        if miss:
+            missing_files[str(iso_dir.relative_to(root_p))] = miss
+        miss = [f for f in (_CHAINS_EXE_NAME, 'input_chain.txt') if not (chains_dir / f).exists()]
+        if miss:
+            missing_files[str(chains_dir.relative_to(root_p))] = miss
+    if missing_files:
+        detail = '; '.join(f'{f}: {", ".join(fs)}' for f, fs in missing_files.items())
+        return jsonify({'error': 'Faltan ficheros requeridos: ' + detail}), 422
+
+    existing_outputs = [
+        str((root_p / iso['iso_folder']).relative_to(root_p)) for iso in isotopes
+        if (root_p / iso['iso_folder'] / 'fort.6').exists()
+    ]
+    if existing_outputs and not overwrite:
+        return jsonify({
+            'error': f'Ya existe un fort.6 previo en {len(existing_outputs)} carpeta(s). '
+                     'Confirma para sobrescribir.',
+            'needs_overwrite': True,
+            'existing_outputs': existing_outputs,
+        }), 422
+
+    jobs = chains_analysis.build_chains_pipeline_jobs(
+        root_p, manifest, acab_exe_name, _CHAINS_EXE_NAME)
+    results_path = str(root_p / 'chains_batch_results.json')
+
+    try:
+        runner.start_batch(jobs=jobs, cmd_template='',
+                           timeout_s_per_sim=float(timeout_s),
+                           results_path=results_path)
+    except runner.RunnerBusyError as exc:
+        return jsonify({'error': str(exc)}), 409
+
+    global _last_batch_root, _last_batch_pipeline_steps
+    _last_batch_root = str(root_p)
+    # Etiquetas orientativas: válidas para los jobs por isótopo (4 pasos);
+    # los jobs de tapes tienen un único paso 'run' que también es 'acab'
+    # (step_index 0 coincide en ambos casos).
+    _last_batch_pipeline_steps = ['acab', 'copy', 'copy', 'chains']
+
+    return jsonify({'ok': True, 'n': len(jobs), 'root': str(root_p)})
 
 
 # ---------------------------------------------------------------------------

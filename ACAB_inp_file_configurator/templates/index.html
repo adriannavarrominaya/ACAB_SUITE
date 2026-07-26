@@ -2532,6 +2532,92 @@
           </div>
         </div>
 
+        <!-- Ejecución (Fase 3) -->
+        <div id="chainsan-run-panel" class="card mb-3 block-card d-none">
+          <div class="card-header block-card-header" data-i18n="chainsan.run_h">Ejecución del análisis</div>
+          <div class="card-body">
+            <p class="small mb-2">
+              <span data-i18n="sweep.run_root_lbl">Carpeta raíz:</span>
+              <code id="chainsan-run-root" class="font-monospace"></code>
+            </p>
+            <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+              <button type="button" class="btn btn-success btn-sm" id="btn-chainsan-run-start">
+                <i class="bi bi-play-fill me-1"></i><span data-i18n="chainsan.run_start_btn">Ejecutar análisis</span>
+              </button>
+              <button type="button" class="btn btn-outline-danger btn-sm" id="btn-chainsan-run-cancel" disabled>
+                <i class="bi bi-stop-fill me-1"></i><span data-i18n="run.cancel_btn">Cancelar</span>
+              </button>
+              <span id="chainsan-run-progress" class="font-monospace small text-muted"></span>
+              <span id="chainsan-run-badge" class="badge bg-secondary ms-auto"></span>
+              <a href="#" id="btn-chainsan-run-open-analyzer" class="btn btn-outline-primary btn-sm d-none">
+                <i class="bi bi-box-arrow-up-right me-1"></i><span data-i18n="run.open_analyzer_btn">Abrir en Fort Analyzer</span>
+              </a>
+            </div>
+            <div class="table-responsive mb-2">
+              <table class="table table-sm table-bordered align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th data-i18n="sweep.run_col_folder">Carpeta</th>
+                    <th data-i18n="sweep.run_col_state">Estado</th>
+                    <th data-i18n="sweep.run_col_step">Paso</th>
+                    <th data-i18n="sweep.run_col_duration">Duración</th>
+                  </tr>
+                </thead>
+                <tbody id="chainsan-run-tbody"></tbody>
+              </table>
+            </div>
+            <pre id="chainsan-run-log"
+                 class="m-0 p-2 font-monospace bg-dark text-light rounded"
+                 style="font-size:.78rem; height:200px; overflow-y:auto; white-space:pre-wrap; word-break:break-all;"></pre>
+          </div>
+        </div>
+
+        <!-- Cargar un análisis ya generado -->
+        <div class="card mb-3 block-card">
+          <div class="card-header block-card-header" data-i18n="chainsan.load_h">Cargar un análisis generado</div>
+          <div class="card-body">
+            <label class="form-label small" for="chainsan-load-root" data-i18n="chainsan.load_hint">
+              Selecciona la carpeta raíz de un análisis de cadenas ya generado por la suite.
+            </label>
+            <div class="input-group input-group-sm mb-2" style="max-width:36rem">
+              <input id="chainsan-load-root" type="text" class="form-control font-monospace"
+                     placeholder="C:\TFG\analisis_cadenas\I131_v1">
+              <button class="btn btn-outline-secondary chainsan-browse-btn" type="button"
+                      data-target="chainsan-load-root" data-i18n-title="sweep.browse" title="Examinar…">
+                <i class="bi bi-folder2-open"></i>
+              </button>
+              <button class="btn btn-primary" type="button" id="btn-chainsan-load">
+                <i class="bi bi-folder-symlink me-1"></i><span data-i18n="sweep.load_btn">Cargar</span>
+              </button>
+            </div>
+            <div id="chainsan-load-msg" class="alert d-none py-2 small"></div>
+
+            <div id="chainsan-loaded-view" class="d-none">
+              <p class="mb-2 small">
+                <span data-i18n="chainsan.loaded_ifinal_lbl">IFINAL:</span>
+                <span id="chainsan-loaded-ifinal" class="badge bg-secondary"></span>
+                &nbsp;·&nbsp;<span data-i18n="chainsan.loaded_pcnt_nmax_lbl">PCNT/NMAX:</span>
+                <span id="chainsan-loaded-pcnt-nmax" class="font-monospace"></span>
+              </p>
+              <div class="table-responsive mb-2">
+                <table class="table table-sm table-bordered align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th data-i18n="chainsan.col_isotope">Isótopo</th>
+                      <th data-i18n="chainsan.col_ci">C_i (át/cm³)</th>
+                      <th data-i18n="sweep.loaded_col_state">Estado de ejecución</th>
+                    </tr>
+                  </thead>
+                  <tbody id="chainsan-loaded-tbody"></tbody>
+                </table>
+              </div>
+              <button type="button" class="btn btn-success btn-sm" id="btn-chainsan-loaded-run">
+                <i class="bi bi-play-fill me-1"></i><span data-i18n="chainsan.run_start_btn">Ejecutar análisis</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div><!-- /sec-chains -->
 
