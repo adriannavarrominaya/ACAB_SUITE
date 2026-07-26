@@ -449,7 +449,7 @@
     "export_tabla1": "Exportar tabla 1",
     "export_tabla2": "Exportar tabla 2",
     "th_cadena": "Cadena",
-    "ptot_note": "PTOT=100 renormaliza el % de cada cadena SOLO entre las que superan PCNT: Σ_z Y_z,i puede quedar por debajo de R_i por la cola descartada (no se corrige aquí).",
+    "ptot_note": "PTOT es la probabilidad TOTAL de que el isótopo inicial acabe en el isótopo objetivo — varía (puede ser ≈100 % o mucho menor, según cuánto del isótopo realmente llega a IFINAL), no es una normalización fija. El % de cada cadena (P) sí está normalizado a 100 entre las cadenas devueltas, por eso X_z,i = P/100 vale en cualquier caso; Σ_z Y_z,i puede quedar por debajo de R_i si hay cadenas por debajo de PCNT sin detallar.",
     "row_hint": "Selecciona una fila de la tabla 2 para ver el diagrama de esa cadena.",
     "diagram_title": "Diagrama de la cadena — {iso}, cadena {n}",
     "estable": "estable",

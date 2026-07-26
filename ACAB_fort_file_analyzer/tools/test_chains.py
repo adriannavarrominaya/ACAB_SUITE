@@ -323,8 +323,13 @@ def test_calcular_analisis_cadenas_sintetico() -> None:
     check_close(fila_fe2["y_z_i"], 0.084, "Y_z_i(FE56, cadena 2) = 0.42 * 0.20 = 0.084")
     check(fila_fe1["nmax"] == 5 and abs(fila_fe1["pcnt"] - 0.01) < 1e-6,
           f"NMAX/PCNT viajan junto a la fila (obtenido NMAX={fila_fe1['nmax']}, PCNT={fila_fe1['pcnt']})")
-    check(fila_fe1["cadena_label"] == "FE56->FE57->CO57",
-          f"cadena_label de la cadena 1 de FE56 (obtenido {fila_fe1['cadena_label']!r})")
+    # F9e: cadena_label incluye el proceso de cada paso (no solo nombres),
+    # distingue cadenas que compartan secuencia de nucleidos pero difieran
+    # en el proceso de algún paso.
+    check(fila_fe1["cadena_label"] == "FE56->(N,G-g)->FE57->(B-)->CO57",
+          f"cadena_label de la cadena 1 de FE56 incluye el proceso de cada paso (obtenido {fila_fe1['cadena_label']!r})")
+    check(fila_fe2["cadena_label"] == "FE56->(N,G-m)->FE57M->(IT)->FE57->(B-)->CO57",
+          f"cadena_label de la cadena 2 de FE56 (vía el isómero FE57M) incluye el proceso de cada paso (obtenido {fila_fe2['cadena_label']!r})")
 
     suma_y = sum(f["y_z_i"] for f in r["tabla2"])
     check_close(suma_y, r["suma_r_i"], "Σ Y_z_i = Σ R_i (sin cola PCNT descartada en este fixture: NCH cubre el 100% de PTOT)")

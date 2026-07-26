@@ -761,11 +761,16 @@ Los badges junto al selector de instante muestran **NMAX** y **PCNT** del
 análisis — toda cifra de CHAINS depende de estos dos parámetros, así que
 viajan siempre visibles junto a la tabla.
 
-> **Nota de renormalización (PTOT).** CHAINS renormaliza el % de cada
-> cadena a PTOT=100 **solo entre las cadenas que superan PCNT**: la cola de
-> cadenas descartadas por debajo de PCNT no se recupera. Por eso Σ<sub>z</sub>
-> Y<sub>z,i</sub> puede quedar por debajo de R<sub>i</sub> — no es un error,
-> es la cola descartada. La nota aparece siempre bajo la tabla 2.
+> **Nota sobre PTOT.** PTOT es la probabilidad TOTAL de que el isótopo
+> inicial acabe en el isótopo objetivo — **varía** según el caso: puede ser
+> ≈100 % (casi todo el isótopo inicial llega a IFINAL, p. ej. TE130→I131) o
+> mucho menor (la mayoría no llega en el nº de pasos NMAX considerado, p.
+> ej. TE128→I131 con PTOT≈0,023 %). No es una constante de renormalización.
+> El % de cada cadena (P) sí está siempre normalizado a 100 entre las
+> cadenas devueltas, así que X<sub>z,i</sub> = P/100 vale en cualquier caso;
+> Σ<sub>z</sub> Y<sub>z,i</sub> puede quedar por debajo de R<sub>i</sub> si
+> hay cadenas por debajo de PCNT sin detallar — no es un error. La nota
+> aparece siempre bajo la tabla 2.
 
 ### Diagrama de la cadena seleccionada
 

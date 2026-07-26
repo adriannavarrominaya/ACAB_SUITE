@@ -449,7 +449,7 @@
     "export_tabla1": "Export table 1",
     "export_tabla2": "Export table 2",
     "th_cadena": "Chain",
-    "ptot_note": "PTOT=100 renormalises each chain's % ONLY among those above PCNT: Σ_z Y_z,i can fall below R_i due to the dropped tail (not corrected here).",
+    "ptot_note": "PTOT is the TOTAL probability that the initial isotope ends up as the target isotope — it varies (it can be ≈100% or much lower, depending on how much of the initial isotope actually reaches IFINAL), not a fixed normalisation. Each chain's % (P) IS normalised to 100 among the returned chains, so X_z,i = P/100 holds either way; Σ_z Y_z,i can fall below R_i if some chains below PCNT are not detailed.",
     "row_hint": "Select a row in table 2 to see that chain's diagram.",
     "diagram_title": "Chain diagram — {iso}, chain {n}",
     "estable": "stable",

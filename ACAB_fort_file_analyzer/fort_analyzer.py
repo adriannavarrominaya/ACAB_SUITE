@@ -866,17 +866,26 @@ def leer_output_chains(filepath: str) -> dict:
       - Cabecera con IFLAG, INITIAL/IFINAL (códigos ZZAAAS), NMAX, PCNT.
       - NCHAIN: nº total de cadenas encontradas (antes del corte por PCNT).
       - NCH: nº de cadenas por encima de PCNT (las únicas detalladas) y
-        PTOT (normalmente 100 tras la renormalización — ver nota abajo).
+        PTOT — ver nota de normalización abajo, PTOT NO es siempre 100.
       - Un bloque por cadena superviviente, delimitado por líneas de
         asteriscos: "P=" (probabilidad relativa, %), la ruta compacta
         (redundante, no se parsea) y el detalle paso a paso
         ("NUCLIDO (PROCESO)   NUCLIDO   XSEC=..." o "...DELTA=...";
         XSEC en capturas, DELTA en decaimientos).
 
-    OJO normalización (decisión de diseño de F9): PTOT=100 renormaliza
-    SOLO entre las cadenas que superan PCNT, así que Σ_z P de las cadenas
-    devueltas puede ser menor que 100 por la cola descartada — no se
-    corrige aquí, queda para la UI (nota al pie).
+    OJO normalización (F9e del BACKLOG, corrige la nota original de F9 que
+    asumía PTOT=100 siempre a partir de un único caso real, TE130→I131):
+    PTOT es la probabilidad TOTAL (en %) de que un núcleo de INITIAL
+    acabe en IFINAL por CUALQUIERA de las cadenas encontradas — NO una
+    constante de renormalización. Puede ser ≈100 (TE130→I131: casi todo
+    el TE130 activado acaba en I131, ``output_chain_Te130_to_I131.txt``)
+    o muy pequeña (TE128→I131: PTOT=0.02304 %, ``output_chain_
+    TE128_to_I131.txt`` — la mayoría del TE128 no llega a I131 en ≤ NMAX
+    pasos). El "P=" de CADA cadena, en cambio, sí es SIEMPRE un porcentaje
+    normalizado a 100 entre las cadenas devueltas (Σ_z P ≈ 100 en ambos
+    fixtures, incluida la cola descartada por debajo de PCNT si NCH <
+    NCHAIN) — por eso X_z_i = P/100 (Fase 4, ``calcular_analisis_cadenas``)
+    es válido sea cual sea PTOT. No confundir ambas magnitudes en la UI.
 
     OJO forma sin cadenas (F9d del BACKLOG, detectado en la primera
     ejecución real: O16/O17/O18, sin camino físico O→I131 en <= NMAX
@@ -1790,12 +1799,24 @@ def leer_chains_manifest(root: str) -> Optional[dict]:
 
 
 def _chain_label(cadena: dict) -> str:
-    """'TE130->TE131->I131' a partir de los pasos de una cadena de CHAINS."""
+    """'TE128->(N,G-m)->TE129M->(N,G-g)->TE130->(N,G-g)->TE131->(B-)->I131'
+    a partir de los pasos de una cadena de CHAINS.
+
+    F9e del BACKLOG: incluye el PROCESO de cada paso, no solo los nombres
+    de nucleido — dos cadenas pueden compartir la misma secuencia de
+    nucleidos y diferir solo en el proceso de algún paso (p. ej. una
+    captura directa NUCLIDO(N,G-g) frente a una vía el isómero metaestable
+    NUCLIDO(N,G-m)), y la etiqueta solo con nombres no las distingue en la
+    Tabla 2.
+    """
     pasos = cadena.get("pasos") or []
     if not pasos:
         return ""
-    nombres = [pasos[0]["desde"]] + [p["hasta"] for p in pasos]
-    return "->".join(nombres)
+    partes = [pasos[0]["desde"]]
+    for p in pasos:
+        partes.append(f"({p['proceso']})")
+        partes.append(p["hasta"])
+    return "->".join(partes)
 
 
 def _nodo_diagrama(nombre: str, t12_dict: dict[str, float]) -> dict:
