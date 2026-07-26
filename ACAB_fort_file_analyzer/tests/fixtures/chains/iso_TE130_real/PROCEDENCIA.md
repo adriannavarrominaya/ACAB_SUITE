@@ -13,7 +13,7 @@ ejecución real POST-hotfix, sesión F9f (2026-07-26).
 ## Origen
 
 Copia byte a byte de `fort.6` (y su `inp.5`) de
-`C:\trabajo\Jose\Simulaciones\Analisis de cadenas\iso_TE130\` — carpeta
+`C:\Simulaciones\Analisis de cadenas\iso_TE130\` — carpeta
 `iso_TE130/` de un análisis de cadenas real generado y ejecutado por
 `ACAB_inp_file_configurator` (11 isótopos del blanco TeO₂: 8 de Te + O16/
 O17/O18, IFINAL=I131, NMAX=5, PCNT=0.01; misma ejecución real que ya dio
