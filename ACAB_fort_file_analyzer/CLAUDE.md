@@ -164,6 +164,32 @@ App web Flask (monousuario, 127.0.0.1:5001) para analizar ficheros de salida `fo
   `calcular_analisis_cadenas` — sin endpoint propio). Exportación CSV de
   ambas tablas independiente del selector de unidad de actividad (esta
   pestaña trabaja siempre en Bq/cm³, la unidad interna del fort.6).
+  F9f del BACKLOG (hotfix causa raíz) — hasta esta sesión la pestaña era
+  "independiente" solo en el código: el HTML envolvía TODA la barra de
+  pestañas (`#resultTabs`+`.tab-content`, incluida ésta) en
+  `#results-panel` con `d-none` hasta el primer `/api/analyze` con éxito,
+  así que ni un clic manual ni `?chains_root=` la hacían visible sin antes
+  analizar una carpeta de "Simulaciones". Arreglado quitando ese `d-none`
+  permanente (la barra de pestañas vive visible desde el arranque); la
+  guía de bienvenida que antes era una pantalla `#welcome-panel` aparte
+  ahora es el contenido inicial de `#overview-container` (pestaña
+  "Simulaciones"), sustituido por `renderOverview()` tras el primer
+  análisis igual que el resto de pestañas ya degradaban con un
+  placeholder estático (`report.placeholder`/`tables.placeholder`/
+  `optim.placeholder`/`espectro.placeholder`; `charts.placeholder` nuevo
+  de esta sesión, único hueco que faltaba). Badge nuevo junto a
+  NMAX/PCNT con la carpeta de referencia (`json.reference_folder` del
+  manifest, ya existía en la respuesta — solo faltaba mostrarla) y nota
+  `chains.reference_note`: las P de CHAINS dependen del espectro de la
+  referencia (tapes fort.22/fort.24), no son una propiedad fija del par
+  isótopo/IFINAL — verificado con el mismo TE130→I131 dando 95,79/3,12/
+  1,09 % con una referencia y 94,550/4,303/1,144 % con otra (v.5, tapes
+  reales de `C:\trabajo\Jose\Simulaciones\Analisis de cadenas\chains_TE130\`,
+  fuera del repo). Fixture oro positivo pendiente desde F9e ya congelado:
+  `tests/fixtures/chains/iso_TE130_real/` (fort.6 real, INPT=2, el eco
+  contiene SOLO TE130 con C_i=1.570E20 át/cm³, A_pico(I131)=1.6500E4 —
+  ver su `PROCEDENCIA.md` y `test_leer_concentraciones_iniciales_iso_te130_real_positivo`
+  en `test_chains.py`).
   `Z_BY_ELEM` cubre la tabla periódica completa símbolo→Z (H..Og, claves en
   MAYÚSCULAS como en fort.6; Fase 1 de `RUNBOOK_fort_analyzer_mejoras.md`) —
   el campo Z del informe y la exportación CSV funcionan con cualquier material,

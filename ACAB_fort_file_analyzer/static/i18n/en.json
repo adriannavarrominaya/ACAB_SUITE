@@ -124,6 +124,7 @@
 
   "charts": {
     "title": "Activity Evolution by Isotope",
+    "placeholder": "Analyze a folder in the <strong>Simulations</strong> tab to see the activity charts.",
     "show_irr": "Show irradiation phase",
     "filter_all": "All figures",
     "filter_te": "Tellurium (Te)",
@@ -439,6 +440,8 @@
     "t_label": "Instant t*",
     "t_pico_tag": "reference peak",
     "ifinal_badge": "IFINAL={iso}",
+    "reference_badge": "Reference: {folder}",
+    "reference_note": "Each chain's probability P (CHAINS output) depends on the tapes (fort.22/fort.24) generated from THIS reference folder's spectrum — the same INITIAL/IFINAL/NMAX/PCNT can give different P values with a different reference. Verified example: TE130→I131 gives P=95.79/3.12/1.09% with the original fixture family's tapes and P=94.550/4.303/1.144% with the v.5 reference's tapes (thesis spectrum) — do not compare CHAINS figures across analyses with different references.",
     "tabla1_title": "Table 1 — contribution by initial isotope (R_i)",
     "th_isotopo": "Isotope",
     "th_nota": "Chains",

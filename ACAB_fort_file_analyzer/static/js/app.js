@@ -755,9 +755,6 @@ async function doAnalyze(opts = {}) {
     // (falls back to Bq/cm³ if MBq/g was active but no sim carries density).
     syncUnitControls();
 
-    // Show results UI
-    document.getElementById('welcome-panel').classList.add('d-none');
-    document.getElementById('results-panel').classList.remove('d-none');
     setStatus(t('status.sims_count', { n: simNames.length }), 'success');
 
     // YAML badges (sidebar general status + figuras-tab origin badge)
@@ -995,6 +992,7 @@ function renderOverview(data) {
   }).join('');
 
   let html = `
+    <h5 class="mb-3">${t('overview.title')}</h5>
     ${anyDesactualizada ? `
       <div class="alert alert-warning d-flex align-items-center gap-2 py-2 mb-3" style="font-size:0.85rem">
         <i class="bi bi-exclamation-triangle-fill"></i>
@@ -1655,7 +1653,13 @@ function _renderChainsResults() {
         <span class="badge bg-secondary">${t('chains.ifinal_badge', { iso: escHtml(json.ifinal) })}</span>
         <span class="badge bg-secondary">NMAX=${json.nmax}</span>
         <span class="badge bg-secondary">PCNT=${json.pcnt}</span>
+        <span class="badge bg-secondary" style="cursor:help" title="${escAttr(json.reference_folder || '')}">
+          ${t('chains.reference_badge', { folder: escHtml(_folderBasename(json.reference_folder)) })}
+        </span>
       </div>
+    </div>
+    <div class="small text-muted mb-3">
+      <i class="bi bi-info-circle me-1"></i>${t('chains.reference_note')}
     </div>
 
     <h6 class="mt-3">${t('chains.tabla1_title')}</h6>
@@ -4135,6 +4139,13 @@ function escHtml(s) {
 
 function escAttr(s) {
   return String(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/** Último segmento de una ruta Windows/POSIX (badge de referencia, F9f). */
+function _folderBasename(path) {
+  if (!path) return '';
+  const parts = String(path).split(/[\\/]/).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : path;
 }
 
 function fmtSci(v) {

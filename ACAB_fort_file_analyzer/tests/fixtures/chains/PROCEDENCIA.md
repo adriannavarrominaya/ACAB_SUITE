@@ -21,6 +21,14 @@ DELTA=4.6210E-04 (paso 2).
 
 No modificar sin re-verificar el original y sincronizar ambas copias.
 
+## `iso_TE130_real/` (F9f del BACKLOG, 2026-07-26)
+
+Fixture oro POSITIVO pendiente desde F9e: `fort.6`/`inp.5` reales de la
+primera ejecución del pipeline YA CORREGIDO (`INPT=2`), congelando el
+"eco contiene SOLO TE130" que antes solo estaba documentado como bug
+corregido pero sin verificar contra un binario real. Ver el
+`PROCEDENCIA.md` propio de esa subcarpeta para el detalle completo.
+
 ## `output_chain_no_pathways_O16.txt` (F9d del BACKLOG, 2026-07-26)
 
 Copia byte a byte (verificada con `Get-FileHash`, no hay copia canónica en

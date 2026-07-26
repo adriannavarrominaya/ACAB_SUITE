@@ -210,47 +210,16 @@
          ────────────────────────────────────────────────────────────────── -->
     <div class="col-xl-9 col-lg-8">
 
-      <!-- Welcome panel (before analysis) -->
-      <div id="welcome-panel">
-        <div class="card shadow-sm">
-          <div class="card-body text-center py-5">
-            <i class="bi bi-radioactive display-1 text-warning mb-3 d-block"></i>
-            <h3 class="mb-2" data-i18n="welcome.title">ACAB Fort File Analyzer</h3>
-            <p class="text-muted mb-4" data-i18n-html="welcome.lead">
-              Herramienta de análisis de isótopos para simulaciones ACAB.<br>
-              Carga los ficheros <code>fort.6</code> e <code>inp.5</code> de múltiples simulaciones<br>
-              y visualiza la actividad, tablas comparativas e informe detallado del isótopo seleccionado.
-            </p>
-            <div class="row justify-content-center">
-              <div class="col-md-8">
-                <div class="alert alert-info text-start">
-                  <strong><i class="bi bi-info-circle me-1"></i><span data-i18n="welcome.howto_title">Cómo usar:</span></strong>
-                  <ol class="mb-0 mt-2 small" data-i18n-html="welcome.howto">
-                    <li>Introduce la ruta de la carpeta que contiene las subcarpetas de simulaciones.</li>
-                    <li>Cada subcarpeta debe contener al menos un fichero <code>fort.6</code>.</li>
-                    <li>Para leer T<sub>irr</sub>, T<sub>cool</sub> y flujo automáticamente, incluye <code>inp.5</code> en cada subcarpeta.</li>
-                    <li>Opcionalmente, sube un fichero YAML de configuración de semividas y figuras.</li>
-                    <li>Haz clic en <strong>Analizar</strong>.</li>
-                  </ol>
-                </div>
-                <div class="alert alert-secondary text-start small mb-0">
-                  <strong><i class="bi bi-folder2 me-1"></i><span data-i18n="welcome.structure_title">Estructura esperada:</span></strong><br>
-                  <code data-i18n-html="welcome.structure">
-                    carpeta_padre/<br>
-                    &nbsp;&nbsp;simulacion_A/fort.6 &nbsp;[inp.5]<br>
-                    &nbsp;&nbsp;simulacion_B/fort.6 &nbsp;[inp.5]<br>
-                    &nbsp;&nbsp;…<br>
-                    &nbsp;&nbsp;[figuras.yaml]
-                  </code>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Results panel (after analysis) -->
-      <div id="results-panel" class="d-none">
+      <!-- Result tabs: SIEMPRE visibles (F9f del BACKLOG) — la pestaña
+           "Análisis de cadenas" es independiente de la carpeta de
+           simulaciones y no puede depender de que exista un análisis previo.
+           El resto de pestañas siguen mostrando un placeholder estático
+           hasta la primera llamada a /api/analyze (mismo patrón que
+           report.placeholder/tables.placeholder/optim.placeholder/
+           espectro.placeholder de más abajo; overview-container arranca con
+           la guía de bienvenida, sustituida por renderOverview() tras
+           analizar). -->
+      <div id="results-panel">
 
         <!-- Error summary -->
         <div id="errors-panel" class="d-none mb-3">
@@ -308,10 +277,51 @@
 
         <div class="tab-content border border-top-0 rounded-bottom bg-white p-3 shadow-sm">
 
-          <!-- TAB 1: Simulaciones Overview -->
+          <!-- TAB 1: Simulaciones Overview — arranca con la guía de
+               bienvenida (antes "welcome-panel" fuera de las pestañas,
+               F9f del BACKLOG); renderOverview() la sustituye entera tras
+               la primera llamada a /api/analyze (mismo patrón que el resto
+               de placeholders de esta lista de pestañas). El título
+               "Resumen de Simulaciones" lo genera renderOverview() (solo
+               tiene sentido una vez hay datos). -->
           <div class="tab-pane fade show active" id="pane-overview" role="tabpanel">
-            <h5 class="mb-3" data-i18n="overview.title">Resumen de Simulaciones</h5>
-            <div id="overview-container"></div>
+            <div id="overview-container">
+              <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                  <i class="bi bi-radioactive display-1 text-warning mb-3 d-block"></i>
+                  <h3 class="mb-2" data-i18n="welcome.title">ACAB Fort File Analyzer</h3>
+                  <p class="text-muted mb-4" data-i18n-html="welcome.lead">
+                    Herramienta de análisis de isótopos para simulaciones ACAB.<br>
+                    Carga los ficheros <code>fort.6</code> e <code>inp.5</code> de múltiples simulaciones<br>
+                    y visualiza la actividad, tablas comparativas e informe detallado del isótopo seleccionado.
+                  </p>
+                  <div class="row justify-content-center">
+                    <div class="col-md-8">
+                      <div class="alert alert-info text-start">
+                        <strong><i class="bi bi-info-circle me-1"></i><span data-i18n="welcome.howto_title">Cómo usar:</span></strong>
+                        <ol class="mb-0 mt-2 small" data-i18n-html="welcome.howto">
+                          <li>Introduce la ruta de la carpeta que contiene las subcarpetas de simulaciones.</li>
+                          <li>Cada subcarpeta debe contener al menos un fichero <code>fort.6</code>.</li>
+                          <li>Para leer T<sub>irr</sub>, T<sub>cool</sub> y flujo automáticamente, incluye <code>inp.5</code> en cada subcarpeta.</li>
+                          <li>Opcionalmente, sube un fichero YAML de configuración de semividas y figuras.</li>
+                          <li>Haz clic en <strong>Analizar</strong>.</li>
+                        </ol>
+                      </div>
+                      <div class="alert alert-secondary text-start small mb-0">
+                        <strong><i class="bi bi-folder2 me-1"></i><span data-i18n="welcome.structure_title">Estructura esperada:</span></strong><br>
+                        <code data-i18n-html="welcome.structure">
+                          carpeta_padre/<br>
+                          &nbsp;&nbsp;simulacion_A/fort.6 &nbsp;[inp.5]<br>
+                          &nbsp;&nbsp;simulacion_B/fort.6 &nbsp;[inp.5]<br>
+                          &nbsp;&nbsp;…<br>
+                          &nbsp;&nbsp;[figuras.yaml]
+                        </code>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- TAB 2: Activity Charts -->
@@ -342,7 +352,12 @@
                 </button>
               </div>
             </div>
-            <div id="charts-container"></div>
+            <div id="charts-container">
+              <div class="alert alert-info mt-3">
+                <i class="bi bi-hand-index me-2"></i>
+                <span data-i18n-html="charts.placeholder">Analiza una carpeta en la pestaña <strong>Simulaciones</strong> para ver las gráficas de actividad.</span>
+              </div>
+            </div>
           </div>
 
           <!-- TAB 3: Isotope Report -->

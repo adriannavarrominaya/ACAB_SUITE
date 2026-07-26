@@ -124,6 +124,7 @@
 
   "charts": {
     "title": "Evolución de Actividad por Isótopo",
+    "placeholder": "Analiza una carpeta en la pestaña <strong>Simulaciones</strong> para ver las gráficas de actividad.",
     "show_irr": "Mostrar fase de irradiación",
     "filter_all": "Todas las figuras",
     "filter_te": "Teluro (Te)",
@@ -439,6 +440,8 @@
     "t_label": "Instante t*",
     "t_pico_tag": "pico de la referencia",
     "ifinal_badge": "IFINAL={iso}",
+    "reference_badge": "Referencia: {folder}",
+    "reference_note": "Las probabilidades P de cada cadena (salida de CHAINS) dependen de las tapes (fort.22/fort.24) generadas a partir del espectro de ESTA carpeta de referencia — el mismo INITIAL/IFINAL/NMAX/PCNT puede dar P distintos con otra referencia. Ejemplo verificado: TE130→I131 da P=95,79/3,12/1,09 % con las tapes de la familia original de fixtures y P=94,550/4,303/1,144 % con las tapes de la referencia v.5 (espectro de la tesis) — no comparar cifras de CHAINS entre análisis con referencias distintas.",
     "tabla1_title": "Tabla 1 — contribución por isótopo inicial (R_i)",
     "th_isotopo": "Isótopo",
     "th_nota": "Cadenas",

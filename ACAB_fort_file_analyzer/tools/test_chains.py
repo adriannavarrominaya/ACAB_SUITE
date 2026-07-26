@@ -41,6 +41,7 @@ OUTPUT_CHAIN_TE128 = str(FIXTURES / "chains" / "output_chain_TE128_to_I131.txt")
 DECAY = str(REF_SIM / "DECAY.dat")
 FORT6 = str(REF_SIM / "fort.6")
 CHAINS_SYNTHETIC = FIXTURES / "chains_synthetic"
+FORT6_ISO_TE130_REAL = str(FIXTURES / "chains" / "iso_TE130_real" / "fort.6")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Mini-framework de aserciones
@@ -234,6 +235,28 @@ def test_leer_concentraciones_iniciales_ref_sim() -> None:
 
     suma_o = sum(c[iso] for iso in o_isos)
     check_close(suma_o, 9.2896e20, "Σ C_i(O) reproduce XCOMP(O)x1e24 dentro del redondeo del fort.6", rtol=1e-3)
+
+
+def test_leer_concentraciones_iniciales_iso_te130_real_positivo() -> None:
+    section("leer_concentraciones_iniciales / A_pico(I131) — fixture oro positivo iso_TE130 (F9f, INPT=2)")
+
+    # Fixture oro POSITIVO pendiente desde F9e (ver PROCEDENCIA.md de
+    # tests/fixtures/chains/iso_TE130_real): fort.6 REAL de la primera
+    # ejecución del pipeline ya corregido (INPT=2 en vez de INPT=1). A
+    # diferencia de fort6_iso_TE130_INPT1_invalido_extracto.txt (repo
+    # inp-conf, INPT=1, expande a los 8 isótopos de Te), el eco debe
+    # contener SOLO TE130.
+    c = fa.leer_concentraciones_iniciales(FORT6_ISO_TE130_REAL)
+    check(set(c.keys()) == {"TE130"}, f"el inventario inicial contiene SOLO TE130 (obtenido {sorted(c.keys())})")
+    check_close(c.get("TE130"), 1.570e20, "C_i(TE130) = 1.570e20 át/cm³ (eco NUMBER OF ATOMS)", rtol=1e-3)
+
+    # A_pico(I131): la serie de enfriamiento del fort.6 real basta -- el
+    # pico ocurre en el segundo TIME SET (t>T_irr), no hace falta construir
+    # el dict "sim" completo que exige calcular_pico().
+    _, datos_cool = fa.leer_fort6_enfriamiento(FORT6_ISO_TE130_REAL)
+    check("I131" in datos_cool, "I131 presente en la serie de enfriamiento")
+    a_pico = float(datos_cool["I131"].max())
+    check_close(a_pico, 1.6500e4, "A_pico(I131) = 1.6500e4 Bq/cm³", rtol=1e-3)
 
 
 def test_nombre_a_zzaaas_casos_directos() -> None:
@@ -441,6 +464,7 @@ def main() -> int:
     test_leer_output_chains_te128_hermano_de_c6()
     test_leer_output_chains_sin_cadenas()
     test_leer_concentraciones_iniciales_ref_sim()
+    test_leer_concentraciones_iniciales_iso_te130_real_positivo()
     test_nombre_a_zzaaas_casos_directos()
     test_nombre_a_zzaaas_ida_y_vuelta()
     test_calcular_analisis_cadenas_sintetico()

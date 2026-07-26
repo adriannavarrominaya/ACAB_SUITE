@@ -757,10 +757,22 @@ cadenas más importantes primero, sea cual sea su isótopo de origen):
 | R<sub>i</sub> | El mismo R<sub>i</sub> de la tabla 1, repetido para el cálculo |
 | Y<sub>z,i</sub> | Y<sub>z,i</sub> = R<sub>i</sub>·X<sub>z,i</sub> — peso real de esa cadena concreta en la producción total de IFINAL |
 
-Los badges junto al selector de instante muestran **NMAX** y **PCNT** del
-análisis — toda cifra de CHAINS depende de estos dos parámetros, así que
-viajan siempre visibles junto a la tabla.
+Los badges junto al selector de instante muestran **NMAX**, **PCNT** y la
+**carpeta de referencia** del análisis — toda cifra de CHAINS depende de
+estos tres datos, así que viajan siempre visibles junto a la tabla.
 
+> **Nota sobre la procedencia de las P.** Las probabilidades P de cada
+> cadena no son una propiedad universal del par isótopo inicial/IFINAL: las
+> calcula CHAINS a partir de las **tapes** (`fort.22`/`fort.24`), que a su
+> vez se generan con el **espectro neutrónico de la carpeta de
+> referencia**. Cambiar de referencia (otro espectro) cambia las P aunque
+> NMAX/PCNT/IFINAL sean idénticos. Ejemplo verificado: TE130→I131 da
+> P = 95,79 / 3,12 / 1,09 % con las tapes de una referencia y
+> P = 94,550 / 4,303 / 1,144 % con las tapes de otra (espectro de la
+> tesis, v.5) — misma cadena dominante, magnitudes distintas. No comparar
+> cifras de CHAINS de análisis con referencias distintas; el badge de
+> referencia identifica de cuál procede cada tabla.
+>
 > **Nota sobre PTOT.** PTOT es la probabilidad TOTAL de que el isótopo
 > inicial acabe en el isótopo objetivo — **varía** según el caso: puede ser
 > ≈100 % (casi todo el isótopo inicial llega a IFINAL, p. ej. TE130→I131) o
