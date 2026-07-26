@@ -339,8 +339,12 @@
     }
 
     if (root) {
+      // F9e del BACKLOG: ?chains_root= (no ?folder=) -- abre directamente
+      // la pestaña "Análisis de cadenas" del analyzer con esta carpeta
+      // precargada, no la pestaña "Simulaciones" (un chains_manifest.json
+      // no es una carpeta de simulaciones normal, ver app.js del analyzer).
       $('btn-chainsan-run-open-analyzer').href =
-        `http://127.0.0.1:5001/?folder=${encodeURIComponent(root)}`;
+        `http://127.0.0.1:5001/?chains_root=${encodeURIComponent(root)}`;
       $('btn-chainsan-run-open-analyzer').classList.remove('d-none');
     }
   }
