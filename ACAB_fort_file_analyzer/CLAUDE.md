@@ -94,6 +94,15 @@ App web Flask (monousuario, 127.0.0.1:5001) para analizar ficheros de salida `fo
   Soporta deep link `?folder=<carpeta>` (Fase R3 del runbook runner v2, botón
   "Abrir en Fort Analyzer" del INP configurator): al cargar, si el query param
   está presente rellena `folder-input` y lanza `doAnalyze()` automáticamente.
+  F9e del BACKLOG — deep link SEPARADO `?chains_root=<carpeta>` (mismo botón
+  del INP configurator pero desde el panel de ejecución del análisis de
+  cadenas, `static/js/chains_sweep.js`): un `chains_manifest.json` no es una
+  carpeta de "Simulaciones" normal, así que `?folder=` aterrizaría en la
+  pestaña equivocada; `?chains_root=` fija `_state.chainsRoot`, activa la
+  pestaña "Análisis de cadenas" (`bootstrap.Tab...show()` sobre
+  `tab-chains-btn`) y lanza `fetchChainsReport()` en cuanto se construye el
+  panel (mismo evento `shown.bs.tab` que ya construye el panel la primera
+  vez que se muestra la pestaña a mano).
   Pestaña "Espectro gamma" (B1 del BACKLOG, `renderEspectroGamma`/
   `fetchEspectroGamma`/`_renderEspectroChartAndTable`): solo depende de la
   carpeta analizada, no del isótopo seleccionado (a diferencia de Informe/

@@ -659,6 +659,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('folder-input').value = folderParam;
     doAnalyze();
   }
+
+  // ── Deep link desde el análisis de cadenas (F9e del BACKLOG):
+  // ?chains_root=<carpeta> ──────────────────────────────────────────────────
+  // La pestaña "Análisis de cadenas" es independiente de folder-input/
+  // analysisData (tiene su propio _state.chainsRoot, ver arriba) -- un
+  // chains_manifest.json no es una carpeta de "Simulaciones" normal, así
+  // que el botón "Abrir en Fort Analyzer" del pipeline de cadenas (inp-conf,
+  // chains_sweep.js) no puede reutilizar ?folder= sin más: cambia a esta
+  // pestaña y lanza fetchChainsReport() automáticamente, mismo patrón que
+  // el deep link de arriba pero apuntando a su propio estado.
+  const chainsRootParam = new URLSearchParams(window.location.search).get('chains_root');
+  if (chainsRootParam) {
+    _state.chainsRoot = chainsRootParam;
+    const chainsTabBtn = document.getElementById('tab-chains-btn');
+    chainsTabBtn.addEventListener('shown.bs.tab', () => fetchChainsReport(), { once: true });
+    bootstrap.Tab.getOrCreateInstance(chainsTabBtn).show();
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
