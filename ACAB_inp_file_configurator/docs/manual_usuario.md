@@ -65,7 +65,7 @@ entorno virtual (`...\venv\Scripts\python app.py`) y abre
 
 ### Tour rápido de la barra superior
 
-- **Archivo** — Nuevo, Cargar inp.5…, Guardar como…, Validar, Vista previa del
+- **Archivo** — Nuevo, Cargar inp.5…, Descargar, Validar, Vista previa del
   fichero. Es el menú que usarás en casi cada sesión (secciones 3, 4 y 7).
 - **Herramientas → CHAINS — Análisis de caminos** — abre la página dedicada a
   ficheros CHAINS (sección 8).
@@ -80,6 +80,10 @@ entorno virtual (`...\venv\Scripts\python app.py`) y abre
   más rápida de encontrar un parámetro sin memorizar en qué sección vive.
 - **Selector de idioma** (esquina superior derecha, bandera) — Español/English;
   la preferencia se guarda en el navegador.
+- **Botón "Guardar en carpeta…"** (primario, junto al selector de idioma) —
+  escribe el `inp.5` directamente en una carpeta del disco (sección 7); es la
+  vía recomendada para guardar. "Descargar" (dentro de Archivo) queda como
+  alternativa secundaria.
 - **Botón Ejecutar** (verde, junto al estado del fichero) — abre el modal de
   ejecución de ACAB (sección 7).
 - **Estado del fichero** (texto junto al botón Ejecutar) — indica si hay un
@@ -94,6 +98,14 @@ Cada bloque tiene también un área de **comentario** (fondo gris, borde
 discontinuo): el texto que escribas ahí se inserta en el `inp.5` generado como
 líneas `<` justo antes del bloque. Es útil para dejar constancia de por qué
 elegiste un valor, sin que ACAB lo interprete.
+
+> **Autoguardado de sesión.** La app guarda periódicamente (cada pocos
+> segundos, y también al recargar/cerrar la pestaña o al navegar a otra app
+> de la suite desde el banner) el estado del formulario en el navegador
+> (`localStorage`). Al volver a abrir la app se restaura automáticamente esa
+> sesión (aviso "Sesión anterior restaurada."), así que recargar la página no
+> hace perder el trabajo en curso. No sustituye a guardar el `inp.5` en disco
+> (secciones 7): es solo una red de seguridad del propio navegador.
 
 ---
 
@@ -241,9 +253,21 @@ corregirlos.
 - **Archivo → Vista previa del fichero** abre un modal de solo lectura con el
   `inp.5` completo tal como se generaría, con contador de líneas y botón
   **"Copiar al portapapeles"**. Útil para revisar el resultado antes de
-  descargarlo.
-- **Archivo → Guardar como…** pide un nombre de fichero (por defecto
-  `output.5`) y descarga el `inp.5` generado.
+  guardarlo.
+- **"Guardar en carpeta…"** (botón primario de la barra superior) es la vía
+  recomendada de guardado: escribe `inp.5` directamente en la carpeta que
+  indiques (o elijas con el botón de examinar), sin pasar por el diálogo de
+  descarga del navegador. Antes de escribir se re-ejecuta la validación
+  (bloquea con errores, pide confirmar con advertencias, igual que la
+  sección 4); si ya existe un `inp.5` en esa carpeta, pide confirmar
+  sobrescritura. La app recuerda la última carpeta usada
+  (`localStorage`) y la ofrece como valor inicial la próxima vez — y también
+  como carpeta de partida del **Directorio de trabajo** al ejecutar ACAB
+  (paso 1 más abajo).
+- **Archivo → Descargar** (antes "Guardar como…") pide un nombre de fichero
+  (por defecto `output.5`) y descarga el `inp.5` generado al disco por la vía
+  clásica del navegador (en Chromium, con el selector nativo de guardado).
+  Queda como opción secundaria frente a "Guardar en carpeta…".
 
 ### Ejecutar ACAB sin salir del navegador
 
@@ -253,7 +277,10 @@ ACAB"**:
 1. **Directorio de trabajo**: la carpeta donde está (o estará) el ejecutable
    `acab.exe` y sus ficheros auxiliares. ACAB se ejecuta siempre por `cwd`,
    sin argumentos — todos los ficheros que necesite deben estar ya en esa
-   carpeta.
+   carpeta. Si ya usaste **"Guardar en carpeta…"** en esta sesión, el campo
+   se precarga con esa carpeta (tiene prioridad sobre el workdir de la
+   última ejecución); siempre es editable y tiene su propio botón de
+   examinar.
 2. **Ejecutable** (por defecto `acab.exe`) y **Timeout (s)** (por defecto 60;
    súbelo para cálculos largos).
 3. Casilla **"Guardar el fichero actual (inp.5) en el directorio de trabajo
@@ -263,8 +290,9 @@ ACAB"**:
    oscura, con un cronómetro y una insignia de estado (En ejecución… / OK /
    Timeout / Cancelado / Error con el código de salida). **Cancelar** detiene
    la ejecución en curso.
-5. Al terminar con éxito aparece el botón **"Abrir en Fort Analyzer"**, que
-   lleva directamente esa carpeta de resultados al analizador de `fort.6`.
+5. Al terminar con éxito aparece el botón **"Abrir en Fort Analyzer"** (se
+   abre en una pestaña nueva del navegador), que lleva directamente esa
+   carpeta de resultados al analizador de `fort.6`.
 
 Si no indicas directorio de trabajo antes de pulsar Ejecutar, la app avisa y
 no lanza nada.
@@ -322,9 +350,13 @@ parámetro y dejan fijo el resto del fichero.
 
 - **Carpeta raíz de salida** — dónde se crean las subcarpetas, una por
   simulación.
-- **Carpeta base a copiar** — su contenido completo (librerías, ejecutables,
-  ficheros auxiliares) se copia íntegro a cada subcarpeta; el `inp.5`
-  generado **reemplaza** cualquier `inp.5` que hubiera en la carpeta base.
+- **Carpeta base a copiar** — su contenido (librerías, ejecutables, ficheros
+  auxiliares) se copia a cada subcarpeta; el `inp.5` generado **reemplaza**
+  cualquier `inp.5` que hubiera en la carpeta base. Las salidas de una
+  ejecución previa de la propia carpeta base (`fort.6`, `run.log` y, según el
+  tipo de barrido, también `FLUX.inf`/`XSECTION.dat`/salidas de COLLAPS) se
+  excluyen de la copia para no arrastrar resultados de otra simulación —
+  detalle completo en "Entender el manifest" más abajo.
 - **Prefijo** — antepuesto al sufijo autogenerado de cada carpeta
   (`<prefijo><sufijo>`, p. ej. `TeO2_x0.75`).
 - **Descripción del barrido** (obligatoria) — texto libre que queda en el
@@ -345,8 +377,17 @@ congelados. Dos modos de entrada, seleccionables con un radio:
   calcula `XNORM = φ_objetivo / φ_base`, mostrando el **flujo total base**
   (Σ Bloque #3 × XNORM del fichero base) como referencia.
 
-En ambos casos, los **valores** se escriben separados por comas.
+En ambos casos, los **valores** se escriben separados por comas. La
+etiqueta y el marcador de ejemplo del campo cambian según el modo elegido
+(en modo "Flujo total objetivo", muestran la unidad `[n/cm²·s]` y, si hay un
+fichero base cargado, ejemplos derivados de su flujo total real).
 
+> **Guardarraíl de modo.** Al previsualizar, si algún valor introducido
+> produce un `XNORM` fuera del rango habitual [10⁻³, 10³] (en cualquiera de
+> los dos modos), aparece un aviso no bloqueante señalando esos valores —
+> típicamente indica que se han mezclado factores con flujos absolutos entre
+> los dos modos de entrada.
+>
 > **Nota física.** `XNORM` escala la magnitud del flujo, no la forma del
 > espectro: las secciones eficaces colapsadas con COLLAPS siguen siendo
 > válidas en todo el barrido. Si el escenario real cambia la forma del
@@ -610,10 +651,22 @@ de las dos condiciones no se cumple.
      y `fort.24`.
    - `iso_<isótopo>/` por cada isótopo marcado — copia de la referencia con
      un patch **monoisotópico** del Bloque #5 (esa zona pasa a tener un
-     único nucleido, con la C<sub>i</sub> real leída del `fort.6`).
+     único nucleido, con la C<sub>i</sub> real leída del `fort.6`, y `NUCZO`
+     de esa zona ajustado a 1). El patch fija además `INPT = 2` ("leer como
+     isótopos") en esta carpeta, sea cual sea el `INPT` de la referencia:
+     con `INPT = 1` ("leer como elementos") ACAB interpretaría el
+     identificador del isótopo como el elemento completo e **expandiría la
+     composición a la abundancia natural de ese elemento** (todos sus
+     isótopos, no solo el marcado), invalidando el análisis monoisotópico —
+     confirmado en un caso real donde `iso_TE130/` aparecía en el `fort.6`
+     con los 8 isótopos de Te natural en vez de solo TE130. `tape22/` y
+     `tape24/` no tocan `INPT` (usan el de la referencia sin modificar).
    - `chains_<isótopo>/` por cada isótopo — carpeta con `input_chain.txt`
      (IFLAG=2, IINICIAL/IFINAL en código ZZAAAS, NMAX, PCNT) lista para
-     `chains.exe`.
+     `chains.exe`; si la carpeta de referencia contiene `chains.exe`,
+     `REACTIONS.dat` y `DECAY.dat` (los ficheros de datos que necesita
+     CHAINS para arrancar), se copian automáticamente aquí — su ausencia no
+     rompe la generación, solo impide ejecutar después.
    - `chains_manifest.json` en la raíz — referencia, parámetros e isótopos
      con su estado; lo consume el Fort Analyzer.
 
@@ -621,13 +674,29 @@ de las dos condiciones no se cumple.
 
 El panel de ejecución sigue el mismo patrón que el de los barridos
 paramétricos (sección 9): pulsa **"Ejecutar"** y sigue el estado por
-subcarpeta en la tabla (Pendiente / En ejecución / OK / Fallo…). El pipeline
+subcarpeta en la tabla (columnas Carpeta / Estado / **Paso** — `ACAB` /
+`copia de tapes` / `CHAINS`, según en qué punto del pipeline va esa
+subcarpeta / Duración / **Log**). Si reejecutas un análisis que ya se generó
+antes, cada `chains_<isótopo>/` se limpia de restos de un intento anterior
+(`output_chain.txt`, `fort.23`, `fort.31`) y se resiembran
+`REACTIONS.dat`/`DECAY.dat` antes de lanzar, así que una carpeta generada
+antes de tener esos ficheros se autorrepara sola al reejecutar. El pipeline
 por isótopo es: `acab.exe` monoisotópico (genera el `fort.6` que usará el
 analyzer para A<sub>i</sub>(t)) → copiar `fort.22`/`fort.24` desde
 `tape22/`/`tape24/` → `chains.exe` (con `input_chain.txt` por su entrada
 estándar y `output_chain.txt` como salida). El run de `tape24/` (IMTX=1)
 termina **sin** generar `fort.6` — es un resultado normal, no un fallo: ese
 run solo existe para producir `fort.24`.
+
+En cualquier fila con estado **Fallo** o **Timeout**, el botón **"Ver
+run.log"** de la columna Log vuelca al panel de log el `run.log` de la
+carpeta concreta del paso que falló (no necesariamente la carpeta de nivel
+superior del isótopo — p. ej. si falla el paso `CHAINS`, es el `run.log` de
+`chains_<isótopo>/`). Al terminar la ejecución aparece el botón **"Abrir en
+Fort Analyzer"**, que navega en la misma pestaña a la pestaña "Análisis de
+cadenas" del Fort Analyzer con esa carpeta raíz ya cargada (usa el parámetro
+`?chains_root=`, distinto del `?folder=` que usan las carpetas de
+"Simulaciones" normales — un `chains_manifest.json` no es un barrido).
 
 ### Consultar un análisis ya generado
 
@@ -650,6 +719,7 @@ en la pestaña **"Análisis de cadenas"** del **Fort Analyzer**.
 | "No hay densidad en la librería para esta fórmula" | Composición asistida (Bloque #5) | El compuesto/elemento no está en `atomic_data.json` para calcular V = m/ρ | Introduce el volumen de zona manualmente |
 | Aviso de volumen vs. XRR | Composición asistida, con `IGE = 4` | El volumen introducido no coincide con la componente `XRR` de la zona en el Bloque #2 | Corrige uno de los dos valores para mantener la coherencia geométrica |
 | "El barrido de masa no está disponible" | Pestaña Barrido, tipo Masa | El fichero base usa `INPT = 2` (isótopos), no soportado por este tipo de barrido | Usa `INPT = 1` o `3`, o barre otro parámetro |
+| Aviso de valores fuera del rango habitual de XNORM | Pestaña Barrido, tipo Flujo, al previsualizar | Alguno de los valores introducidos produce un `XNORM` fuera de [10⁻³, 10³] — típico de mezclar factores con flujos absolutos entre los dos modos de entrada | Informativo, no bloquea; revisa si el modo seleccionado (factores / flujo total objetivo) es el que querías usar |
 | Checksum de espectro KO | Barrido espectral, al importar un fichero CONDERC | La suma de `DATA` no coincide con la línea `TOTAL` del fichero (tolerancia 10⁻³) | El fichero CONDERC probablemente está truncado o corrupto; descárgalo de nuevo desde el OIEA |
 | Badge de aviso direccional | Tabla de espectros del barrido espectral | El espectro importado tiene menos grupos que la librería XSBL (211); expandirlo es la operación menos fiable de la transcripción | Informativo, no bloquea; ten en cuenta esta limitación al interpretar resultados de ese espectro en concreto |
 | E_min en keV en "Rango de energía" | Tabla de espectros del barrido espectral | El espectro es de rango parcial (típico de medidas EXFOR): no llega a la región térmica | No lo uses para comparar reactores entre sí — solo espectros de rango completo son comparables. El síntoma equivalente en los índices espectrales es una fracción térmica de 0,0 % en un reactor que debería ser térmico |
