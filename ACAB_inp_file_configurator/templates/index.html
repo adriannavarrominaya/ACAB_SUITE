@@ -1292,7 +1292,12 @@
                     </div>
                     <div id="b5calc-density-hint" class="form-text mt-1 d-none"></div>
                     <div id="b5calc-msg" class="alert alert-danger py-1 small mt-2 mb-0 d-none"></div>
-                    <div id="b5calc-warn" class="alert alert-warning py-1 small mt-2 mb-0 d-none"></div>
+                    <div id="b5calc-vol-error" class="alert alert-danger py-1 small mt-2 mb-0 d-none">
+                      <span id="b5calc-vol-error-text"></span>
+                      <button id="b5calc-vol-fix-btn" type="button" class="btn btn-sm btn-outline-danger ms-2"
+                              data-i18n="b5calc.vol_fix_btn">Usar el volumen de zona</button>
+                    </div>
+                    <div id="b5calc-vol-info" class="alert alert-info py-1 small mt-2 mb-0 d-none"></div>
                     <div id="b5calc-result" class="mt-2 d-none">
                       <table class="table table-sm table-bordered mb-2">
                         <thead class="table-light">
@@ -1310,7 +1315,7 @@
                     </div>
                     <div class="form-text mt-2" data-i18n-html="b5calc.note">
                       Fórmula validada (INPT=1): <code>XCOMP<sub>i</sub> = (m·w<sub>i</sub>/M<sub>i</sub>)·N<sub>A</sub>/(10²⁴·V)</code> en átomos/barn·cm.
-                      Para INPT=3: <code>XCOMP<sub>i</sub> = m·w<sub>i</sub>/V</code> en g/cc. Con IGE=4 el volumen debe coincidir con la componente XRR de la zona (Block #2).
+                      Para INPT=3: <code>XCOMP<sub>i</sub> = m·w<sub>i</sub>/V</code> en g/cc. El volumen tecleado se valida contra el volumen efectivo de la zona derivado del Block #2 (XRR directo si IGE=4; calculado desde las fronteras y la geometría si IGE 1-3).
                       Nota: ACAB expande los identificadores elementales con las abundancias isotópicas de <em>su</em> librería DECAY.dat, que pueden diferir de las abundancias modernas (CIAAW); si la composición isotópica es crítica, verifica las abundancias de la DECAY.dat en uso.
                     </div>
                   </div>

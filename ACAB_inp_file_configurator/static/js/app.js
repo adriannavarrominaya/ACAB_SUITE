@@ -1217,14 +1217,21 @@ async function initB5Calc() {
   const btn      = document.getElementById('b5calc-btn');
   const btnApply = document.getElementById('b5calc-apply');
   const btnVol   = document.getElementById('b5calc-vol-from-rho');
+  const btnFix   = document.getElementById('b5calc-vol-fix-btn');
   const formulaEl = document.getElementById('b5calc-formula');
+  const massEl    = document.getElementById('b5calc-mass');
+  const volEl     = document.getElementById('b5calc-vol');
+  const zoneEl    = document.getElementById('b5calc-zone');
   if (btn)      btn.addEventListener('click', computeB5Calc);
   if (btnApply) btnApply.addEventListener('click', applyB5Calc);
   if (btnVol)   btnVol.addEventListener('click', volumeFromDensity);
-  if (formulaEl) formulaEl.addEventListener('input', updateDensityHint);
+  if (btnFix)   btnFix.addEventListener('click', fixVolumeToZone);
+  if (formulaEl) formulaEl.addEventListener('input', refreshB5CalcLive);
+  if (massEl)    massEl.addEventListener('input', refreshB5CalcLive);
+  if (volEl)     volEl.addEventListener('input', refreshB5CalcLive);
+  if (zoneEl)    zoneEl.addEventListener('change', refreshB5CalcLive);
 
   refreshB5CalcZoneSelect();
-  updateDensityHint();
 }
 
 /**
@@ -1274,6 +1281,71 @@ function updateDensityHint() {
   }
 }
 
+/** Nº de zona (1-based, como en NUCZO/MA) seleccionado en el selector de zona destino. */
+function _b5CalcZoneNumber() {
+  const idx = parseInt(getVal('b5calc-zone'), 10);
+  return Number.isFinite(idx) ? idx + 1 : null;
+}
+
+/** Volumen efectivo (volumenZonaEfectivo, calc_utils.js) de la zona destino actual. */
+function _b5CalcVolumenEfectivo() {
+  const zona = _b5CalcZoneNumber();
+  if (zona == null) return null;
+  const bloque1 = { IGE: getInt('b1-IGE'), IZM: getInt('b1-IZM'), JM: getInt('b1-JM') };
+  const bloque2 = { XRR: parseFloatArray(getVal('b2-XRR')), MA: parseIntArray(getVal('b2-MA')) };
+  return volumenZonaEfectivo(bloque1, bloque2, zona);
+}
+
+/**
+ * F10 — Valida en vivo el V tecleado frente al volumen efectivo de la zona
+ * destino (compararVolumenZona, calc_utils.js). Un desajuste no lo detecta
+ * ACAB: la masa realmente simulada pasa a ser m·(V_zona/V_tecleado).
+ */
+function updateVolumeCoherence() {
+  const errBox  = document.getElementById('b5calc-vol-error');
+  const errText = document.getElementById('b5calc-vol-error-text');
+  const infoBox = document.getElementById('b5calc-vol-info');
+  if (!errBox || !errText || !infoBox) return;
+  errBox.classList.add('d-none');
+  infoBox.classList.add('d-none');
+
+  const zona  = _b5CalcZoneNumber();
+  const V     = parseFloat(getVal('b5calc-vol'));
+  const volEf = _b5CalcVolumenEfectivo();
+  if (zona == null || !volEf || !(V > 0)) return;
+
+  const cmp = compararVolumenZona(V, volEf);
+  if (cmp.estado === 'indeterminado') {
+    if (cmp.motivo !== 'V_INVALIDO') {
+      infoBox.textContent = t('b5calc.vol_indeterminado').replace('{z}', zona);
+      infoBox.classList.remove('d-none');
+    }
+    return;
+  }
+  if (cmp.estado === 'no_coincide') {
+    errText.textContent = t('b5calc.vol_mismatch')
+      .replace('{v}', V)
+      .replace('{vz}', cmp.volumenEfectivo)
+      .replace('{z}', zona)
+      .replace('{factor}', cmp.factor.toPrecision(4));
+    errBox.classList.remove('d-none');
+  }
+}
+
+/** Botón de corrección de F10: rellena V con el volumen efectivo de la zona. */
+function fixVolumeToZone() {
+  const volEf = _b5CalcVolumenEfectivo();
+  if (!volEf || volEf.indeterminado) return;
+  setVal('b5calc-vol', volEf.volumen.toPrecision(6));
+  refreshB5CalcLive();
+}
+
+/** Refresca en vivo la pista de densidad y F10 (coherencia de volumen). */
+function refreshB5CalcLive() {
+  updateDensityHint();
+  updateVolumeCoherence();
+}
+
 function volumeFromDensity() {
   const c = _findDensity(getVal('b5calc-formula'));
   const m = parseFloat(getVal('b5calc-mass'));
@@ -1288,6 +1360,7 @@ function volumeFromDensity() {
   }
   if (msg) msg.classList.add('d-none');
   setVal('b5calc-vol', (m / c.density).toPrecision(6));
+  refreshB5CalcLive();
 }
 
 /** Rellena el selector de zona destino con las zonas activas (NUCZO ≠ 0). */
@@ -1302,13 +1375,13 @@ function refreshB5CalcZoneSelect() {
   });
   sel.innerHTML = opts.join('');
   if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+  refreshB5CalcLive();
 }
 
 function computeB5Calc() {
-  const msg  = document.getElementById('b5calc-msg');
-  const warn = document.getElementById('b5calc-warn');
-  const res  = document.getElementById('b5calc-result');
-  [msg, warn, res].forEach(el => el && el.classList.add('d-none'));
+  const msg = document.getElementById('b5calc-msg');
+  const res = document.getElementById('b5calc-result');
+  [msg, res].forEach(el => el && el.classList.add('d-none'));
   _b5CalcLast = null;
 
   if (!_atomicData) {
@@ -1332,21 +1405,8 @@ function computeB5Calc() {
   }
   _b5CalcLast = out;
 
-  // Aviso de coherencia V ↔ XRR (para IGE=4, XRR[i] es el volumen de la zona i)
-  const warns = [];
-  const ige = getInt('b1-IGE');
-  if (ige === 4) {
-    const xrr     = parseFloatArray(getVal('b2-XRR'));
-    const zoneIdx = parseInt(getVal('b5calc-zone'), 10) || 0;
-    const vXrr    = xrr[zoneIdx];
-    if (Number.isFinite(vXrr) && Math.abs(vXrr - V) / Math.max(vXrr, V) > 1e-6)
-      warns.push(t('b5calc.warn_xrr').replace('{v}', V).replace('{xrr}', vXrr)
-                                     .replace('{z}', zoneIdx + 1));
-  }
-  if (warns.length && warn) {
-    warn.textContent = warns.join(' ');
-    warn.classList.remove('d-none');
-  }
+  // F10/F11: coherencia de volumen y densidad efectiva de la zona destino
+  refreshB5CalcLive();
 
   // Tabla de resultados
   const unit  = inpt === 3 ? 'g/cc' : 'átomos/barn·cm';

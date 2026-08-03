@@ -7,7 +7,8 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { parseChemFormula, computeComposition, validateEgrp } =
+const { parseChemFormula, computeComposition, validateEgrp,
+        volumenZonaEfectivo, compararVolumenZona } =
   require('../static/js/calc_utils.js');
 
 const atomic = JSON.parse(fs.readFileSync(
@@ -108,6 +109,80 @@ check('última frontera negativa detectada',
   v.errors.some(e => e.code === 'EGRP_NEGATIVE'));
 v = validateEgrp([20, NaN, 5, 0], 3);
 check('valor no numérico detectado', v.errors.some(e => e.code === 'EGRP_NAN'));
+
+// ── F10/F11: volumenZonaEfectivo ────────────────────────────────────────────
+
+// Caso oro del proyecto: IGE=4, IZM=1, XRR = [1.0, 1.0] (2º valor = terminador,
+// no volumen) → volumen de zona 1 = 1.0 cm3 (VOLUME OF INTERVAL del fort.6).
+let vze = volumenZonaEfectivo({ IGE: 4, IZM: 1, JM: 0 }, { XRR: [1.0, 1.0] }, 1);
+check('IGE=4 caso oro: volumen zona 1 = 1.0 cm3', !vze.indeterminado && relDiff(vze.volumen, 1.0) < 1e-12);
+
+// IGE=4 sin el terminador extra (solo IZM valores): sigue leyendo el volumen.
+vze = volumenZonaEfectivo({ IGE: 4, IZM: 1, JM: 0 }, { XRR: [1.0] }, 1);
+check('IGE=4 sin terminador extra: volumen zona 1 = 1.0 cm3', !vze.indeterminado && relDiff(vze.volumen, 1.0) < 1e-12);
+
+// IGE=4, 2 zonas, con terminador no nulo.
+const b2ige4 = { XRR: [2.0, 3.0, 5.0] };
+check('IGE=4, 2 zonas: zona 1 = 2.0 cm3',
+  relDiff(volumenZonaEfectivo({ IGE: 4, IZM: 2, JM: 0 }, b2ige4, 1).volumen, 2.0) < 1e-12);
+check('IGE=4, 2 zonas: zona 2 = 3.0 cm3',
+  relDiff(volumenZonaEfectivo({ IGE: 4, IZM: 2, JM: 0 }, b2ige4, 2).volumen, 3.0) < 1e-12);
+vze = volumenZonaEfectivo({ IGE: 4, IZM: 2, JM: 0 }, b2ige4, 3);
+check('IGE=4: zona fuera de rango (usaría el terminador) → indeterminado',
+  vze.indeterminado && vze.motivo === 'XRR_NO_DISPONIBLE');
+
+// IGE=1 planar: fronteras XRR, MA asigna intervalos a zonas.
+vze = volumenZonaEfectivo({ IGE: 1, IZM: 2, JM: 0 },
+  { XRR: [0, 1, 2, 3], MA: [1, 1, 2] }, 1);
+check('IGE=1 planar: zona 1 (2 intervalos) = 2.0 cm3', !vze.indeterminado && relDiff(vze.volumen, 2.0) < 1e-12);
+vze = volumenZonaEfectivo({ IGE: 1, IZM: 2, JM: 0 },
+  { XRR: [0, 1, 2, 3], MA: [1, 1, 2] }, 2);
+check('IGE=1 planar: zona 2 (1 intervalo) = 1.0 cm3', !vze.indeterminado && relDiff(vze.volumen, 1.0) < 1e-12);
+
+// IGE=2 cilíndrico: π(r2²-r1²), altura unidad.
+vze = volumenZonaEfectivo({ IGE: 2, IZM: 2, JM: 0 },
+  { XRR: [0, 1, 2], MA: [1, 2] }, 1);
+check('IGE=2 cilíndrico: zona 1 = π cm3', relDiff(vze.volumen, Math.PI) < 1e-9);
+vze = volumenZonaEfectivo({ IGE: 2, IZM: 2, JM: 0 },
+  { XRR: [0, 1, 2], MA: [1, 2] }, 2);
+check('IGE=2 cilíndrico: zona 2 = 3π cm3', relDiff(vze.volumen, 3 * Math.PI) < 1e-9);
+
+// IGE=3 esférico: (4/3)π(r2³-r1³).
+vze = volumenZonaEfectivo({ IGE: 3, IZM: 2, JM: 0 },
+  { XRR: [0, 1, 2], MA: [1, 2] }, 1);
+check('IGE=3 esférico: zona 1 = (4/3)π cm3', relDiff(vze.volumen, (4 / 3) * Math.PI) < 1e-9);
+vze = volumenZonaEfectivo({ IGE: 3, IZM: 2, JM: 0 },
+  { XRR: [0, 1, 2], MA: [1, 2] }, 2);
+check('IGE=3 esférico: zona 2 = (4/3)π·7 cm3', relDiff(vze.volumen, (4 / 3) * Math.PI * 7) < 1e-9);
+
+// Varios intervalos no contiguos para una misma zona (MA intercalado).
+vze = volumenZonaEfectivo({ IGE: 1, IZM: 2, JM: 0 },
+  { XRR: [0, 1, 2, 3, 4], MA: [1, 2, 1, 2] }, 1);
+check('IGE=1: zona con intervalos no contiguos = 2.0 cm3', relDiff(vze.volumen, 2.0) < 1e-12);
+
+// Indeterminado: geometría 2-D (JM>0).
+vze = volumenZonaEfectivo({ IGE: 1, IZM: 1, JM: 2 }, { XRR: [0, 1], MA: [1] }, 1);
+check('Geometría 2-D (JM>0) → indeterminado', vze.indeterminado && vze.motivo === 'GEOMETRIA_2D');
+
+// Indeterminado: geometría no soportada.
+vze = volumenZonaEfectivo({ IGE: 9, IZM: 1, JM: 0 }, { XRR: [0, 1], MA: [1] }, 1);
+check('IGE no soportado → indeterminado', vze.indeterminado && vze.motivo === 'GEOMETRIA_NO_SOPORTADA');
+
+// Indeterminado: la zona pedida no tiene ningún intervalo asignado en MA.
+vze = volumenZonaEfectivo({ IGE: 1, IZM: 3, JM: 0 },
+  { XRR: [0, 1, 2], MA: [1, 2] }, 3);
+check('Zona sin intervalos en MA → indeterminado', vze.indeterminado && vze.motivo === 'ZONA_SIN_INTERVALOS');
+
+// ── F10: compararVolumenZona ────────────────────────────────────────────────
+
+const volOro = volumenZonaEfectivo({ IGE: 4, IZM: 1, JM: 0 }, { XRR: [1.0, 1.0] }, 1);
+let cmp = compararVolumenZona(1.0, volOro);
+check('F10 caso oro: V=1.0 coincide con la zona', cmp.estado === 'coincide');
+cmp = compararVolumenZona(2.0, volOro);
+check('F10: V=2.0 no coincide con zona=1.0 (factor=0.5)',
+  cmp.estado === 'no_coincide' && relDiff(cmp.factor, 0.5) < 1e-12);
+cmp = compararVolumenZona(1.0, volumenZonaEfectivo({ IGE: 1, IZM: 1, JM: 2 }, {}, 1));
+check('F10: volumen indeterminado → estado indeterminado (no es error)', cmp.estado === 'indeterminado');
 
 console.log(fails === 0 ? '\nTODOS LOS TESTS OK' : `\n${fails} TESTS FALLARON`);
 process.exit(fails === 0 ? 0 : 1);

@@ -173,7 +173,103 @@ function validateEgrp(egrp, nogg) {
   return { errors, warnings };
 }
 
+/**
+ * F10/F11 — Volumen efectivo de una zona según Block #1/#2 (docs/Block#2.md,
+ * "fuente de verdad" de formato). Es el volumen que ACAB usa REALMENTE para
+ * calcular la densidad atómica de la zona, con independencia de lo que el
+ * usuario haya tecleado en la composición asistida:
+ *   - IGE=4 (3-D, acoplado a Monte Carlo): XRR NO son fronteras, es
+ *     directamente el volumen de cada zona en cm3; la tarjeta XRR termina
+ *     con un valor adicional no nulo que NO es volumen (formato, ver
+ *     docs/Block#2.md card #1) — por eso solo se leen los índices
+ *     [0, IZM-1], nunca el último.
+ *   - IGE 1/2/3 (1-D planar/cilíndrico/esférico): XRR son fronteras en cm
+ *     de los IM intervalos; el volumen de cada intervalo se deriva de la
+ *     geometría (área/superficie unidad) y se suman los intervalos que MA
+ *     asigna a la zona pedida (una zona puede agrupar varios intervalos).
+ *   - Geometrías 2-D (JM > 0) u otras configuraciones no derivables con
+ *     confianza: 'indeterminado' (nunca se inventa un valor).
+ * @param {Object} bloque1  { IGE, IZM, JM }  (Block #1, card #3)
+ * @param {Object} bloque2  { XRR, MA }       (Block #2, cards #1 y #3)
+ * @param {number} zona     nº de zona, 1-based (como en NUCZO/MA)
+ * @returns {{ volumen: number|null, indeterminado: boolean, motivo: string|null }}
+ *          motivo (solo si indeterminado): 'GEOMETRIA_2D' | 'XRR_NO_DISPONIBLE'
+ *          | 'DATOS_INSUFICIENTES' | 'ZONA_SIN_INTERVALOS' | 'GEOMETRIA_NO_SOPORTADA'
+ *          | 'ZONA_INVALIDA'
+ */
+function volumenZonaEfectivo(bloque1, bloque2, zona) {
+  const b1  = bloque1 || {};
+  const b2  = bloque2 || {};
+  const ige = b1.IGE;
+  const jm  = b1.JM  || 0;
+  const izm = b1.IZM || 0;
+  const xrr = b2.XRR || [];
+  const ma  = b2.MA  || [];
+
+  const indet = motivo => ({ volumen: null, indeterminado: true, motivo });
+
+  if (!(zona >= 1)) return indet('ZONA_INVALIDA');
+  if (jm > 0)        return indet('GEOMETRIA_2D');
+
+  if (ige === 4) {
+    const idx = zona - 1;
+    const v = xrr[idx];
+    if (idx >= izm || !Number.isFinite(v)) return indet('XRR_NO_DISPONIBLE');
+    return { volumen: v, indeterminado: false, motivo: null };
+  }
+
+  if (ige === 1 || ige === 2 || ige === 3) {
+    if (xrr.length < 2 || ma.length === 0) return indet('DATOS_INSUFICIENTES');
+    let vol = 0, encontrado = false;
+    for (let l = 0; l < ma.length; l++) {
+      if (ma[l] !== zona) continue;
+      const x1 = xrr[l], x2 = xrr[l + 1];
+      if (!Number.isFinite(x1) || !Number.isFinite(x2)) return indet('XRR_NO_DISPONIBLE');
+      encontrado = true;
+      if (ige === 1)      vol += (x2 - x1);               // planar: área unidad 1 cm2
+      else if (ige === 2) vol += Math.PI * (x2 * x2 - x1 * x1);       // cilíndrico: altura unidad 1 cm
+      else                 vol += (4 / 3) * Math.PI * (x2 ** 3 - x1 ** 3); // esférico
+    }
+    if (!encontrado) return indet('ZONA_SIN_INTERVALOS');
+    return { volumen: vol, indeterminado: false, motivo: null };
+  }
+
+  return indet('GEOMETRIA_NO_SOPORTADA');
+}
+
+/**
+ * F10 — Compara el V introducido en la composición asistida con el volumen
+ * efectivo de la zona destino (volumenZonaEfectivo). Si difieren, ACAB no lo
+ * detecta: la masa realmente simulada pasa a ser m·(V_zona/V_tecleado), un
+ * desajuste silencioso. La construcción del mensaje (i18n) queda en la capa
+ * de UI, este función solo decide el estado.
+ * @param {number} volumenIntroducido  V tecleado en el formulario [cm3]
+ * @param {{volumen:number|null, indeterminado:boolean, motivo:string|null}} volEfectivo
+ *          resultado de volumenZonaEfectivo
+ * @param {number} [tol=1e-6]  tolerancia relativa
+ * @returns {{ estado: 'coincide'|'no_coincide'|'indeterminado',
+ *             volumenEfectivo: number|null, factor: number|null, motivo: string|null }}
+ *          factor = V_zona/V_tecleado (relación entre la masa realmente
+ *          simulada y la masa objetivo cuando 'no_coincide').
+ */
+function compararVolumenZona(volumenIntroducido, volEfectivo, tol = 1e-6) {
+  if (!volEfectivo || volEfectivo.indeterminado)
+    return { estado: 'indeterminado', volumenEfectivo: null, factor: null,
+             motivo: volEfectivo ? volEfectivo.motivo : null };
+  const vz = volEfectivo.volumen;
+  const v  = volumenIntroducido;
+  if (!(v > 0))
+    return { estado: 'indeterminado', volumenEfectivo: vz, factor: null, motivo: 'V_INVALIDO' };
+  const rel = Math.abs(vz - v) / Math.max(Math.abs(vz), Math.abs(v));
+  if (rel > tol)
+    return { estado: 'no_coincide', volumenEfectivo: vz, factor: vz / v, motivo: null };
+  return { estado: 'coincide', volumenEfectivo: vz, factor: 1, motivo: null };
+}
+
 /* Export para node (tests); en el navegador quedan como globales. */
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { AVOGADRO, parseChemFormula, computeComposition, validateEgrp };
+  module.exports = {
+    AVOGADRO, parseChemFormula, computeComposition, validateEgrp,
+    volumenZonaEfectivo, compararVolumenZona,
+  };
 }

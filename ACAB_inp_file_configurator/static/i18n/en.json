@@ -598,10 +598,12 @@
     "err_no_lib": "Could not load the atomic data library (static/data/atomic_data.json).",
     "err_no_density": "No library density for this formula (neither as a compound nor as a pure element): cannot compute V = m/ρ. Enter the volume manually.",
     "err_mass": "Enter a valid mass (> 0 g) before computing V = m/ρ.",
-    "warn_xrr": "Warning: the entered volume ({v} cm³) does not match the XRR component of zone {z} ({xrr} cm³) in Block #2 (for IGE=4, XRR is each zone's volume). Fix one of the two to keep them consistent.",
+    "vol_mismatch": "The entered volume ({v} cm³) does not match the effective volume of zone {z} ({vz} cm³, derived from Block #2). ACAB uses the zone volume, not this value: the mass actually simulated becomes m·(V_zone/V_entered) = ×{factor} the target mass, and ACAB never flags it (silent mismatch). Fix the volume or use the button to match it to the zone.",
+    "vol_fix_btn": "Use the zone volume",
+    "vol_indeterminado": "Could not determine the effective volume of zone {z} from Block #2 (2-D geometry or another configuration that cannot be derived with confidence): the match with the entered volume cannot be checked. Review it manually.",
     "toast_nuczo": "Zone {z} NUCZO adjusted to {n} to fit the computed elements.",
     "toast_applied": "Composition applied to the zone.",
-    "note": "Validated formula (INPT=1): <code>XCOMP<sub>i</sub> = (m·w<sub>i</sub>/M<sub>i</sub>)·N<sub>A</sub>/(10²⁴·V)</code> in atoms/barn·cm. For INPT=3: <code>XCOMP<sub>i</sub> = m·w<sub>i</sub>/V</code> in g/cc. With IGE=4, V must match the zone's XRR component (Block #2). Note: ACAB expands elemental identifiers using the isotopic abundances of <em>its</em> DECAY.dat library, which may differ from modern (CIAAW) abundances; if the isotopic composition is critical, check the abundances of the DECAY.dat in use."
+    "note": "Validated formula (INPT=1): <code>XCOMP<sub>i</sub> = (m·w<sub>i</sub>/M<sub>i</sub>)·N<sub>A</sub>/(10²⁴·V)</code> in atoms/barn·cm. For INPT=3: <code>XCOMP<sub>i</sub> = m·w<sub>i</sub>/V</code> in g/cc. V is validated against the effective volume of the zone derived from Block #2 (XRR directly if IGE=4; computed from the boundaries and geometry if IGE 1-3). Note: ACAB expands elemental identifiers using the isotopic abundances of <em>its</em> DECAY.dat library, which may differ from modern (CIAAW) abundances; if the isotopic composition is critical, check the abundances of the DECAY.dat in use."
   },
   "egrp": {
     "preset_lbl": "Standard structure (preset library)",

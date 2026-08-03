@@ -188,9 +188,7 @@ En el **Bloque #5** (Composición inicial) puedes alternar entre dos modos:
   1. **Compuesto / estequiometría**: fórmula química (`TeO2`) o lista
      explícita (`Te:1 O:2`).
   2. **Masa del blanco [g]**.
-  3. **Volumen zona [cm³]** (por defecto 1; con geometría `IGE = 4` la app
-     avisa si no coincide con la componente `XRR` de esa zona en el Bloque #2,
-     porque en esa geometría `XRR` es el volumen de cada zona).
+  3. **Volumen zona [cm³]** (por defecto 1).
   4. **Zona destino**.
   5. Pulsa **Calcular** para ver la tabla de elementos con su fracción másica
      `wᵢ` y el `XCOMP` resultante, y **"Aplicar a la zona (ajusta NUCZO si es
@@ -212,6 +210,27 @@ con las abundancias isotópicas de **su propia** librería `DECAY.dat`, que
 pueden no coincidir con las abundancias modernas CIAAW; si la composición
 isotópica es crítica para tu cálculo, comprueba las abundancias de la
 `DECAY.dat` que estés usando.
+
+### 5.1. Validación cruzada del volumen de zona
+
+El **Volumen zona [cm³]** que tecleas se valida en vivo contra el **volumen
+efectivo de la zona destino**, derivado del Bloque #2:
+
+- Con `IGE = 4` (3-D): el volumen efectivo es directamente la componente
+  `XRR` de esa zona.
+- Con `IGE = 1/2/3` (1-D planar/cilíndrico/esférico): el volumen efectivo se
+  calcula desde las fronteras `XRR` y la geometría, sumando los intervalos
+  que el Bloque #2 (`MA`) asigna a esa zona.
+- En geometrías 2-D o configuraciones que no se puedan derivar con
+  confianza, el volumen efectivo queda **indeterminado** (aviso informativo,
+  no error: no hay forma fiable de comprobar la coherencia).
+
+Si el volumen tecleado y el volumen efectivo de la zona **no coinciden**, la
+app muestra un error explicando la consecuencia real: ACAB usa siempre el
+volumen de la zona (Bloque #2), nunca el que has escrito aquí, así que la
+masa efectivamente simulada pasa a ser `m·(V_zona/V_tecleado)` — un
+desajuste que ACAB no detecta. El botón **"Usar el volumen de zona"**
+corrige el campo automáticamente con el valor efectivo.
 
 ---
 
@@ -717,7 +736,7 @@ en la pestaña **"Análisis de cadenas"** del **Fort Analyzer**.
 | Advertencias en el modal de Validación | Igual que arriba | Posible inconsistencia que no impide guardar | Revísalas antes de ejecutar ACAB; puedes continuar con "Continuar de todos modos" si sabes que son intencionadas |
 | Aviso de fichero CHAINS al cargar | Archivo → Cargar inp.5… | El fichero subido no es un `inp.5`, es un fichero CHAINS | Sigue el enlace que ofrece el aviso a la herramienta CHAINS (sección 8) |
 | "No hay densidad en la librería para esta fórmula" | Composición asistida (Bloque #5) | El compuesto/elemento no está en `atomic_data.json` para calcular V = m/ρ | Introduce el volumen de zona manualmente |
-| Aviso de volumen vs. XRR | Composición asistida, con `IGE = 4` | El volumen introducido no coincide con la componente `XRR` de la zona en el Bloque #2 | Corrige uno de los dos valores para mantener la coherencia geométrica |
+| Error de volumen vs. zona | Composición asistida (Bloque #5, sección 5.1) | El volumen introducido no coincide con el volumen efectivo de la zona derivado del Bloque #2 | Corrige el volumen o pulsa "Usar el volumen de zona"; si no lo corriges, la masa realmente simulada es `m·(V_zona/V_tecleado)` |
 | "El barrido de masa no está disponible" | Pestaña Barrido, tipo Masa | El fichero base usa `INPT = 2` (isótopos), no soportado por este tipo de barrido | Usa `INPT = 1` o `3`, o barre otro parámetro |
 | Aviso de valores fuera del rango habitual de XNORM | Pestaña Barrido, tipo Flujo, al previsualizar | Alguno de los valores introducidos produce un `XNORM` fuera de [10⁻³, 10³] — típico de mezclar factores con flujos absolutos entre los dos modos de entrada | Informativo, no bloquea; revisa si el modo seleccionado (factores / flujo total objetivo) es el que querías usar |
 | Checksum de espectro KO | Barrido espectral, al importar un fichero CONDERC | La suma de `DATA` no coincide con la línea `TOTAL` del fichero (tolerancia 10⁻³) | El fichero CONDERC probablemente está truncado o corrupto; descárgalo de nuevo desde el OIEA |
