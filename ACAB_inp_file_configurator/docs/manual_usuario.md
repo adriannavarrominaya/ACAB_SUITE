@@ -232,6 +232,26 @@ masa efectivamente simulada pasa a ser `m·(V_zona/V_tecleado)` — un
 desajuste que ACAB no detecta. El botón **"Usar el volumen de zona"**
 corrige el campo automáticamente con el valor efectivo.
 
+### 5.2. Densidad efectiva de la zona
+
+Junto al volumen se muestra en vivo la **densidad efectiva** de la
+representación homogeneizada, `ρ_eff = m / V_zona` (el volumen efectivo de
+la zona, no el tecleado — ver 5.1), junto a la densidad tabulada del
+compuesto o elemento (si la librería la conoce) y su cociente en
+porcentaje:
+
+- `ρ_eff` ≈ 100 % de la densidad tabulada → sólido a densidad de compuesto.
+- `ρ_eff` por debajo del 100 % → **empaquetamiento u homogeneización**, un
+  caso legítimo (el propio caso de referencia del TFG está al 2,2 %) y
+  **nunca** se marca como problema.
+- `ρ_eff` por **encima** de la densidad tabulada → aviso: no es físicamente
+  posible salvo compresión por encima de la densidad cristalina.
+
+Si el compuesto/fórmula introducido no tiene densidad tabulada en la
+librería, se muestra solo `ρ_eff`, sin cociente ni aviso. Masa y volumen no
+se acoplan automáticamente: para fijar densidad cristalina usa el botón
+**«V = m/ρ»** descrito arriba.
+
 ---
 
 ## 6. Generar el historial temporal
@@ -737,6 +757,7 @@ en la pestaña **"Análisis de cadenas"** del **Fort Analyzer**.
 | Aviso de fichero CHAINS al cargar | Archivo → Cargar inp.5… | El fichero subido no es un `inp.5`, es un fichero CHAINS | Sigue el enlace que ofrece el aviso a la herramienta CHAINS (sección 8) |
 | "No hay densidad en la librería para esta fórmula" | Composición asistida (Bloque #5) | El compuesto/elemento no está en `atomic_data.json` para calcular V = m/ρ | Introduce el volumen de zona manualmente |
 | Error de volumen vs. zona | Composición asistida (Bloque #5, sección 5.1) | El volumen introducido no coincide con el volumen efectivo de la zona derivado del Bloque #2 | Corrige el volumen o pulsa "Usar el volumen de zona"; si no lo corriges, la masa realmente simulada es `m·(V_zona/V_tecleado)` |
+| Aviso de densidad efectiva | Composición asistida (Bloque #5, sección 5.2) | `ρ_eff = m/V_zona` supera la densidad tabulada del compuesto/elemento | No físico: revisa la masa, el volumen de zona o la fórmula (un `ρ_eff` por debajo de la tabulada es normal, no un problema) |
 | "El barrido de masa no está disponible" | Pestaña Barrido, tipo Masa | El fichero base usa `INPT = 2` (isótopos), no soportado por este tipo de barrido | Usa `INPT = 1` o `3`, o barre otro parámetro |
 | Aviso de valores fuera del rango habitual de XNORM | Pestaña Barrido, tipo Flujo, al previsualizar | Alguno de los valores introducidos produce un `XNORM` fuera de [10⁻³, 10³] — típico de mezclar factores con flujos absolutos entre los dos modos de entrada | Informativo, no bloquea; revisa si el modo seleccionado (factores / flujo total objetivo) es el que querías usar |
 | Checksum de espectro KO | Barrido espectral, al importar un fichero CONDERC | La suma de `DATA` no coincide con la línea `TOTAL` del fichero (tolerancia 10⁻³) | El fichero CONDERC probablemente está truncado o corrupto; descárgalo de nuevo desde el OIEA |

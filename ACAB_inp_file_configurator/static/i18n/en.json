@@ -601,6 +601,12 @@
     "vol_mismatch": "The entered volume ({v} cm³) does not match the effective volume of zone {z} ({vz} cm³, derived from Block #2). ACAB uses the zone volume, not this value: the mass actually simulated becomes m·(V_zone/V_entered) = ×{factor} the target mass, and ACAB never flags it (silent mismatch). Fix the volume or use the button to match it to the zone.",
     "vol_fix_btn": "Use the zone volume",
     "vol_indeterminado": "Could not determine the effective volume of zone {z} from Block #2 (2-D geometry or another configuration that cannot be derived with confidence): the match with the entered volume cannot be checked. Review it manually.",
+    "rho_eff_lbl": "Effective density of the zone: ρ_eff = {rho} g/cm³",
+    "rho_pct": "= {pct} % of the compound's density ({rho_c} g/cm³) — {band}",
+    "rho_pct_plain": "= {pct} % of the compound's density ({rho_c} g/cm³)",
+    "rho_band_compuesto": "compound density",
+    "rho_band_homog": "packing/homogenization",
+    "rho_over": "Warning: the effective density (ρ_eff = {rho} g/cm³) exceeds the compound's tabulated density ({rho_c} g/cm³, {pct} %): not physically possible unless compressed beyond the crystalline density. Check the mass, the zone volume, or the formula.",
     "toast_nuczo": "Zone {z} NUCZO adjusted to {n} to fit the computed elements.",
     "toast_applied": "Composition applied to the zone.",
     "note": "Validated formula (INPT=1): <code>XCOMP<sub>i</sub> = (m·w<sub>i</sub>/M<sub>i</sub>)·N<sub>A</sub>/(10²⁴·V)</code> in atoms/barn·cm. For INPT=3: <code>XCOMP<sub>i</sub> = m·w<sub>i</sub>/V</code> in g/cc. V is validated against the effective volume of the zone derived from Block #2 (XRR directly if IGE=4; computed from the boundaries and geometry if IGE 1-3). Note: ACAB expands elemental identifiers using the isotopic abundances of <em>its</em> DECAY.dat library, which may differ from modern (CIAAW) abundances; if the isotopic composition is critical, check the abundances of the DECAY.dat in use."

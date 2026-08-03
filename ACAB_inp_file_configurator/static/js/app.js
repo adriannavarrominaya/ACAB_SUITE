@@ -1269,18 +1269,6 @@ function _findDensity(formula) {
   return null;
 }
 
-function updateDensityHint() {
-  const hint = document.getElementById('b5calc-density-hint');
-  if (!hint) return;
-  const c = _findDensity(getVal('b5calc-formula'));
-  if (c) {
-    hint.textContent = `${c.name}: ρ = ${c.density} g/cm³  (${c.provenance})`;
-    hint.classList.remove('d-none');
-  } else {
-    hint.classList.add('d-none');
-  }
-}
-
 /** Nº de zona (1-based, como en NUCZO/MA) seleccionado en el selector de zona destino. */
 function _b5CalcZoneNumber() {
   const idx = parseInt(getVal('b5calc-zone'), 10);
@@ -1340,10 +1328,60 @@ function fixVolumeToZone() {
   refreshB5CalcLive();
 }
 
-/** Refresca en vivo la pista de densidad y F10 (coherencia de volumen). */
+/**
+ * F11 — Densidad efectiva en vivo: ρ_eff = m/V_zona_efectivo (densidadEfectivaZona,
+ * calc_utils.js), junto a la densidad tabulada del compuesto/elemento y su
+ * cociente. Aviso solo si ρ_eff supera la densidad tabulada.
+ */
+function updateRhoEffDisplay() {
+  const hint    = document.getElementById('b5calc-density-hint');
+  const rhoBox  = document.getElementById('b5calc-rho-eff');
+  const warnBox = document.getElementById('b5calc-rho-warn');
+  if (!hint || !rhoBox || !warnBox) return;
+
+  const c = _findDensity(getVal('b5calc-formula'));
+  if (c) {
+    hint.textContent = `${c.name}: ρ = ${c.density} g/cm³  (${c.provenance})`;
+    hint.classList.remove('d-none');
+  } else {
+    hint.classList.add('d-none');
+  }
+  rhoBox.classList.add('d-none');
+  warnBox.classList.add('d-none');
+
+  const m     = parseFloat(getVal('b5calc-mass'));
+  const volEf = _b5CalcVolumenEfectivo();
+  if (!(m > 0) || !volEf || volEf.indeterminado || !(volEf.volumen > 0)) return;
+
+  const de = densidadEfectivaZona(m, volEf.volumen, c ? c.density : null);
+  let txt = t('b5calc.rho_eff_lbl').replace('{rho}', de.rhoEff.toPrecision(4));
+  if (de.pct != null && de.banda) {
+    const bandTxt = de.banda === 'compuesto' ? t('b5calc.rho_band_compuesto') : t('b5calc.rho_band_homog');
+    txt += ' ' + t('b5calc.rho_pct')
+      .replace('{pct}', de.pct.toFixed(1))
+      .replace('{rho_c}', c.density)
+      .replace('{band}', bandTxt);
+  } else if (de.pct != null) {
+    txt += ' ' + t('b5calc.rho_pct_plain')
+      .replace('{pct}', de.pct.toFixed(1))
+      .replace('{rho_c}', c.density);
+  }
+  rhoBox.textContent = txt;
+  rhoBox.classList.remove('d-none');
+
+  if (de.aviso) {
+    warnBox.textContent = t('b5calc.rho_over')
+      .replace('{rho}', de.rhoEff.toPrecision(4))
+      .replace('{rho_c}', c.density)
+      .replace('{pct}', de.pct.toFixed(1));
+    warnBox.classList.remove('d-none');
+  }
+}
+
+/** Refresca en vivo F10 (coherencia de volumen) y F11 (densidad efectiva). */
 function refreshB5CalcLive() {
-  updateDensityHint();
   updateVolumeCoherence();
+  updateRhoEffDisplay();
 }
 
 function volumeFromDensity() {

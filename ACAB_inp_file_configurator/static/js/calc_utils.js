@@ -266,10 +266,39 @@ function compararVolumenZona(volumenIntroducido, volEfectivo, tol = 1e-6) {
   return { estado: 'coincide', volumenEfectivo: vz, factor: 1, motivo: null };
 }
 
+/**
+ * F11 — Densidad efectiva de la representación homogeneizada de una zona:
+ * ρ_eff = m / V_zona_efectivo (NUNCA el V tecleado en el formulario; si
+ * difiere del volumen efectivo, F10 ya lo está señalando por separado).
+ * Bandas informativas (sin acoplar masa y volumen):
+ *   - ρ_eff ≈ densidad tabulada (≥ 99.5 %)  → 'compuesto' (sólido a
+ *     densidad de compuesto/elemento; caso normal cuando V = m/ρ).
+ *   - ρ_eff < densidad tabulada             → 'homogeneizacion' (LEGÍTIMO:
+ *     empaquetamiento de polvo o zona homogeneizada, p. ej. el caso de
+ *     referencia del TFG está al 2,2 %; nunca se marca como problema).
+ *   - ρ_eff > densidad tabulada             → aviso=true (no físico:
+ *     comprimir por encima de la densidad cristalina).
+ * Sin densidad tabulada conocida: se devuelve solo ρ_eff, sin banda ni aviso.
+ * @param {number} massG               masa del blanco [g]
+ * @param {number} volumenEfectivoCc   V_zona_efectivo [cm3] (> 0)
+ * @param {number|null} densidadCompuesto  densidad tabulada [g/cm3], o null
+ * @returns {{ rhoEff:number, pct:number|null, banda:'compuesto'|'homogeneizacion'|null,
+ *             aviso:boolean }}
+ */
+function densidadEfectivaZona(massG, volumenEfectivoCc, densidadCompuesto) {
+  const rhoEff = massG / volumenEfectivoCc;
+  if (!(densidadCompuesto > 0))
+    return { rhoEff, pct: null, banda: null, aviso: false };
+  const pct   = (rhoEff / densidadCompuesto) * 100;
+  const aviso = rhoEff > densidadCompuesto * (1 + 1e-9);
+  const banda = aviso ? null : (pct >= 99.5 ? 'compuesto' : 'homogeneizacion');
+  return { rhoEff, pct, banda, aviso };
+}
+
 /* Export para node (tests); en el navegador quedan como globales. */
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     AVOGADRO, parseChemFormula, computeComposition, validateEgrp,
-    volumenZonaEfectivo, compararVolumenZona,
+    volumenZonaEfectivo, compararVolumenZona, densidadEfectivaZona,
   };
 }

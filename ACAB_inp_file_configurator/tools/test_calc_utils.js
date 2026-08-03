@@ -8,7 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 const { parseChemFormula, computeComposition, validateEgrp,
-        volumenZonaEfectivo, compararVolumenZona } =
+        volumenZonaEfectivo, compararVolumenZona, densidadEfectivaZona } =
   require('../static/js/calc_utils.js');
 
 const atomic = JSON.parse(fs.readFileSync(
@@ -183,6 +183,31 @@ check('F10: V=2.0 no coincide con zona=1.0 (factor=0.5)',
   cmp.estado === 'no_coincide' && relDiff(cmp.factor, 0.5) < 1e-12);
 cmp = compararVolumenZona(1.0, volumenZonaEfectivo({ IGE: 1, IZM: 1, JM: 2 }, {}, 1));
 check('F10: volumen indeterminado → estado indeterminado (no es error)', cmp.estado === 'indeterminado');
+
+// ── F11: densidadEfectivaZona ───────────────────────────────────────────────
+
+// Caso de referencia del TFG: 0.1231 g TeO2 en zona de 1 cm3, ρ(TeO2)=5.67 g/cm3
+// → ρ_eff ≈ 0.123 g/cm3 ≈ 2.2 % (homogeneización, sin aviso).
+let de = densidadEfectivaZona(0.1231, 1.0, 5.67);
+check('F11 caso oro: ρ_eff ≈ 0.1231 g/cm3', relDiff(de.rhoEff, 0.1231) < 1e-12);
+check('F11 caso oro: ≈ 2.2 % de la densidad del compuesto', Math.abs(de.pct - 2.1711) < 1e-3,
+  `pct=${de.pct.toFixed(4)}`);
+check('F11 caso oro: banda = homogeneizacion, sin aviso', de.banda === 'homogeneizacion' && de.aviso === false);
+
+// Banda 'compuesto': ρ_eff == densidad tabulada (sólido a densidad de compuesto).
+de = densidadEfectivaZona(5.67, 1.0, 5.67);
+check('F11: ρ_eff = densidad compuesto → banda compuesto, sin aviso',
+  de.banda === 'compuesto' && de.aviso === false);
+
+// Aviso: ρ_eff supera la densidad tabulada (compresión por encima de la
+// densidad cristalina, no físico).
+de = densidadEfectivaZona(10.0, 1.0, 5.67);
+check('F11: ρ_eff > densidad compuesto → aviso, sin banda', de.aviso === true && de.banda === null);
+
+// Sin densidad tabulada: solo ρ_eff, sin cociente ni aviso.
+de = densidadEfectivaZona(0.1231, 1.0, null);
+check('F11: sin densidad tabulada → solo ρ_eff', relDiff(de.rhoEff, 0.1231) < 1e-12
+  && de.pct === null && de.banda === null && de.aviso === false);
 
 console.log(fails === 0 ? '\nTODOS LOS TESTS OK' : `\n${fails} TESTS FALLARON`);
 process.exit(fails === 0 ? 0 : 1);
