@@ -311,6 +311,62 @@
     return simNames[0];
   }
 
+  // ───────────────────────────────────────────────────────────────────────
+  // F12 del BACKLOG: desfase de origen temporal al interpolar series de
+  // referencia de fase 'enfriamiento'.
+  //
+  // Diagnóstico: antes de esta corrección, TODA serie de referencia se
+  // trasladaba a un eje absoluto común (t_h = T_irr + t_local para
+  // 'enfriamiento') para poder compararla contra una curva ACAB COMBINADA
+  // (irradiación + enfriamiento concatenados, cuyo tramo de enfriamiento
+  // también arranca en T_irr). Ambos lados usaban la MISMA convención
+  // absoluta, pero cualquier discrepancia entre el T_irr usado al importar
+  // la serie (el de la simulación de referencia elegida en el diálogo) y el
+  // de la simulación objetivo de la tabla de métricas (elegible aparte,
+  // Fase 6 del BACKLOG) desplazaba la interpolación en la diferencia de
+  // T_irr — o el T_irr completo si se comparaba, como aquí, contra una
+  // curva que ya no llevaba ese desplazamiento.
+  //
+  // Corrección: una serie declarada de fase 'enfriamiento' tiene su t en
+  // tiempo DESDE EL FIN DE IRRADIACIÓN (EOI/RESTART) — igual origen que
+  // sim.t_cool/datos_cool. Se compara DIRECTAMENTE contra la serie de
+  // enfriamiento de la simulación objetivo, sin desplazamiento alguno; una
+  // serie de fase 'irradiacion' ya comparte origen con sim.t_irr (t=0 =
+  // inicio de irradiación), tampoco necesita desplazamiento. `curveForPhase`
+  // centraliza esta elección — nunca combina fases.
+  // ───────────────────────────────────────────────────────────────────────
+
+  /**
+   * Curva ACAB (Bq/cm³) de la MISMA fase/origen temporal que una serie de
+   * referencia declarada con esa fase — nunca la curva combinada
+   * irradiación+enfriamiento (ver nota F12 arriba).
+   */
+  function curveForPhase(sim, iso, fase) {
+    if (fase === 'irradiacion') {
+      return {
+        xs: (sim && sim.t_irr) || [],
+        ys: (sim && sim.datos_irr_Bq && sim.datos_irr_Bq[iso]) || [],
+      };
+    }
+    return {
+      xs: (sim && sim.t_cool) || [],
+      ys: (sim && sim.datos_cool && sim.datos_cool[iso]) || [],
+    };
+  }
+
+  /**
+   * Método + origen temporal declarados en la cabecera de exportación (F12) —
+   * claves puras (sin texto, i18n lo resuelve en app.js, igual que
+   * pureza_time_utils.js/estadoBadgeClass): 'linear_clamped' es el único
+   * método soportado hoy; el origen depende de la fase.
+   */
+  function interpolationOriginLabel(fase) {
+    return {
+      metodoKey: 'linear_clamped',
+      origenKey: fase === 'irradiacion' ? 'irr_start' : 'eoi',
+    };
+  }
+
   return {
     TIME_UNIT_TO_H,
     parseActivityUnitLabel,
@@ -324,5 +380,7 @@
     computeDeviationMetrics,
     seriesForMetrics,
     resolveTargetSimName,
+    curveForPhase,
+    interpolationOriginLabel,
   };
 });

@@ -360,6 +360,31 @@ def test_bqcm3_inverse_conversion() -> None:
     check_close(bqcm3, 16500.0, "MBq/g invertido reproduce el pico I131 en Bq/cm³")
 
 
+def test_f12_time_origin_no_shift() -> None:
+    """F12 del BACKLOG: caso oro del diagnóstico (desfase de T_irr al
+    interpolar una serie de referencia de fase 'enfriamiento'). Mirror en
+    Python de la sección equivalente de tools/test_reference_data.js —
+    curveForPhase/interpolationOriginLabel viven solo en JS (pura selección
+    de arrays, sin lógica numérica propia), así que aquí solo se verifica el
+    núcleo numérico: linear_interp_clamped sobre los dos nodos, con y sin el
+    desplazamiento espurio de T_irr.
+    """
+    section("F12 — desfase de origen temporal (caso oro del diagnóstico)")
+    t_irr_h = 2.778e-3  # h, caso de referencia del experimento 1 (ref_sim)
+    xs = [0.25, 0.50]
+    ys = [0.0473979, 0.0784282]
+    t_query = 0.273678
+
+    correcto = linear_interp_clamped(xs, ys, t_query)
+    check_close(correcto, 0.0503369, "interpolación SIN desplazar por T_irr da el valor correcto", rtol=1e-4)
+
+    buggy = linear_interp_clamped(xs, ys, t_query - t_irr_h)
+    check_close(buggy, 0.0499920,
+                "restar T_irr antes de interpolar reproduce el valor erróneo del diagnóstico (documentación del bug)",
+                rtol=1e-4)
+    check(abs(correcto - buggy) > 1e-5, "el valor correcto y el erróneo difieren (F12 deja de reproducirse)")
+
+
 def main() -> int:
     print("Tests oráculo de reference_data.js (Fase 4 del runbook, sin node)")
     print(f"Fixtures: {FIXTURES_EXP}")
@@ -375,6 +400,7 @@ def main() -> int:
     test_series_for_metrics()
     test_resolve_target_sim_name()
     test_bqcm3_inverse_conversion()
+    test_f12_time_origin_no_shift()
 
     print(f"\n{'-' * 50}")
     print(f"Resultado: {_PASSED} pasados, {_FAILED} fallidos")

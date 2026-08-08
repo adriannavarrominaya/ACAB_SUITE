@@ -164,6 +164,50 @@ check(R.resolveTargetSimName(['sim1', 'sim2'], 'sim3-ya-no-existe') === 'sim1', 
 check(R.resolveTargetSimName([], 'sim1') === null, 'sin simulaciones cargadas → null');
 check(R.resolveTargetSimName(null, 'sim1') === null, 'null → null (nunca rompe)');
 
+// ─────────────────────────────────────────────────────────────────────────
+section('curveForPhase / interpolationOriginLabel — F12 del BACKLOG (desfase de origen temporal)');
+const T_IRR_H = 2.778e-3; // h, caso de referencia del experimento 1 (ref_sim)
+const simF12 = {
+  T_IRR_h: T_IRR_H,
+  t_irr: [0, T_IRR_H],
+  datos_irr_Bq: { I131: [0, 1] },
+  // "Serie de enfriamiento" de la simulación (t=0 = EOI/RESTART), con los dos
+  // nodos del caso oro del BACKLOG.
+  t_cool: [0.25, 0.50],
+  datos_cool: { I131: [0.0473979, 0.0784282] },
+};
+
+const enfCurve = R.curveForPhase(simF12, 'I131', 'enfriamiento');
+check(JSON.stringify(enfCurve.xs) === JSON.stringify(simF12.t_cool),
+      'curveForPhase(enfriamiento) usa t_cool directamente (sin combinar con irradiación)');
+check(JSON.stringify(enfCurve.ys) === JSON.stringify(simF12.datos_cool.I131),
+      'curveForPhase(enfriamiento) usa datos_cool directamente');
+
+const irrCurve = R.curveForPhase(simF12, 'I131', 'irradiacion');
+check(JSON.stringify(irrCurve.xs) === JSON.stringify(simF12.t_irr),
+      'curveForPhase(irradiacion) usa t_irr directamente');
+
+// Caso oro (F12 del BACKLOG): con los nodos (0.25 h → 0.0473979) y
+// (0.50 h → 0.0784282) de la serie de enfriamiento, el valor en t=0.273678 h
+// (una serie de referencia de fase 'enfriamiento', cuyo t YA está en tiempo
+// desde EOI, sin desplazar) debe ser 0.0503369, interpolando DIRECTAMENTE
+// sin restar T_irr — no 0.0499920, que es lo que daría restar T_irr antes de
+// interpolar (el bug diagnosticado).
+const tQuery = 0.273678;
+const correcto = R.linearInterpClamped(enfCurve.xs, enfCurve.ys, tQuery);
+close(correcto, 0.0503369, 'F12: interpolación SIN desplazar por T_irr da el valor correcto', 1e-4);
+
+const buggy = R.linearInterpClamped(enfCurve.xs, enfCurve.ys, tQuery - T_IRR_H);
+close(buggy, 0.0499920, 'F12 (documentación del bug): restar T_irr antes de interpolar reproduce el valor erróneo del diagnóstico', 1e-4);
+check(Math.abs(correcto - buggy) > 1e-5, 'el valor correcto y el erróneo difieren (F12 deja de reproducirse)');
+
+const origIrr = R.interpolationOriginLabel('irradiacion');
+check(origIrr.origenKey === 'irr_start', "origen declarado de una serie 'irradiacion' = irr_start");
+const origCool = R.interpolationOriginLabel('enfriamiento');
+check(origCool.origenKey === 'eoi', "origen declarado de una serie 'enfriamiento' = eoi (fin de irradiación)");
+check(origIrr.metodoKey === 'linear_clamped' && origCool.metodoKey === 'linear_clamped',
+      'método de interpolación declarado = linear_clamped en ambas fases');
+
 console.log('\n' + '-'.repeat(50));
 console.log('Resultado: ' + passed + ' pasados, ' + failed + ' fallidos');
 process.exit(failed === 0 ? 0 : 1);

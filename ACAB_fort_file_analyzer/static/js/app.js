@@ -2226,8 +2226,14 @@ function _renderIsotopoTimeChart(iso, simulations, metricas) {
     const factor = convFactor(refSim);
     if (factor === null) return;
     const color = REF_COLORS[idx % REF_COLORS.length];
+    // F12 del BACKLOG: p.t_h vive en tiempo desde el inicio de SU fase (sin
+    // desplazar, ver confirmRefDataImport); este gráfico combina irradiación
+    // + enfriamiento en un único eje absoluto (como el resto de trazas), así
+    // que el desplazamiento +T_irr se aplica SOLO aquí, para pintar — nunca
+    // se guarda desplazado.
+    const xShift = s.fase === 'enfriamiento' ? refSim.T_IRR_h : 0;
     const trace = {
-      x: s.points.map(p => p.t_h),
+      x: s.points.map(p => p.t_h + xShift),
       y: s.points.map(p => p.A_bqcm3 * factor),
       name: s.descripcion,
       mode: 'markers',
@@ -2861,16 +2867,6 @@ function _normalizePhase(s) {
   return '';
 }
 
-/** Curva ACAB completa (irradiación + enfriamiento) de un isótopo, en Bq/cm³, ordenada por t global [h]. */
-function _combinedCurveBqcm3(sim, iso) {
-  const T_irr = sim.T_IRR_h;
-  const pairs = [];
-  (sim.t_irr || []).forEach((tv, i) => pairs.push([tv, (sim.datos_irr_Bq[iso] || [])[i] ?? 0]));
-  (sim.t_cool || []).forEach((tv, i) => pairs.push([T_irr + tv, (sim.datos_cool[iso] || [])[i] ?? 0]));
-  pairs.sort((a, b) => a[0] - b[0]);
-  return { xs: pairs.map(p => p[0]), ys: pairs.map(p => p[1]) };
-}
-
 // E1: Populate the import dialog from the parsed CSV draft (preview + column
 // mapping selects, metadata fields prefilled from the CSV's `#` comments).
 function renderRefDataDialog() {
@@ -3034,11 +3030,16 @@ function confirmRefDataImport() {
     return;
   }
 
-  const T_irr_h = refSim.T_IRR_h;
+  // F12 del BACKLOG: t_h se guarda SIEMPRE en tiempo desde el inicio de la
+  // fase declarada (igual definición que docs/SPEC_csv_datos_referencia.md),
+  // SIN desplazar por T_irr — 'enfriamiento' comparte origen con
+  // sim.t_cool/datos_cool (EOI/RESTART), 'irradiacion' con sim.t_irr (t=0
+  // absoluto). El desplazamiento a eje absoluto para la SUPERPOSICIÓN en el
+  // gráfico combinado se calcula solo al pintar (_renderIsotopoTimeChart),
+  // nunca al guardar el dato.
   const points = rawPoints
     .map(p => {
-      const t_local_h = ACABRefData.convertTimeToHours(p.t, unidadT);
-      const t_h = fase === 'enfriamiento' ? T_irr_h + t_local_h : t_local_h;
+      const t_h = ACABRefData.convertTimeToHours(p.t, unidadT);
       const A_bqcm3 = ACABRefData.bqcm3FromUnit(p.A, unidadA, opts);
       const A_err_bqcm3 = (p.A_err !== null) ? ACABRefData.bqcm3FromUnit(p.A_err, unidadA, opts) : null;
       return { t_h, A_bqcm3, A_err_bqcm3 };
@@ -3136,10 +3137,15 @@ function renderRefDataMetrics() {
     </div>` : '';
 
   const tablesHtml = metricSeries.map(s => {
-    const { xs, ys } = _combinedCurveBqcm3(sim, iso);
+    // F12 del BACKLOG: curva ACAB de la MISMA fase que la serie (nunca la
+    // combinada irr+enfriamiento) — mismo origen temporal a ambos lados,
+    // p.t_h ya viene sin desplazar (confirmRefDataImport).
+    const { xs, ys } = ACABRefData.curveForPhase(sim, iso, s.fase);
     const points = s.points.map(p => ({ t: p.t_h, A: p.A_bqcm3 }));
     const metrics = ACABRefData.computeDeviationMetrics(points, xs, ys);
     const factor = convFactor(sim);
+    const originKeys = ACABRefData.interpolationOriginLabel(s.fase);
+    const origin = { metodo: t('refdata.interp_method_' + originKeys.metodoKey), origen: t('refdata.origin_' + originKeys.origenKey) };
 
     const rows = metrics.rows.map(r => `
       <tr>
@@ -3165,6 +3171,7 @@ function renderRefDataMetrics() {
             </button>
           </div>
         </div>
+        <div class="px-2 pt-1 small text-muted">${t('refdata.metrics_origin_note', { metodo: origin.metodo, origen: origin.origen })}</div>
         <div class="table-responsive" style="max-height:220px">
           <table class="table table-sm mb-0" style="font-size:0.8rem">
             <thead><tr>
@@ -3205,10 +3212,14 @@ function exportRefMetricsCSV(seriesId) {
   const sim = targetSimName ? sims[targetSimName] : null;
   if (!sim) return;
 
-  const { xs, ys } = _combinedCurveBqcm3(sim, iso);
+  // F12 del BACKLOG: misma fase a ambos lados, sin desplazamiento — ver
+  // renderRefDataMetrics.
+  const { xs, ys } = ACABRefData.curveForPhase(sim, iso, s.fase);
   const points = s.points.map(p => ({ t: p.t_h, A: p.A_bqcm3 }));
   const metrics = ACABRefData.computeDeviationMetrics(points, xs, ys);
   const factor = convFactor(sim);
+  const originKeys = ACABRefData.interpolationOriginLabel(s.fase);
+  const origin = { metodo: t('refdata.interp_method_' + originKeys.metodoKey), origen: t('refdata.origin_' + originKeys.origenKey) };
 
   const rows = metrics.rows.map(r => [
     r.t,
@@ -3219,6 +3230,7 @@ function exportRefMetricsCSV(seriesId) {
   const headers = ['t [h]', `A_serie [${unitLabel()}]`, `A_ACAB [${unitLabel()}]`, 'desv [%]'];
   const extraMeta = [
     `# ${t('refdata.metrics_csv_meta', { tipo: _refTipoLabel(s.tipo), sim: targetSimName })}`,
+    `# ${t('refdata.metrics_csv_origin', { metodo: origin.metodo, origen: origin.origen })}`,
     `# ${t('refdata.metrics_mean', { v: metrics.meanDevPct   != null ? metrics.meanDevPct.toFixed(3)   : '' })}`,
     `# ${t('refdata.metrics_max',  { v: metrics.maxAbsDevPct != null ? metrics.maxAbsDevPct.toFixed(3) : '' })}`,
   ].join('\r\n');
