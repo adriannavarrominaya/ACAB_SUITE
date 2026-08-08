@@ -171,6 +171,39 @@
     return positions;
   }
 
+  /** ¿Es un barrido temporal? (U8 del BACKLOG: opción de eje X categórico
+   * por simulación, para comparar historiales de igual t_irr_fin y
+   * distinta forma -- caso habilitado por U7 del INP configurator, que
+   * permite tarjetas con el mismo t_irr_fin pero un historial de tramos
+   * distinto). */
+  function isTimeSweep(manifest) {
+    return !!(manifest && manifest.sweep_type === 'time');
+  }
+
+  /** Clave sentinela del eje X categórico "por simulación" (U8) en el
+   * `<select>` de eje X de un barrido temporal -- nunca coincide con una
+   * clave real de `params` (t_irr_fin/t_cool_fin son siempre identificadores
+   * ASCII simples sin espacios ni "__"), así que convive sin ambigüedad con
+   * las claves numéricas de `paramKeys()` en el mismo desplegable. */
+  const TIME_X_CATEGORICAL = '__sim__';
+
+  /** Etiqueta de una fila de barrido temporal en el eje X categórico: el
+   * NOMBRE de la simulación (carpeta) -- el manifest de un barrido temporal
+   * no trae ningún campo tipo `espectro` (U4) más descriptivo, y el nombre
+   * de carpeta ya es la identificación que U7 desambigua (p. ej.
+   * "Tirr050.0h"/"Tirr050.0h_2"). */
+  function timeRowLabel(row) {
+    return (row && row.name) || '';
+  }
+
+  /** `rows` ordenadas para el eje X categórico (U8): por nombre de
+   * simulación, ascendente -- un orden estable y predecible que no depende
+   * de ningún parámetro numérico (a diferencia de `groupByOtherParams`, que
+   * SÍ asume un `xKey` numérico). */
+  function sortRowsByName(rows) {
+    return (rows || []).slice().sort((a, b) => timeRowLabel(a).localeCompare(timeRowLabel(b)));
+  }
+
   return {
     mergeSweepRows,
     paramKeys,
@@ -182,5 +215,9 @@
     SPECTRUM_FRAC_KEYS,
     spectrumNumericKeys,
     spectrumTextPositions,
+    isTimeSweep,
+    TIME_X_CATEGORICAL,
+    timeRowLabel,
+    sortRowsByName,
   };
 });

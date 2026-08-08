@@ -390,6 +390,7 @@
     "title": "Barrido paramétrico — {label}",
     "desc": "Combina los parámetros del barrido con el pico, la pureza y el rendimiento ya calculados en el Informe Isótopo (sin recalcular ninguna fórmula).",
     "param_label": "Parámetro (eje X)",
+    "x_categorical_sim": "Simulación",
     "yvar_label": "Variable (eje Y)",
     "yvar_apico": "A pico",
     "yvar_tpico": "t pico",

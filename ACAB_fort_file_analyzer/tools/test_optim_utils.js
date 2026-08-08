@@ -200,6 +200,38 @@ section('spectrumTextPositions (U4b del BACKLOG)');
      'rango nulo (todos los valores iguales) -> sin desplazamiento, posición por defecto');
 }
 
+section('isTimeSweep / TIME_X_CATEGORICAL / timeRowLabel / sortRowsByName (U8 del BACKLOG)');
+{
+  eq(O.isTimeSweep({ sweep_type: 'time' }), true, "sweep_type='time' -> true");
+  eq(O.isTimeSweep({ sweep_type: 'flux' }), false, "sweep_type='flux' -> false");
+  eq(O.isTimeSweep(null), false, 'manifest ausente -> false');
+  eq(O.isTimeSweep({}), false, 'sin sweep_type -> false');
+
+  // TIME_X_CATEGORICAL nunca debe colisionar con una clave real de params
+  // (t_irr_fin/t_cool_fin/pasos_irr/pasos_cool, todas ASCII simples).
+  eq(typeof O.TIME_X_CATEGORICAL, 'string', 'TIME_X_CATEGORICAL es una clave sentinela');
+  const realKeys = ['t_irr_fin', 't_cool_fin', 'pasos_irr', 'pasos_cool'];
+  eq(realKeys.indexOf(O.TIME_X_CATEGORICAL), -1,
+     'TIME_X_CATEGORICAL no coincide con ninguna clave real de un barrido temporal');
+
+  // Caso U7: dos tarjetas con el MISMO t_irr_fin pero historial distinto
+  // (se apilarían en el mismo punto del eje numérico) -- el eje categórico
+  // las distingue por nombre de simulación.
+  const rowsTime = [
+    { name: 'Tirr050.0h',   params: { t_irr_fin: 50.0, t_cool_fin: 4.5 } },
+    { name: 'Tirr050.0h_2', params: { t_irr_fin: 50.0, t_cool_fin: 4.5 } },
+  ];
+  eq(O.timeRowLabel(rowsTime[0]), 'Tirr050.0h', 'timeRowLabel = nombre de la simulación');
+  eq(O.timeRowLabel(rowsTime[1]), 'Tirr050.0h_2', 'timeRowLabel distingue las tarjetas U7 desambiguadas por sufijo');
+  eq(O.timeRowLabel({}), '', 'fila sin name -> cadena vacía, nunca undefined');
+
+  const unsorted = [rowsTime[1], rowsTime[0]];
+  eq(O.sortRowsByName(unsorted).map(r => r.name), ['Tirr050.0h', 'Tirr050.0h_2'],
+     'sortRowsByName ordena por nombre ascendente, con independencia del orden de entrada');
+  eq(unsorted.map(r => r.name), ['Tirr050.0h_2', 'Tirr050.0h'],
+     'sortRowsByName no muta el array original');
+}
+
 console.log('\n' + '-'.repeat(50));
 console.log(`Resultado: ${passed} pasados, ${failed} fallidos`);
 process.exit(failed === 0 ? 0 : 1);

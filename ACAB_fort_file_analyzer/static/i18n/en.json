@@ -390,6 +390,7 @@
     "title": "Parametric Sweep — {label}",
     "desc": "Combines the sweep parameters with the peak, purity and yield already computed in the Isotope Report (no formula is recomputed).",
     "param_label": "Parameter (X axis)",
+    "x_categorical_sim": "Simulation",
     "yvar_label": "Variable (Y axis)",
     "yvar_apico": "Peak activity",
     "yvar_tpico": "Peak time",

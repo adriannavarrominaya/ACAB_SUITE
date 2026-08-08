@@ -3560,21 +3560,34 @@ function renderOptimizacion() {
     return;
   }
 
-  if (!_state.optimXParam || keys.indexOf(_state.optimXParam) === -1) {
+  // U8 del BACKLOG: en un barrido temporal, el <select> de eje X gana una
+  // opción categórica "por simulación" (ACABOptim.TIME_X_CATEGORICAL) además
+  // de las numéricas de siempre (t_irr_fin/t_cool_fin) -- útil para comparar
+  // historiales de igual duración y distinta forma (U7), donde varias
+  // tarjetas comparten el mismo t_irr_fin y se apilarían en el mismo punto
+  // del eje numérico.
+  const isTime = ACABOptim.isTimeSweep(manifest);
+  const validXValues = isTime ? keys.concat([ACABOptim.TIME_X_CATEGORICAL]) : keys;
+  if (!_state.optimXParam || validXValues.indexOf(_state.optimXParam) === -1) {
     _state.optimXParam = keys[0];
   }
   const xKey  = _state.optimXParam;
+  const isCategorical = isTime && xKey === ACABOptim.TIME_X_CATEGORICAL;
   const yVar  = _state.optimYVar;
   const label = isoLabel(iso);
   const uL    = unitLabel();
 
-  const paramOptions = keys.map(k =>
+  const paramOptions =
+    (isTime ? `<option value="${ACABOptim.TIME_X_CATEGORICAL}" ${isCategorical ? 'selected' : ''}>${t('optim.x_categorical_sim')}</option>` : '')
+    + keys.map(k =>
     `<option value="${escAttr(k)}" ${k === xKey ? 'selected' : ''}>${escHtml(k)}</option>`).join('');
   const yVarOptions = OPTIM_YVARS.map(v =>
     `<option value="${v}" ${v === yVar ? 'selected' : ''}>${escHtml(_optimYLabel(v))}</option>`).join('');
 
   // ── Table: folder × params × A_pico × t_pico × pureza × rendimiento ──────
-  const sortedRows = rows.slice().sort((a, b) => (a.params[xKey] ?? 0) - (b.params[xKey] ?? 0));
+  const sortedRows = isCategorical
+    ? ACABOptim.sortRowsByName(rows)
+    : rows.slice().sort((a, b) => (a.params[xKey] ?? 0) - (b.params[xKey] ?? 0));
   const tableRows = sortedRows.map((r, i) => {
     const sim = sims[r.name];
     const cellsParams = keys.map(k =>
@@ -3645,7 +3658,7 @@ function renderOptimizacion() {
     </div>
   `;
 
-  _renderOptimChart(rows, xKey, yVar, keys, sims);
+  _renderOptimChart(rows, xKey, yVar, keys, sims, isCategorical);
 
   const xSel = document.getElementById('optim-x-select');
   if (xSel) xSel.addEventListener('change', e => {
@@ -3897,9 +3910,40 @@ function exportOptimizacionSpectrumCSV() {
 
 /** Plotly scatter/line: variable Y elegida vs. parámetro elegido, una serie
  * por combinación de las demás dimensiones del barrido (color). */
-function _renderOptimChart(rows, xKey, yVar, keys, sims) {
+function _renderOptimChart(rows, xKey, yVar, keys, sims, isCategorical) {
   const div = document.getElementById('optim-chart');
   if (!div) return;
+
+  // U8 del BACKLOG: eje X categórico "por simulación" en un barrido
+  // temporal -- una SOLA serie de barras (nombre de la simulación como
+  // etiqueta, criterio compartido con el barrido espectral de U4), nunca
+  // agrupada por otros parámetros (no tendría sentido: cada simulación es
+  // ya su propia categoría). Evita el autorango microscópico / etiquetas de
+  // eje Y apiladas de intentar tratar t_irr_fin como eje numérico cuando
+  // varias tarjetas comparten el mismo valor con distinto historial (U7).
+  if (isCategorical) {
+    const sortedRows = ACABOptim.sortRowsByName(rows);
+    const xs = [], ys = [];
+    sortedRows.forEach(r => {
+      const yv = _optimYDisplay(r, yVar, sims[r.name]);
+      if (yv === null) return;
+      xs.push(ACABOptim.timeRowLabel(r));
+      ys.push(yv);
+    });
+    const trace = {
+      x: xs, y: ys, type: 'bar',
+      marker: { color: PALETTE[0] },
+    };
+    const layout = {
+      margin: { t: 20, r: 20, b: 70, l: 60 },
+      xaxis:  { title: t('optim.x_categorical_sim'), type: 'category' },
+      yaxis:  { title: `${_optimYLabel(yVar)} [${_optimYUnit(yVar)}]` },
+      showlegend: false,
+    };
+    Plotly.newPlot(div, [trace], layout, { responsive: true, displayModeBar: true });
+    return;
+  }
+
   const groups = ACABOptim.groupByOtherParams(rows, xKey, keys);
 
   const traces = groups.map((g, i) => {
@@ -3943,9 +3987,16 @@ function exportOptimizacionCSV() {
   const keys = ACABOptim.paramKeys(rows);
   if (!rows.length || !keys.length) return;
 
-  const xKey = (_state.optimXParam && keys.indexOf(_state.optimXParam) !== -1)
+  // U8 del BACKLOG: el eje X categórico (sentinela TIME_X_CATEGORICAL) no es
+  // una clave de `keys` -- se acepta aparte, solo en barridos temporales.
+  const isTime = ACABOptim.isTimeSweep(manifest);
+  const xKey = (_state.optimXParam
+      && (keys.indexOf(_state.optimXParam) !== -1
+          || (isTime && _state.optimXParam === ACABOptim.TIME_X_CATEGORICAL)))
     ? _state.optimXParam : keys[0];
-  const sortedRows = rows.slice().sort((a, b) => (a.params[xKey] ?? 0) - (b.params[xKey] ?? 0));
+  const sortedRows = (isTime && xKey === ACABOptim.TIME_X_CATEGORICAL)
+    ? ACABOptim.sortRowsByName(rows)
+    : rows.slice().sort((a, b) => (a.params[xKey] ?? 0) - (b.params[xKey] ?? 0));
 
   const uL = unitLabel();
   const csvRows = sortedRows.map(r => {
