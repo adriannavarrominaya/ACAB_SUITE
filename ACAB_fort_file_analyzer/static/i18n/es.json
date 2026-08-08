@@ -378,7 +378,8 @@
     "aesp_destacado_label": "En t<sub>cruce</sub> de pureza",
     "aesp_sin_destacado": "sin instante de cruce de pureza que destacar.",
     "aesp_techo_label": "Techo sin portador",
-    "aesp_techo_pct_suffix": "del techo"
+    "aesp_techo_pct_suffix": "del techo",
+    "aesp_csv_meta_sim": "{sim}: techo sin portador = {techo} MBq/g | valor destacado en t_cruce = {destacado} MBq/g (t = {tcruce} h)"
   },
 
   "optim": {

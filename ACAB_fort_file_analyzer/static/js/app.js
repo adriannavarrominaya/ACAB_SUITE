@@ -2597,7 +2597,12 @@ function _renderMetricasOptimizacion(iso, simulations, report) {
         </div>
 
         <div class="mt-4" id="aesp-yodo-section" style="display:none">
-          <div class="section-heading mb-0">${t('metrics.aesp_title')}</div>
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
+            <div class="section-heading mb-0">${t('metrics.aesp_title')}</div>
+            <button class="btn btn-outline-secondary btn-sm" id="btn-export-aesp">
+              <i class="bi bi-download me-1"></i>${t('export.csv')}
+            </button>
+          </div>
           <p class="small text-muted mb-2">${t('metrics.aesp_desc')}</p>
           <div id="aesp-yodo-chart" class="plotly-chart-lg"></div>
           <div id="aesp-yodo-info" class="mt-2"></div>
@@ -2613,6 +2618,8 @@ function _renderMetricasOptimizacion(iso, simulations, report) {
   if (btnRend) btnRend.addEventListener('click', exportRendimientoCSV);
   const btnPur = document.getElementById('btn-export-pureza');
   if (btnPur) btnPur.addEventListener('click', exportPurezaCSV);
+  const btnAesp = document.getElementById('btn-export-aesp');
+  if (btnAesp) btnAesp.addEventListener('click', exportActividadEspecificaCSV);
   const btnRecalc = document.getElementById('btn-recalc-pureza');
   if (btnRecalc) {
     btnRecalc.addEventListener('click', () => {
@@ -2863,6 +2870,47 @@ function _renderActividadEspecificaYodoChart(iso, simulations, metricas) {
     hovermode: 'closest',
     plot_bgcolor: '#fafafa', paper_bgcolor: '#fff',
   }, { responsive: true });
+}
+
+/**
+ * U9 del BACKLOG: exportar A_esp(t) del yodo -- única magnitud de la
+ * pestaña Informe Isótopo sin exportación (detectado al reunir el material
+ * del capítulo 4 de la memoria, obligaba a leer los valores de la vista).
+ * Mismo formato/cabecera de procedencia (carpeta, isótopo, unidad, fecha)
+ * que el resto de exports de esta pestaña, vía emitCSV/csvMeta. Añade,
+ * declarados en la cabecera POR SIMULACIÓN (F13 del BACKLOG: el techo
+ * puede diferir entre simulaciones): el techo físico sin portador
+ * (metricas[sim].nuclear_props.A_esp, F14) y el valor destacado en t_cruce.
+ * A_esp_yodo ya viene en MBq/g de YODO del servidor, invariante del
+ * selector de unidad Bq/cm³↔MBq/g↔MBq↔mCi del target (ver units.js) — no
+ * se pasa por `conv()`, igual que en el gráfico.
+ */
+function exportActividadEspecificaCSV() {
+  const iso = _state.selectedIsotopo;
+  const informe = _state.isotopoReport && _state.isotopoReport.informe;
+  if (!iso || !informe) return;
+
+  const rows = [];
+  const metaLines = [];
+  Object.entries(informe.metricas || {}).forEach(([name, m]) => {
+    const serie = m && m.actividad_especifica_yodo_serie;
+    if (!serie) return;
+    (serie.serie || []).forEach(p => rows.push([name, p.t, p.A_esp_MBq_g]));
+
+    const np = m.nuclear_props;
+    const techoMBqG = (np && np.A_esp != null) ? np.A_esp / 1e6 : null;
+    metaLines.push(`# ${t('metrics.aesp_csv_meta_sim', {
+      sim: name,
+      techo: techoMBqG != null ? techoMBqG.toExponential(4) : '—',
+      destacado: serie.valor_destacado_MBq_g != null ? serie.valor_destacado_MBq_g.toExponential(4) : '—',
+      tcruce: serie.t_destacado_h != null ? serie.t_destacado_h.toFixed(4) : '—',
+    })}`);
+  });
+  if (!rows.length) return;
+
+  const headers = [t('overview.th_sim'), 't [h]', 'A_esp(yodo) [MBq/g]'];
+  emitCSV(`${ACABExport.slug(iso)}_aesp_yodo_${folderSlug()}.csv`,
+          iso, rows, headers, metaLines.join('\r\n'));
 }
 
 /** Export the saturation table (per sim: A_sat + t_x per % target, Fase 5). */

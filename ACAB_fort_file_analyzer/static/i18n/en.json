@@ -378,7 +378,8 @@
     "aesp_destacado_label": "At purity t<sub>cross</sub>",
     "aesp_sin_destacado": "no purity crossing instant to highlight.",
     "aesp_techo_label": "Carrier-free ceiling",
-    "aesp_techo_pct_suffix": "of ceiling"
+    "aesp_techo_pct_suffix": "of ceiling",
+    "aesp_csv_meta_sim": "{sim}: carrier-free ceiling = {techo} MBq/g | highlighted value at t_cross = {destacado} MBq/g (t = {tcruce} h)"
   },
 
   "optim": {
