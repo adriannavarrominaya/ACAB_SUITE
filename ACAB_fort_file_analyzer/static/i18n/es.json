@@ -370,7 +370,9 @@
     "aesp_na": "sin datos de enfriamiento o no aplica a este isótopo (solo yodo).",
     "aesp_ax_y": "A<sub>esp</sub>(yodo) [MBq/g]",
     "aesp_destacado_label": "En t<sub>cruce</sub> de pureza",
-    "aesp_sin_destacado": "sin instante de cruce de pureza que destacar."
+    "aesp_sin_destacado": "sin instante de cruce de pureza que destacar.",
+    "aesp_techo_label": "Techo sin portador",
+    "aesp_techo_pct_suffix": "del techo"
   },
 
   "optim": {

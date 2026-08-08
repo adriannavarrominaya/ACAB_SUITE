@@ -370,7 +370,9 @@
     "aesp_na": "no cooling data, or not applicable to this isotope (iodine only).",
     "aesp_ax_y": "A<sub>sp</sub>(iodine) [MBq/g]",
     "aesp_destacado_label": "At purity t<sub>cross</sub>",
-    "aesp_sin_destacado": "no purity crossing instant to highlight."
+    "aesp_sin_destacado": "no purity crossing instant to highlight.",
+    "aesp_techo_label": "Carrier-free ceiling",
+    "aesp_techo_pct_suffix": "of ceiling"
   },
 
   "optim": {

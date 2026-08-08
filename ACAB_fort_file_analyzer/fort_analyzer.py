@@ -1515,18 +1515,90 @@ def calcular_pureza_serie(
 
 #  I127 is stable (λ=0, DECAY.dat 531270 → T12=.inf) and I129 is long-lived
 #  (T12≈1.57e7 y, DECAY.dat 531290 / NNDC). Neither is safe to recover via
-#  N(t)=A(t)/λ: fort.6 prints activities with ~4-5 significant figures, and
-#  dividing a value that small by a λ that tiny (I129) — or by λ=0 at all
-#  (I127) — amplifies that print rounding into an atom count with no
-#  reliable precision (F2b del BACKLOG, bug confirmado 2026-07-21: en
-#  irradiaciones largas, donde Te127/Te129 alimentan I127/I129 durante
-#  horas, este error hace que el diluyente estable domine la masa de forma
-#  espuria). Held constant at the end-of-irradiation NUMBER OF ATOMS count
-#  instead (see below). Every other iodine isotope in ACAB's chain (I116-
-#  I137 except these two) has a half-life from ms to ~25 d — short enough
-#  that N(t)=A(t)/λ per cooling timestep is the exact, well-conditioned
-#  recovery of ACAB's internal population.
+#  N(t)=A(t)/λ FROM ITS OWN activity: fort.6 prints activities with ~4-5
+#  significant figures, and dividing a value that small by a λ that tiny
+#  (I129) — or by λ=0 at all (I127) — amplifies that print rounding into an
+#  atom count with no reliable precision.
+#
+#  F2b del BACKLOG (2026-07-21, bug confirmado): froze both at their
+#  end-of-irradiation NUMBER OF ATOMS count instead. F14 del BACKLOG
+#  (2026-08-08, bug confirmado): that "frozen" design is itself wrong — I127
+#  and I129 keep GROWING during cooling, fed by the decay of their own
+#  precursors (Te127/Te127M → I127; Te129/Te129M → I129). Verified on the
+#  reference case of experiment 1 (v3): I129 grows ×1077 during cooling vs.
+#  the ×429 of I131, and I127 (stable, zero activity) is completely
+#  invisible from the activity tables — freezing it gives a specific
+#  activity of 4.5928e9 MBq/g (99.9 % of the carrier-free ceiling) at 3.75 h,
+#  vs. the physically correct 2.210e9 MBq/g (48.1 %); a factor 2.1 error.
+#
+#  Fixed WITHOUT reviving the F2b numerical-instability problem: instead of
+#  A(t)/λ on I127/I129's OWN (unreliable) activity, `_evolucionar_diluyente`
+#  propagates the decay of every OTHER isotope sharing the SAME mass number
+#  (isobar) from the end-of-irradiation NUMBER OF ATOMS table — Te127/
+#  Te127M/Te129/Te129M all have ordinary half-lives, so N(t)=A(t)/λ on
+#  THEIR cooling activity is exact and well-conditioned. Mass-number
+#  conservation along a β⁻/IT decay chain (no particle emission, no more
+#  neutron flux once cooling starts) makes this EXACT, not an
+#  approximation: total atoms of a fixed isobar is constant, so whatever a
+#  precursor loses, the stable/long-lived end of the chain gains — with no
+#  need to know the branching structure (IT vs. β⁻) at all.
 IODINE_ESTABLE_O_VIDA_LARGA = {"I127", "I129"}
+
+
+def _evolucionar_diluyente(
+    sim: dict,
+    target_iso: str,
+    t12_dict: dict[str, float],
+    t_cool: np.ndarray,
+) -> np.ndarray:
+    """N(target_iso, t) during cooling for a stable/very-long-lived iodine
+    isotope (F14 del BACKLOG) — its own activity is either zero (stable) or
+    too small/imprecise to invert via A(t)/λ, so it is derived instead from
+    mass-number conservation over every OTHER isotope sharing its mass
+    number (its isobaric precursors), each recovered from ITS OWN cooling
+    activity (well-conditioned — see IODINE_ESTABLE_O_VIDA_LARGA above):
+
+        N_target(t) = N_target(EOI) + Σ_precursores [N_prec(EOI) − N_prec(t)]
+
+    A precursor with no cooling activity series left (fully decayed away
+    before RESTART, so ACAB stops tracking it) decays analytically from its
+    EOI population instead — still exact, just not grounded in a printed
+    ACAB value. A precursor with unknown/zero λ (its own T½ unresolved or
+    itself stable) contributes nothing (nothing decays out of it).
+    """
+    datos_cool = sim.get("datos_cool", {})
+    datos_irr_atomos = sim.get("datos_irr_atomos", {})
+
+    m_target = _MASS_RE.search(target_iso)
+    target_A = int(m_target.group(1)) if m_target else None
+
+    n0_target = float(datos_irr_atomos[target_iso][-1]) if target_iso in datos_irr_atomos else 0.0
+    N_t = np.full(len(t_cool), n0_target, dtype=float)
+    if target_A is None:
+        return N_t
+
+    for prec, atomos in datos_irr_atomos.items():
+        if prec == target_iso:
+            continue
+        m_prec = _MASS_RE.search(prec)
+        if not m_prec or int(m_prec.group(1)) != target_A:
+            continue  # not the same isobar — cooling has no more transmutation
+        n0_prec = float(atomos[-1]) if len(atomos) else 0.0
+        if n0_prec <= 0:
+            continue
+        lam_prec = lam(t12_dict.get(prec, math.inf))
+        if lam_prec <= 0:
+            continue  # precursor itself stable/unknown T½ — nothing decays out
+        if prec in datos_cool:
+            N_prec_t = np.asarray(datos_cool[prec], dtype=float) / lam_prec
+        else:
+            # λ is s⁻¹, t_cool is in HOURS (repo convention, e.g.
+            # calcular_saturacion's lam_h) — convert before exp(-λt).
+            lam_prec_h = lam_prec * 3600.0
+            N_prec_t = n0_prec * np.exp(-lam_prec_h * t_cool)
+        N_t = N_t + np.maximum(n0_prec - N_prec_t, 0.0)
+
+    return N_t
 
 
 def calcular_actividad_especifica_yodo_serie(
@@ -1536,9 +1608,9 @@ def calcular_actividad_especifica_yodo_serie(
     t_destacado_h: Optional[float] = None,
 ) -> Optional[dict]:
     """Iodine specific activity A_esp(t) = A(iso_key,t) / m(yodo_total,t) [MBq/g],
-    through the whole cooling phase (F2 del BACKLOG,
-    2026-07-09; denominador corregido en F2b, 2026-07-21). Same domain/family
-    as ``calcular_pureza_serie`` (F1).
+    through the whole cooling phase (F2 del BACKLOG, 2026-07-09; denominador
+    corregido en F2b, 2026-07-21, y de nuevo en F14, 2026-08-08). Same
+    domain/family as ``calcular_pureza_serie`` (F1).
 
     Stable ¹²⁷I and long-lived ¹²⁹I do not spoil radionuclidic purity (they
     share no activity with the impurity isotopes counted by
@@ -1546,12 +1618,16 @@ def calcular_actividad_especifica_yodo_serie(
     the target isotope spread over more grams of total iodine. m(yodo_total,t)
     sums every iodine isotope present in the fort.6:
 
-      - ``IODINE_ESTABLE_O_VIDA_LARGA`` (I127, I129): read once from the
-        end-of-irradiation NUMBER OF ATOMS table (``datos_irr_atomos``) and
-        held CONSTANT through the whole cooling phase — their feeding from
-        precursor decay (Te127→I127, Te129→I129) during cooling is treated
-        as second-order (documented approximation; see F2b del BACKLOG for
-        the long-irradiation case where this stops being negligible).
+      - ``IODINE_ESTABLE_O_VIDA_LARGA`` (I127, I129): evolved through cooling
+        via ``_evolucionar_diluyente`` — mass-number conservation over their
+        isobaric precursors (Te127/Te127M → I127; Te129/Te129M → I129), each
+        recovered from ITS OWN cooling activity (well-conditioned, unlike
+        I127/I129's). F14 del BACKLOG (2026-08-08, bug confirmado): F2b froze
+        both at the end-of-irradiation NUMBER OF ATOMS value instead —
+        wrong, they keep growing fed by precursor decay (verified: I129
+        grows ×1077 during cooling on the reference case of experiment 1,
+        vs. the ×429 of I131; freezing gave 99.9 % of the carrier-free
+        ceiling at 3.75 h instead of the correct 48.1 %).
       - Every other iodine isotope with a cooling activity series and λ > 0
         (I131, I128, I130, I130M, I132, I132M...): N(t) = A(t)/λ at each
         timestep, exact recovery of ACAB's internal atom population — no
@@ -1596,6 +1672,10 @@ def calcular_actividad_especifica_yodo_serie(
 
         if iso not in IODINE_ESTABLE_O_VIDA_LARGA and iso in datos_cool and lam_iso > 0:
             N_t = np.asarray(datos_cool[iso], dtype=float) / lam_iso
+        elif iso in IODINE_ESTABLE_O_VIDA_LARGA:
+            # F14 del BACKLOG: evoluciona por decaimiento de precursores,
+            # nunca congelado en el valor de EOI.
+            N_t = _evolucionar_diluyente(sim, iso, t12_dict, t_cool)
         else:
             atomos_irr = datos_irr_atomos.get(iso)
             n0 = float(atomos_irr[-1]) if atomos_irr else 0.0

@@ -2739,6 +2739,13 @@ function _renderPurezaSerieChart(iso, simulations, metricas) {
  * especifica_yodo_serie; aquí solo se pinta con Plotly, destacando el valor
  * en t_destacado_h (t_cruce de pureza, ya resuelto por el servidor). Oculta
  * la sección entera si NINGUNA sim tiene el dato (isótopo no es yodo).
+ *
+ * F14 del BACKLOG: línea de referencia del techo físico sin portador
+ * (metricas[sim].nuclear_props.A_esp, F13 — propio de CADA simulación, ver
+ * CLAUDE.md) y el % que representa el valor destacado sobre ese techo —
+ * antes de F14, A_esp(t) se acercaba erróneamente al 99,9 % del techo por
+ * congelar los diluyentes; con la corrección, el porcentaje real queda
+ * visible de un vistazo (caso de referencia del experimento 1: 48,1 %).
  */
 function _renderActividadEspecificaYodoChart(iso, simulations, metricas) {
   const section  = document.getElementById('aesp-yodo-section');
@@ -2776,16 +2783,33 @@ function _renderActividadEspecificaYodoChart(iso, simulations, metricas) {
       hovertemplate: `t = %{x:.3g} h<br>A_esp = %{y:.4e} MBq/g<extra>` + escHtml(name) + '</extra>',
     });
 
+    // F14 del BACKLOG: techo sin portador de ESTA simulación (F13, puede
+    // diferir entre simulaciones), en MBq/g (nuclear_props.A_esp viaja en
+    // Bq/g, la unidad interna del módulo).
+    const npAesp = metricas[name] && metricas[name].nuclear_props && metricas[name].nuclear_props.A_esp;
+    const techoMBqG = npAesp != null ? npAesp / 1e6 : null;
+    if (techoMBqG != null) {
+      shapes.push({
+        type: 'line', xref: 'paper', x0: 0, x1: 1, y0: techoMBqG, y1: techoMBqG, yref: 'y',
+        line: { color, width: 1, dash: 'dot' },
+      });
+    }
+
     infoHtml += `<div class="mb-2">${dot}<small class="fw-semibold">${escHtml(name)}</small> `;
     if (serie.t_destacado_h != null && serie.valor_destacado_MBq_g != null) {
       shapes.push({
         type: 'line', x0: serie.t_destacado_h, x1: serie.t_destacado_h, y0: 0, y1: 1, yref: 'paper',
         line: { color, width: 1.5, dash: 'dash' },
       });
+      const pctTecho = techoMBqG ? (serie.valor_destacado_MBq_g / techoMBqG * 100) : null;
       infoHtml += `<span class="badge bg-secondary">${t('metrics.aesp_destacado_label')}: `
-        + `${serie.valor_destacado_MBq_g.toExponential(3)} MBq/g (t = ${serie.t_destacado_h.toFixed(4)} h)</span>`;
+        + `${serie.valor_destacado_MBq_g.toExponential(3)} MBq/g (t = ${serie.t_destacado_h.toFixed(4)} h)`
+        + (pctTecho != null ? ` — ${pctTecho.toFixed(1)} % ${t('metrics.aesp_techo_pct_suffix')}` : '') + `</span>`;
     } else {
       infoHtml += `<span class="text-muted small">${t('metrics.aesp_sin_destacado')}</span>`;
+    }
+    if (techoMBqG != null) {
+      infoHtml += ` <span class="text-muted small">${t('metrics.aesp_techo_label')}: ${techoMBqG.toExponential(3)} MBq/g</span>`;
     }
     infoHtml += '</div>';
   });

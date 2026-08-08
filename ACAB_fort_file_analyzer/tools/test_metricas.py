@@ -510,6 +510,110 @@ def test_actividad_especifica_yodo_i129_congelado_vs_creciente() -> None:
                     "no A(t)/λ", rtol=1e-9)
 
 
+def test_f14_diluyente_evoluciona_por_precursores() -> None:
+    """F14 del BACKLOG (bug confirmado 2026-08-08): F2b congelaba I127/I129
+    en su valor de EOI durante todo el enfriamiento -- falso, crecen por
+    decaimiento de sus precursores (Te127/Te127M → I127; Te129/Te129M →
+    I129). Escenario sintético con precursores explícitos en
+    datos_irr_atomos (no disponible como fixture real en este repo: el caso
+    de referencia del experimento 1 vive fuera de él, ver el BACKLOG); la
+    fórmula de conservación de número másico se verifica AQUÍ de forma
+    independiente (sin llamar a _evolucionar_diluyente) y se compara con la
+    salida real de calcular_actividad_especifica_yodo_serie.
+    """
+    section("calcular_actividad_especifica_yodo_serie — F14: diluyentes evolucionan por decaimiento de precursores")
+
+    ln2 = math.log(2)
+    t_cool = [0.0, 1.0]  # h
+
+    # Objetivo: I131, T½=1h (3600 s) -- A(t) dado directamente, no depende de
+    # ningún precursor en este escenario sintético.
+    t12_i131_s = 3600.0
+    lam_i131_s = fa.lam(t12_i131_s)
+    A_i131 = [1000.0, 500.0]
+
+    # Precursores de A=127: TE127 (T½=1h) y TE127M (T½=3h), DOS precursores
+    # del mismo isóbaro alimentando I127 -- ejercita la suma sobre varios
+    # precursores, no solo uno.
+    t12_te127_s, t12_te127m_s = 3600.0, 3 * 3600.0
+    lam_te127_s, lam_te127m_s = fa.lam(t12_te127_s), fa.lam(t12_te127m_s)
+    n0_te127, n0_te127m = 1.0e6, 2.0e5
+    N_te127  = [n0_te127  * math.exp(-ln2 * t / 1.0) for t in t_cool]  # T½=1h
+    N_te127m = [n0_te127m * math.exp(-ln2 * t / 3.0) for t in t_cool]  # T½=3h
+    A_te127  = [lam_te127_s  * n for n in N_te127]
+    A_te127m = [lam_te127m_s * n for n in N_te127m]
+    n0_i127 = 1.0e4  # I127 (estable) al fin de irradiación, tabla NUMBER OF ATOMS
+
+    # Precursor de A=129: TE129 (T½=2h).
+    t12_te129_s = 2 * 3600.0
+    lam_te129_s = fa.lam(t12_te129_s)
+    n0_te129 = 2.0e6
+    N_te129 = [n0_te129 * math.exp(-ln2 * t / 2.0) for t in t_cool]
+    A_te129 = [lam_te129_s * n for n in N_te129]
+    n0_i129 = 2.0e4
+
+    sim = {
+        "t_cool": t_cool,
+        "datos_cool": {
+            "I131": A_i131, "TE127": A_te127, "TE127M": A_te127m, "TE129": A_te129,
+        },
+        "datos_irr_atomos": {
+            "TE127": [n0_te127], "TE127M": [n0_te127m], "TE129": [n0_te129],
+            "I127": [n0_i127], "I129": [n0_i129],
+        },
+    }
+    t12_dict = {
+        "I131": t12_i131_s, "TE127": t12_te127_s, "TE127M": t12_te127m_s, "TE129": t12_te129_s,
+    }
+
+    serie = fa.calcular_actividad_especifica_yodo_serie(sim, "I131", t12_dict)
+    assert serie is not None
+
+    for i, t in enumerate(t_cool):
+        # Conservación de número másico, calculada AQUÍ de forma
+        # independiente (no llama a _evolucionar_diluyente): lo que pierden
+        # los precursores de un isóbaro lo gana el diluyente estable/de vida
+        # larga de ese isóbaro.
+        n_i127_esperado = n0_i127 + (n0_te127 - N_te127[i]) + (n0_te127m - N_te127m[i])
+        n_i129_esperado = n0_i129 + (n0_te129 - N_te129[i])
+        n_i131_esperado = A_i131[i] / lam_i131_s
+        masa_esperada = (n_i131_esperado / fa.N_A * 131
+                          + n_i127_esperado / fa.N_A * 127
+                          + n_i129_esperado / fa.N_A * 129)
+        a_esp_esperado = A_i131[i] / masa_esperada / 1e6
+        check_close(serie["serie"][i]["A_esp_MBq_g"], a_esp_esperado,
+                    f"t={t}h: A_esp con I127/I129 evolucionando por sus precursores "
+                    f"(N_I127={n_i127_esperado:.4e}, N_I129={n_i129_esperado:.4e})", rtol=1e-9)
+
+    # En EOI (t=0) evolucionar y congelar coinciden (nada ha decaído aún) --
+    # mismo criterio ya documentado en test_actividad_especifica_yodo_ref_sim.
+    n_i127_congelado = n0_i127
+    n_i129_congelado = n0_i129
+    n_i131_t0 = A_i131[0] / lam_i131_s
+    masa_congelada_t0 = (n_i131_t0 / fa.N_A * 131 + n_i127_congelado / fa.N_A * 127
+                          + n_i129_congelado / fa.N_A * 129)
+    a_esp_congelado_t0 = A_i131[0] / masa_congelada_t0 / 1e6
+    check_close(serie["serie"][0]["A_esp_MBq_g"], a_esp_congelado_t0,
+                "en t=0 (EOI) evolucionar y congelar coinciden (nada decaído todavía)", rtol=1e-9)
+
+    # Test NEGATIVO (F14 del BACKLOG): en t=1h, congelar los diluyentes en su
+    # valor de EOI (el diseño F2b, ya corregido) da una A_esp
+    # SISTEMÁTICAMENTE MAYOR que la correcta -- menos masa en el
+    # denominador, exactamente el sesgo diagnosticado (4.5928e9 MBq/g, 99.9 %
+    # del techo, frente al 2.210e9 real del caso de referencia real). Aquí,
+    # con el escenario sintético, se comprueba el mismo signo y una
+    # magnitud comparable (factor > 1.3), no los valores absolutos del
+    # experimento 1 (fuera de este repo).
+    n_i131_t1 = A_i131[1] / lam_i131_s
+    masa_congelada_t1 = (n_i131_t1 / fa.N_A * 131 + n0_i127 / fa.N_A * 127 + n0_i129 / fa.N_A * 129)
+    a_esp_congelado_t1 = A_i131[1] / masa_congelada_t1 / 1e6
+    a_esp_correcto_t1 = serie["serie"][1]["A_esp_MBq_g"]
+    check(a_esp_congelado_t1 > a_esp_correcto_t1 * 1.3,
+          f"test negativo: congelar los diluyentes en t=1h SOBREESTIMA A_esp "
+          f"(congelado={a_esp_congelado_t1:.4e}, correcto={a_esp_correcto_t1:.4e}, "
+          f"factor={a_esp_congelado_t1 / a_esp_correcto_t1:.3f})")
+
+
 def test_actividad_especifica_yodo_techo_fisico() -> None:
     section("calcular_actividad_especifica_yodo_serie — techo físico sin portador (F2b)")
 
@@ -665,6 +769,7 @@ def main() -> int:
     test_actividad_especifica_yodo_ref_sim()
     test_actividad_especifica_yodo_casos_borde()
     test_actividad_especifica_yodo_i129_congelado_vs_creciente()
+    test_f14_diluyente_evoluciona_por_precursores()
     test_actividad_especifica_yodo_techo_fisico()
     test_informe_isotopo_incluye_metricas()
     test_f13_decay_dat_por_simulacion()
