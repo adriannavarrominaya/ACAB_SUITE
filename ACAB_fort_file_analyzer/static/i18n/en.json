@@ -172,6 +172,8 @@
     "th_apico": "A<sub>peak</sub> [{unit}]",
     "th_tpico": "t<sub>peak</sub> [h]",
     "th_fase": "Phase",
+    "tpico_empate_badge": "tie {ini}–{fin} h",
+    "tpico_empate_tooltip": "Activity ties at fort.6's printed precision across {n} instants, from {ini} to {fin} h. Evaluated at the first one (t_pico column); every quantity derived from the peak uses that same node.",
     "s3": "3. Activity Evolution of {label}",
     "s3_sub": "(irradiation + cooling)",
     "s4": "{n}. Gamma Spectrum of {label}",
@@ -210,7 +212,11 @@
     "t2_desc": "For each isotope its own activity peak instant is determined and the {label} activity at that same moment is indicated.",
     "th_peak_a": "Peak A [{unit}]",
     "th_tpico": "t<sub>peak</sub> [h]",
-    "th_a_ref": "A({label}) at t<sub>peak</sub> [{unit}]"
+    "th_a_ref": "A({label}) at t<sub>peak</sub> [{unit}]",
+    "th_empate": "Tie",
+    "csv_meta_tpico": "{sim}: table evaluated at t_peak = {t} h",
+    "csv_meta_empate": " (TIE: {n} instants from {ini} to {fin} h, the first one was used)",
+    "csv_empate_val": "yes (tie {ini}-{fin} h)"
   },
 
   "figeditor": {

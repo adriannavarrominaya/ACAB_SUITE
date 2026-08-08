@@ -172,6 +172,8 @@
     "th_apico": "A<sub>pico</sub> [{unit}]",
     "th_tpico": "t<sub>pico</sub> [h]",
     "th_fase": "Fase",
+    "tpico_empate_badge": "empate {ini}–{fin} h",
+    "tpico_empate_tooltip": "La actividad empata a la precisión impresa por fort.6 en {n} instantes, de {ini} a {fin} h. Se evalúa en el primero (columna t_pico); toda magnitud derivada del pico usa ese mismo nodo.",
     "s3": "3. Evolución de Actividad de {label}",
     "s3_sub": "(irradiación + enfriamiento)",
     "s4": "{n}. Espectro Gamma de {label}",
@@ -210,7 +212,11 @@
     "t2_desc": "Para cada isótopo se determina su propio instante de pico de actividad y se indica cuál era la actividad de {label} en ese mismo momento.",
     "th_peak_a": "Pico A [{unit}]",
     "th_tpico": "t<sub>pico</sub> [h]",
-    "th_a_ref": "A({label}) en t<sub>pico</sub> [{unit}]"
+    "th_a_ref": "A({label}) en t<sub>pico</sub> [{unit}]",
+    "th_empate": "Empate",
+    "csv_meta_tpico": "{sim}: tabla evaluada en t_pico = {t} h",
+    "csv_meta_empate": " (EMPATE: {n} instantes de {ini} a {fin} h, se usó el primero)",
+    "csv_empate_val": "sí (empate {ini}-{fin} h)"
   },
 
   "figeditor": {

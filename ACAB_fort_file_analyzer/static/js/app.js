@@ -378,6 +378,22 @@ function exportTable1CSV() {
   const iso  = _state.selectedIsotopo;
   const sims = _state.analysisData.simulations;
   const rows = [];
+  // F15 del BACKLOG: declara, por simulación, el nodo EXACTO en el que se
+  // evaluó toda la tabla (t_pico_ref) y si ese nodo es el primero de un
+  // empate — toda la tabla depende de un único instante, así que la
+  // cabecera es el lugar correcto para declararlo (no una columna repetida
+  // en cada fila).
+  const metaLines = Object.entries(json.tabla1).map(([name, tbl]) => {
+    const tp = tbl.t_pico_ref != null ? tbl.t_pico_ref.toFixed(4) : '—';
+    const empateTxt = tbl.empate_pico_ref && tbl.intervalo_pico_ref
+      ? t('tables.csv_meta_empate', {
+          ini: tbl.intervalo_pico_ref.t_ini_h.toFixed(3),
+          fin: tbl.intervalo_pico_ref.t_fin_h.toFixed(3),
+          n: tbl.intervalo_pico_ref.n_nodos,
+        })
+      : '';
+    return `# ${t('tables.csv_meta_tpico', { sim: name, t: tp })}${empateTxt}`;
+  });
   Object.entries(json.tabla1).forEach(([name, tbl]) => {
     const sim = sims[name];
     (tbl.rows || []).forEach(r => {
@@ -387,7 +403,7 @@ function exportTable1CSV() {
   const headers = [t('overview.th_sim'), t('tables.th_iso'),
                    `A [${unitLabel()}]`, `A/A(${isoLabel(iso)})`];
   emitCSV(`${ACABExport.slug(iso)}_tabla1_${unitSlug()}_${folderSlug()}.csv`,
-          iso, rows, headers);
+          iso, rows, headers, metaLines.join('\r\n'));
 }
 
 /** Export comparison Table 2 (each isotope's own peak + reference activity there). */
@@ -400,15 +416,22 @@ function exportTable2CSV() {
   Object.entries(json.tabla2).forEach(([name, tbl]) => {
     const sim = sims[name];
     (tbl.rows || []).forEach(r => {
+      // F15 del BACKLOG: columna "empate" declara si t_pico de ESTA fila es
+      // el primero de una meseta (el resto del intervalo se pierde al
+      // volcar un único t_pico por fila; la columna al menos avisa).
+      const empateTxt = r.empate && r.intervalo_pico
+        ? t('tables.csv_empate_val', { ini: r.intervalo_pico.t_ini_h.toFixed(3), fin: r.intervalo_pico.t_fin_h.toFixed(3) })
+        : '';
       rows.push([name, `${r.label} (${r.iso})`,
                  r.A_pico != null ? conv(r.A_pico, sim) : null,
                  r.t_pico,
-                 r.A_ref_en != null ? conv(r.A_ref_en, sim) : null]);
+                 r.A_ref_en != null ? conv(r.A_ref_en, sim) : null,
+                 empateTxt]);
     });
   });
   const headers = [t('overview.th_sim'), t('tables.th_iso'),
                    `A_pico [${unitLabel()}]`, 't_pico [h]',
-                   `A(${isoLabel(iso)}) [${unitLabel()}]`];
+                   `A(${isoLabel(iso)}) [${unitLabel()}]`, t('tables.th_empate')];
   emitCSV(`${ACABExport.slug(iso)}_tabla2_${unitSlug()}_${folderSlug()}.csv`,
           iso, rows, headers);
 }
@@ -2052,13 +2075,22 @@ function renderIsotopoReport() {
                   const Ap = s.A_pico > 0 ? fmtA(s.A_pico, sims[name]) : '—';
                   const tp = s.t_pico !== null && s.t_pico !== undefined ? s.t_pico.toFixed(3) : '—';
                   const phaseCls = s.fase === 'irradiación' ? 'badge-phase-irr' : 'badge-phase-cool';
+                  // F15 del BACKLOG: cuando el máximo empata en varios
+                  // instantes, declarar el intervalo completo — no dejar
+                  // que el primero (el nodo usado para evaluar el resto del
+                  // informe, s.nodo_evaluacion) parezca el único.
+                  const empateBadge = s.empate && s.intervalo_pico ? `
+                    <br><span class="badge bg-warning text-dark mt-1" style="font-size:0.65rem"
+                          title="${escAttr(t('report.tpico_empate_tooltip', { n: s.intervalo_pico.n_nodos, ini: s.intervalo_pico.t_ini_h.toFixed(3), fin: s.intervalo_pico.t_fin_h.toFixed(3) }))}">
+                      <i class="bi bi-exclamation-triangle me-1"></i>${t('report.tpico_empate_badge', { ini: s.intervalo_pico.t_ini_h.toFixed(2), fin: s.intervalo_pico.t_fin_h.toFixed(2) })}
+                    </span>` : '';
                   return `<tr>
                     <td>
                       <span class="sim-dot me-1" style="background:${PALETTE[i % PALETTE.length]}"></span>
                       <small class="fw-semibold">${escHtml(name)}</small>
                     </td>
                     <td class="font-monospace text-danger fw-bold small">${Ap}</td>
-                    <td class="font-monospace small">${tp}</td>
+                    <td class="font-monospace small">${tp}${empateBadge}</td>
                     <td><span class="badge ${phaseCls}" style="font-size:0.7rem">${phaseLabel(s.fase)}</span></td>
                   </tr>`;
                 }).join('')}
@@ -3325,6 +3357,17 @@ function renderTables() {
       ? fmtA(tbl.A_pico_ref, sim) : '—';
     const tp = tbl.t_pico_ref !== null
       ? tbl.t_pico_ref.toFixed(3) : '—';
+    // F15 del BACKLOG: si el pico de referencia (el nodo que evalúa TODA
+    // esta tabla) está empatado, declararlo — el resto de la meseta no es
+    // visible en ningún otro sitio de esta tabla.
+    const empateT1 = tbl.empate_pico_ref && tbl.intervalo_pico_ref
+      ? ` <span class="badge bg-warning text-dark" title="${escAttr(t('report.tpico_empate_tooltip', {
+            n: tbl.intervalo_pico_ref.n_nodos,
+            ini: tbl.intervalo_pico_ref.t_ini_h.toFixed(3),
+            fin: tbl.intervalo_pico_ref.t_fin_h.toFixed(3),
+          }))}"><i class="bi bi-exclamation-triangle me-1"></i>${t('report.tpico_empate_badge', {
+            ini: tbl.intervalo_pico_ref.t_ini_h.toFixed(2), fin: tbl.intervalo_pico_ref.t_fin_h.toFixed(2),
+          })}</span>` : '';
 
     const sortedRows = (tbl.rows || [])
       .slice()
@@ -3348,7 +3391,7 @@ function renderTables() {
           <span class="sim-dot" style="background:${color}"></span>
           <span class="fw-semibold">${escHtml(simName)}</span>
           <span class="badge bg-danger ms-1">${t('tables.peak_badge', { label, a: Ap, unit: unitLabel() })}</span>
-          <span class="badge bg-secondary">${t('tables.t_badge', { t: tp })}</span>
+          <span class="badge bg-secondary">${t('tables.t_badge', { t: tp })}</span>${empateT1}
         </div>
         <div class="comparison-table-wrapper">
           <table class="table table-sm table-hover mb-0" style="font-size:0.82rem">
@@ -3394,10 +3437,18 @@ function renderTables() {
       const tp = r.t_pico  !== null && r.t_pico  !== undefined ? r.t_pico.toFixed(3) : '—';
       const Ai = r.A_ref_en !== null && r.A_ref_en > 0 ? fmtA(r.A_ref_en, sim) : '—';
       const isRef = r.iso === iso;
+      // F15 del BACKLOG: pico individual de este isótopo empatado — marcador
+      // compacto (fila por isótopo, sin espacio para el badge completo).
+      const empateT2 = r.empate && r.intervalo_pico
+        ? ` <i class="bi bi-exclamation-triangle text-warning" title="${escAttr(t('report.tpico_empate_tooltip', {
+              n: r.intervalo_pico.n_nodos,
+              ini: r.intervalo_pico.t_ini_h.toFixed(3),
+              fin: r.intervalo_pico.t_fin_h.toFixed(3),
+            }))}"></i>` : '';
       return `<tr ${isRef ? 'class="table-warning fw-bold"' : ''}>
         <td>${escHtml(r.label)} <small class="text-muted">(${r.iso})</small></td>
         <td class="font-monospace">${Ap}</td>
-        <td class="font-monospace">${tp}</td>
+        <td class="font-monospace">${tp}${empateT2}</td>
         <td class="font-monospace">${Ai}</td>
       </tr>`;
     }).join('');

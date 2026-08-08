@@ -268,6 +268,50 @@ def test_pico_i131() -> None:
     check(pico["fase"] == "enfriamiento", "pico en fase de enfriamiento")
 
 
+def test_pico_empate_f15() -> None:
+    section("calcular_pico — F15: empate en el máximo devuelve el INTERVALO, no el primero")
+    # Reproduce el escenario del experimento 1 (v1/v2/v3: la actividad
+    # empata a 4 cifras en 3.50/3.75/4.00/4.25 h; la versión vieja
+    # devolvía el primero, 3.50 h, en vez del intervalo completo).
+    sim = {
+        "T_IRR_h": 0.5,
+        "t_irr":  [0.0, 0.25, 0.5],
+        "datos_irr_Bq": {"I131": [0.0, 500.0, 1000.0]},
+        "t_cool": [2.5, 2.75, 3.0, 3.25, 3.5, 3.75, 4.0, 4.25, 4.5],
+        "datos_cool": {"I131": [1400.0, 1480.0, 1500.0, 1500.0, 1500.0, 1500.0, 1450.0, 1400.0, 1300.0]},
+    }
+    pico = fa.calcular_pico(sim, "I131")
+
+    check(pico["empate"] is True, "empate detectado")
+    check_close(pico["A_pico"], 1500.0, "A_pico = 1500.0 (valor empatado)")
+    check_close(pico["t_pico"], 3.5, "t_pico = PRIMER instante empatado (3.5h) — nodo declarado en nodo_evaluacion")
+    check(pico["intervalo_pico"] is not None, "intervalo_pico presente")
+    assert pico["intervalo_pico"] is not None
+    check_close(pico["intervalo_pico"]["t_ini_h"], 3.5, "intervalo: inicio = 3.50h")
+    check_close(pico["intervalo_pico"]["t_fin_h"], 4.25, "intervalo: fin = 4.25h (NO solo el primero, 3.50h)")
+    check(pico["intervalo_pico"]["n_nodos"] == 4, f"4 nodos empatados (obtenido {pico['intervalo_pico']['n_nodos']})")
+    check("primero de 4" in pico["nodo_evaluacion"], f"nodo_evaluacion declara el nodo usado (obtenido {pico['nodo_evaluacion']!r})")
+
+    # Caso v4 del mismo experimento: empate en 3.75/4.00/4.25h (3 nodos, no 4).
+    sim_v4 = dict(sim)
+    sim_v4["datos_cool"] = {"I131": [1400.0, 1480.0, 1490.0, 1500.0, 1500.0, 1500.0, 1450.0, 1400.0, 1300.0]}
+    pico_v4 = fa.calcular_pico(sim_v4, "I131")
+    check(pico_v4["empate"] is True, "v4: empate detectado (3 nodos)")
+    check_close(pico_v4["t_pico"], 3.75, "v4: t_pico = primer instante empatado (3.75h)")
+    assert pico_v4["intervalo_pico"] is not None
+    check(pico_v4["intervalo_pico"]["n_nodos"] == 3, f"v4: 3 nodos empatados (obtenido {pico_v4['intervalo_pico']['n_nodos']})")
+    check_close(pico_v4["intervalo_pico"]["t_fin_h"], 4.25, "v4: intervalo hasta 4.25h")
+
+    # Caso sin empate: comprobación explícita de que un pico ÚNICO no marca
+    # empate ni intervalo (ref_sim, sin empate, ya se cubre en test_pico_i131).
+    sim_unico = dict(sim)
+    sim_unico["datos_cool"] = {"I131": [1400.0, 1480.0, 1495.0, 1498.0, 1500.0, 1499.0, 1450.0, 1400.0, 1300.0]}
+    pico_unico = fa.calcular_pico(sim_unico, "I131")
+    check(pico_unico["empate"] is False, "sin empate: empate=False")
+    check(pico_unico["intervalo_pico"] is None, "sin empate: intervalo_pico=None")
+    check(pico_unico["nodo_evaluacion"] == "único", "sin empate: nodo_evaluacion='único'")
+
+
 def test_concentraciones() -> None:
     section("leer_fort6_concentraciones — CONCENTRATIONS(GRAM)")
     conc = fa.leer_fort6_concentraciones(FORT6)
@@ -438,6 +482,7 @@ def main() -> int:
     test_pico_f7_irr2sets_integracion()
     test_inp5()
     test_pico_i131()
+    test_pico_empate_f15()
     test_concentraciones()
     test_densidad_en_analisis()
     test_desactualizada()

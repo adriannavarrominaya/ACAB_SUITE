@@ -1199,7 +1199,25 @@ def actividad_en_t(sim: dict, t_target: float, iso_key: str) -> float:
 
 
 def calcular_pico(sim: dict, iso_key: str) -> dict:
-    """Return peak activity info for iso_key in a simulation."""
+    """Return peak activity info for iso_key in a simulation.
+
+    F15 del BACKLOG (bug confirmado): cuando la actividad EMPATA a las
+    cifras que imprime fort.6 (4 cifras significativas) en varios instantes
+    — consecutivos o no —, la rutina devolvía antes el PRIMER instante
+    empatado en silencio: el resto de la meseta quedaba invisible, y
+    cualquier magnitud "evaluada en el máximo" quedaba anclada al borde
+    inferior del empate sin decirlo (verificado en el experimento 1: la
+    actividad empata en 3,50/3,75/4,00/4,25 h en v1/v2/v3 — reportado
+    3,50 h — y en 3,75/4,00/4,25 h en v4 — reportado 3,75 h). El empate se
+    detecta por IGUALDAD EXACTA del float ya parseado — fort.6 imprime con
+    precisión limitada, así que dos instantes físicos distintos pueden
+    parsear al MISMO float, y por tanto detectarlo así es exacto, no una
+    tolerancia arbitraria. ``t_pico``/``A_pico`` (el nodo REALMENTE usado
+    para evaluar magnitudes derivadas, p. ej. ``calcular_pureza``) sigue
+    siendo el PRIMERO del empate — decisión explícita, no oculta, declarada
+    en ``nodo_evaluacion``; el intervalo completo viaja en
+    ``intervalo_pico`` (``None`` si no hay empate).
+    """
     T_irr = sim["T_IRR_h"]
     t_irr = np.array(sim["t_irr"])
     t_cool = np.array(sim["t_cool"])
@@ -1209,17 +1227,41 @@ def calcular_pico(sim: dict, iso_key: str) -> dict:
     t_all = np.concatenate([t_irr, T_irr + t_cool])
     A_all = np.concatenate([A_irr, A_cool])
 
+    empate = False
+    intervalo_pico: Optional[dict] = None
+
     if len(A_all) > 0 and A_all.max() > 0:
-        idx = int(np.argmax(A_all))
+        A_max = A_all.max()
+        idx_empate = np.flatnonzero(A_all == A_max)
+        idx = int(idx_empate[0])
         t_pico = float(t_all[idx])
         A_pico = float(A_all[idx])
         fase = "irradiación" if t_pico <= T_irr else "enfriamiento"
+        n_nodos = int(len(idx_empate))
+        if n_nodos > 1:
+            empate = True
+            t_tied = t_all[idx_empate]
+            intervalo_pico = {
+                "t_ini_h": float(t_tied.min()),
+                "t_fin_h": float(t_tied.max()),
+                "n_nodos": n_nodos,
+            }
+        nodo_evaluacion = (f"primero de {n_nodos} nodos empatados (t={t_pico:.4g} h)"
+                            if empate else "único")
     else:
         t_pico = math.nan
         A_pico = 0.0
         fase = "n/a"
+        nodo_evaluacion = "n/a"
 
-    return {"t_pico": _safe_val(t_pico), "A_pico": A_pico, "fase": fase}
+    return {
+        "t_pico": _safe_val(t_pico),
+        "A_pico": A_pico,
+        "fase": fase,
+        "empate": empate,
+        "intervalo_pico": intervalo_pico,
+        "nodo_evaluacion": nodo_evaluacion,
+    }
 
 
 _MASS_RE = re.compile(r"[A-Z]+(\d+)")
@@ -1898,29 +1940,24 @@ def calcular_tablas_comparativas(
             "rows":       rows1,
             "t_pico_ref": _safe_val(t_pico_ref),
             "A_pico_ref": _safe_val(A_pico_ref),
+            # F15 del BACKLOG: declara si el pico de referencia (el nodo
+            # usado para evaluar TODA la tabla 1) está empatado, y el
+            # intervalo completo de la meseta si lo está.
+            "empate_pico_ref":     pk_ref["empate"],
+            "intervalo_pico_ref":  pk_ref["intervalo_pico"],
+            "nodo_evaluacion_ref": pk_ref["nodo_evaluacion"],
         }
 
         # ── Table 2 ─────────────────────────────────────────────────────────
-        T_irr  = sim["T_IRR_h"]
-        t_irr  = np.array(sim["t_irr"])
-        t_cool = np.array(sim["t_cool"])
-
+        # F15 del BACKLOG: reutiliza calcular_pico (antes duplicaba el mismo
+        # argmax en línea, sin detección de empate) — cada fila declara si
+        # SU propio pico individual está empatado.
         rows2: list[dict] = []
         for iso in semividas_keys:
-            A_irr_arr  = np.array(sim["datos_irr_Bq"].get(iso, np.zeros(len(t_irr))))
-            A_cool_arr = np.array(sim["datos_cool"].get(iso,   np.zeros(len(t_cool))))
-            t_all_ = np.concatenate([t_irr, T_irr + t_cool])
-            A_all_ = np.concatenate([A_irr_arr, A_cool_arr])
-
-            if len(A_all_) > 0 and A_all_.max() > 0:
-                idx_p   = int(np.argmax(A_all_))
-                t_pico_ = float(t_all_[idx_p])
-                A_pico_ = float(A_all_[idx_p])
-                A_ref_  = actividad_en_t(sim, t_pico_, referencia)
-            else:
-                t_pico_ = math.nan
-                A_pico_ = 0.0
-                A_ref_  = 0.0
+            pk_iso = calcular_pico(sim, iso)
+            t_pico_ = pk_iso["t_pico"]
+            A_pico_ = pk_iso["A_pico"]
+            A_ref_  = actividad_en_t(sim, t_pico_, referencia) if t_pico_ is not None else 0.0
 
             rows2.append({
                 "iso":      iso,
@@ -1928,6 +1965,8 @@ def calcular_tablas_comparativas(
                 "A_pico":   _safe_val(A_pico_),
                 "t_pico":   _safe_val(t_pico_),
                 "A_ref_en": _safe_val(A_ref_),
+                "empate":   pk_iso["empate"],
+                "intervalo_pico": pk_iso["intervalo_pico"],
             })
         tabla2[sim_name] = {"rows": rows2}
 
