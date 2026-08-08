@@ -1042,16 +1042,40 @@ def analizar_carpeta(
     t_irr_override: Optional[float] = None,
     t_cool_override: Optional[float] = None,
     phi_override: Optional[float] = None,
+    yaml_t12_overrides: Optional[dict[str, float]] = None,
 ) -> tuple[dict, dict[str, str]]:
     """Perform full analysis of a simulations folder.
+
+    *t12_dict* is the FALLBACK T½ library (lowest priority — typically
+    DEFAULT_SEMIVIDAS), used only for isotopes a simulation's own DECAY.dat
+    doesn't resolve. F13 del BACKLOG: each simulation's own ``DECAY.dat``
+    (next to its ``fort.6``) is read INDEPENDENTLY and takes priority over
+    *t12_dict* — before this fix, a single T½ library (the first
+    simulation's ``DECAY.dat``, or the fallback) was applied to every
+    simulation in the folder, even when others carried a different one
+    (verified: v2/v3/v4 of the reference experiment ship 693 200 s for
+    I-131, not the 693 400 s of the built-in default). *yaml_t12_overrides*
+    (highest priority — explicit user overrides from the YAML ``semividas``
+    section) applies identically to every simulation, same as before.
+    Final priority per simulation: yaml_t12_overrides > su propio
+    DECAY.dat > t12_dict (fallback).
 
     Returns:
         all_data   dict   {sim_name: sim_dict} with JSON-serialisable values
         errors     dict   {sim_name: error_message} for failed simulations
+
+    Each ``sim_dict`` carries ``t12_source`` (``"decay_dat"``|``"default"``)
+    and ``decay_dat_path`` (str|None) declaring where ITS T½ library came
+    from, plus a private ``_t12_dict`` (the resolved per-simulation library,
+    used by ``calcular_informe_isotopo`` for saturación/actividad específica
+    — callers must strip it before sending a sim dict over the API, see
+    app.py's ``/api/analyze``).
     """
     sims = descubrir_simulaciones(folder)
     if not sims:
         raise ValueError(f"No se encontró ninguna subcarpeta con fort.6 en '{folder}'")
+
+    yaml_over = yaml_t12_overrides or {}
 
     all_data: dict = {}
     errors: dict[str, str] = {}
@@ -1061,19 +1085,37 @@ def analizar_carpeta(
             t_irr_arr, datos_irr = leer_fort6_irradiacion(fort6_path)
             t_cool_arr, datos_cool = leer_fort6_enfriamiento(fort6_path)
 
+            # F13 del BACKLOG: T½ library resolved PER SIMULATION — this
+            # sim's own DECAY.dat (next to its fort.6) wins over the
+            # fallback; yaml_over (explicit, same for every sim) wins over
+            # both.
+            own_decay_path = pathlib.Path(fort6_path).parent / "DECAY.dat"
+            own_t12: dict[str, float] = {}
+            t12_source = "default"
+            decay_dat_path: Optional[str] = None
+            if own_decay_path.is_file():
+                try:
+                    own_t12 = leer_decay_dat(str(own_decay_path))
+                    t12_source = "decay_dat"
+                    decay_dat_path = str(own_decay_path)
+                except (OSError, ValueError):
+                    own_t12 = {}
+            t12_sim = {**t12_dict, **own_t12, **yaml_over}
+
             # Material density (g/cm³) for MBq/g normalisation — None if the
             # CONCENTRATIONS(GRAM) section is missing, without breaking analysis.
             conc = leer_fort6_concentraciones(fort6_path)
             densidad_g_cm3 = conc["total_g_cm3"] if conc else None
 
-            # Convert atoms/cm³ → Bq/cm³  (A = λ·N). datos_irr_atomos keeps the
-            # raw atom counts too (F2 del BACKLOG: stable isotopes have λ=0,
-            # so datos_irr_Bq alone loses their population — needed for the
-            # iodine specific-activity dilution metric).
+            # Convert atoms/cm³ → Bq/cm³  (A = λ·N), with THIS simulation's
+            # own T½ library (t12_sim, F13 del BACKLOG). datos_irr_atomos
+            # keeps the raw atom counts too (F2 del BACKLOG: stable isotopes
+            # have λ=0, so datos_irr_Bq alone loses their population — needed
+            # for the iodine specific-activity dilution metric).
             datos_irr_Bq: dict[str, list[float]] = {}
             datos_irr_atomos: dict[str, list[float]] = {}
             for iso, N in datos_irr.items():
-                t12 = t12_dict.get(iso, math.inf)
+                t12 = t12_sim.get(iso, math.inf)
                 datos_irr_Bq[iso] = (lam(t12) * N).tolist()
                 datos_irr_atomos[iso] = N.tolist()
 
@@ -1121,6 +1163,13 @@ def analizar_carpeta(
                                    if densidad_g_cm3 is not None else None),
                 "fort6_fecha":    datetime.fromtimestamp(fort6_mtime).isoformat(timespec="seconds"),
                 "desactualizada": desactualizada,
+                # F13 del BACKLOG: procedencia del T½ aplicado a ESTA simulación.
+                "t12_source":     t12_source,
+                "decay_dat_path": decay_dat_path,
+                # Privado (nunca al frontend, ver docstring): usado por
+                # calcular_informe_isotopo para saturación/actividad
+                # específica con el T½ propio de esta simulación.
+                "_t12_dict":      t12_sim,
             }
 
         except Exception as exc:
@@ -1649,6 +1698,16 @@ def calcular_informe_isotopo(
     curve, yield, radionuclidic purity). *isotopos_impureza*, if given,
     overrides the default same-element isotope list used for the purity
     metric (UI-editable; see isotopos_mismo_elemento).
+
+    F13 del BACKLOG: *t12_dict* is only the REFERENCE/fallback library, used
+    for the top-level ``nuclear_props`` (a single descriptive block, kept for
+    backward compatibility) — every actual per-simulation computation
+    (saturación, actividad específica del yodo) uses THAT simulation's own
+    resolved library (``sim["_t12_dict"]``, set by ``analizar_carpeta``,
+    falling back to *t12_dict* for callers that built ``all_data`` some other
+    way, e.g. the synthetic sims of some tests). Each simulation's own T½ for
+    *isotopo_key* — the source of the "techo sin portador" reference — is
+    also exposed per simulation as ``metricas[sim].nuclear_props``.
     """
     t12_iso = t12_dict.get(isotopo_key, math.inf)
     lam_iso = lam(t12_iso)
@@ -1667,18 +1726,36 @@ def calcular_informe_isotopo(
     sim_reports: dict[str, dict] = {}
     metricas: dict[str, dict] = {}
     for sim_name, sim in all_data.items():
+        # F13 del BACKLOG: T½ propio de ESTA simulación (su DECAY.dat, si lo
+        # tiene) — nunca el de otra simulación de la misma carpeta.
+        t12_sim = sim.get("_t12_dict") or t12_dict
+        t12_iso_sim = t12_sim.get(isotopo_key, math.inf)
+        lam_iso_sim = lam(t12_iso_sim)
+        A_esp_sim = (lam_iso_sim * N_A / A) if (A > 0 and lam_iso_sim > 0) else 0.0
+
         pico = calcular_pico(sim, isotopo_key)
         sim_reports[sim_name] = pico
         pureza_serie = calcular_pureza_serie(sim, isotopo_key, impureza_list)
         t_cruce_h = (pureza_serie["t_cruce"]["t_h"]
                      if pureza_serie and pureza_serie.get("t_cruce") else None)
         metricas[sim_name] = {
-            "saturacion":   calcular_saturacion(sim, isotopo_key, t12_dict),
+            "saturacion":   calcular_saturacion(sim, isotopo_key, t12_sim),
             "rendimiento":  calcular_rendimiento(sim, isotopo_key),
             "pureza":       calcular_pureza(sim, isotopo_key, pico["t_pico"], impureza_list),
             "pureza_serie": pureza_serie,
             "actividad_especifica_yodo_serie": calcular_actividad_especifica_yodo_serie(
-                sim, isotopo_key, t12_dict, t_cruce_h),
+                sim, isotopo_key, t12_sim, t_cruce_h),
+            # F13 del BACKLOG: T½/λ/A_esp ("techo sin portador") con el T½
+            # propio de esta simulación — puede diferir de nuclear_props
+            # (arriba, de referencia) si su DECAY.dat trae un valor distinto.
+            "nuclear_props": {
+                "T12_s":  _safe_val(t12_iso_sim),
+                "T12_d":  _safe_val(t12_iso_sim / 86400),
+                "T12_h":  _safe_val(t12_iso_sim / 3600),
+                "lam_s":  _safe_val(lam_iso_sim),
+                "A_esp":  _safe_val(A_esp_sim),
+                "t12_source": sim.get("t12_source", "default"),
+            },
         }
 
     return {

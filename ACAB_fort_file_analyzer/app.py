@@ -30,7 +30,6 @@ from fort_analyzer import (
     calcular_tablas_comparativas,
     descubrir_simulaciones,
     leer_chains_manifest,
-    leer_decay_dat,
     leer_photon_dat,
     leer_sweep_manifest,
 )
@@ -153,32 +152,26 @@ def api_analyze():
     figuras: list = cfg.get("figuras", []) if cfg else []
 
     # ── Build T½ dictionary ────────────────────────────────────────────────
-    # Priority (highest to lowest):
-    #   1. YAML "semividas" section (explicit overrides)
-    #   2. DECAY.dat from the first simulation folder (authoritative library)
+    # Priority (highest to lowest), PER SIMULATION (F13 del BACKLOG):
+    #   1. YAML "semividas" section (explicit overrides, same for every sim)
+    #   2. Each simulation's own DECAY.dat (next to ITS fort.6)
     #   3. DEFAULT_SEMIVIDAS built into the code (fallback)
+    # (2) is resolved independently per simulation inside analizar_carpeta —
+    # before this fix, only the FIRST simulation's DECAY.dat was read and
+    # applied globally to every simulation in the folder, silently wrong
+    # whenever they carried different libraries (verified: v2/v3/v4 of the
+    # reference experiment ship T½(I-131)=693200 s, not the 693400 s
+    # DEFAULT_SEMIVIDAS fallback). This function only builds (1) and (3).
+    base_t12 = build_t12_dict(DEFAULT_SEMIVIDAS)
 
-    # Preview simulation list to locate DECAY.dat before the full parse
-    decay_dat_path: Optional[str] = None
-    decay_dat_used = False
+    # Preview simulation list for PHOTON.dat auto-discovery (B1 del BACKLOG,
+    # unrelated to T½ — still keyed off the FIRST simulation by design, one
+    # shared gamma library per folder).
     try:
         sims_preview = descubrir_simulaciones(folder)
-        if sims_preview:
-            candidate = Path(sims_preview[0][1]).parent / "DECAY.dat"
-            if candidate.exists():
-                decay_dat_path = str(candidate)
     except Exception:
         sims_preview = []
 
-    if decay_dat_path:
-        base_t12 = leer_decay_dat(decay_dat_path)
-        decay_dat_used = True
-    else:
-        base_t12 = build_t12_dict(DEFAULT_SEMIVIDAS)
-
-    # ── PHOTON.dat (B1 del BACKLOG): mismo patrón de autodescubrimiento que
-    # DECAY.dat (junto al fort.6 de la primera simulación), con override
-    # explícito en la petición y variable de entorno como último recurso.
     photon_dat_path: Optional[str] = (data.get("photon_dat_path") or "").strip() or None
     if not photon_dat_path and sims_preview:
         candidate = Path(sims_preview[0][1]).parent / "PHOTON.dat"
@@ -202,13 +195,14 @@ def api_analyze():
     # YAML semividas override (only the keys explicitly listed in YAML win)
     yaml_semividas: dict = cfg.get("semividas", {}) if cfg else {}
     yaml_t12_overrides = build_t12_dict(yaml_semividas)
-    t12_dict = {**base_t12, **yaml_t12_overrides}
+    t12_dict = {**base_t12, **yaml_t12_overrides}  # reference/fallback library only
 
     # Run analysis
     try:
         all_data, errors = analizar_carpeta(
-            folder, t12_dict, leer_inp5_flag,
+            folder, base_t12, leer_inp5_flag,
             t_irr_override, t_cool_override, phi_override,
+            yaml_t12_overrides=yaml_t12_overrides,
         )
     except (FileNotFoundError, ValueError) as exc:
         return jsonify({"error": str(exc)}), 422
@@ -217,6 +211,15 @@ def api_analyze():
 
     if not all_data:
         return jsonify({"error": "No se encontraron simulaciones válidas en la carpeta."}), 422
+
+    # F13 del BACKLOG: procedencia agregada del T½ para el badge de la UI —
+    # "usado" si CUALQUIER simulación resolvió el suyo desde su propio
+    # DECAY.dat; la ruta mostrada es la primera encontrada (la procedencia
+    # completa, por simulación, viaja en cada sim_dict como t12_source/
+    # decay_dat_path).
+    decay_dat_used = any(s.get("t12_source") == "decay_dat" for s in all_data.values())
+    decay_dat_path = next(
+        (s.get("decay_dat_path") for s in all_data.values() if s.get("decay_dat_path")), None)
 
     # Fase 5 (opcional, runbook del barrido): si la carpeta analizada es la raíz
     # de un barrido paramétrico generado por el INP File Configurator, adjunta
@@ -238,7 +241,7 @@ def api_analyze():
     global _last_folder_key
     folder_key = _norm_folder(folder)
     _analysis_cache[folder_key] = {
-        "all_data":        all_data,
+        "all_data":        all_data,  # rich version, incl. private "_t12_dict" per sim
         "t12_dict":        t12_dict,
         "semividas_keys":  semividas_keys,
         "libreria_gamma":  libreria_gamma,
@@ -246,6 +249,17 @@ def api_analyze():
         "photon_dat_path": photon_dat_path if photon_dat_used else None,
     }
     _last_folder_key = folder_key
+
+    # F13 del BACKLOG: cada sim_dict trae un "_t12_dict" privado (la
+    # librería T½ completa resuelta para ESA simulación, usada internamente
+    # por /api/isotopo_report) — nunca debe salir por la API (podría ser
+    # grande, un DECAY.dat completo por simulación). "simulations" expuesto
+    # aquí es una copia superficial sin claves "_"-prefijadas; el objeto
+    # cacheado (arriba) conserva la versión completa.
+    public_simulations = {
+        name: {k: v for k, v in sim.items() if not k.startswith("_")}
+        for name, sim in all_data.items()
+    }
 
     return jsonify(_sanitize_for_json({
         "ok":              True,
@@ -255,7 +269,7 @@ def api_analyze():
         "decay_dat_path":  decay_dat_path,
         "photon_dat_used": photon_dat_used,
         "photon_dat_path": photon_dat_path if photon_dat_used else None,
-        "simulations":     all_data,
+        "simulations":     public_simulations,
         "errors":          errors,
         "all_isotopes":    all_isotopes,
         "semividas_keys":  semividas_keys,

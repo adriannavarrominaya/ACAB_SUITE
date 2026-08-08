@@ -87,6 +87,13 @@ def test_flujo_feliz(client) -> None:
     check(dens is not None and abs(dens - 0.12317) < 1e-4,
           f"densidad_g_cm3 en la respuesta (~0.12317, obtenido {dens})")
 
+    # F13 del BACKLOG: procedencia del T½ POR SIMULACIÓN viaja en la
+    # respuesta pública (t12_source/decay_dat_path); la librería completa
+    # resuelta (privada, "_t12_dict") NUNCA sale por la API.
+    check(sim0.get("t12_source") == "decay_dat", "sim0.t12_source = 'decay_dat' (ref_sim trae su propio DECAY.dat)")
+    check(sim0.get("decay_dat_path") not in (None, ""), "sim0.decay_dat_path presente")
+    check("_t12_dict" not in sim0, "_t12_dict (librería completa) no viaja en la respuesta pública")
+
     # Fase 5 (opcional, barrido): sin sweep_manifest.json en la carpeta →
     # el campo va como None, sin romper el flujo normal.
     check(data.get("sweep_manifest") is None,

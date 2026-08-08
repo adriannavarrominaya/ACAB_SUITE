@@ -15,7 +15,10 @@ Devuelve código de salida 0 si todo pasa, 1 si algún test falla.
 from __future__ import annotations
 
 import math
+import re
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 try:
@@ -587,6 +590,69 @@ def test_informe_isotopo_incluye_metricas() -> None:
                 "impurezas = [I131] → pureza 100 %")
 
 
+def test_f13_decay_dat_por_simulacion() -> None:
+    """F13 del BACKLOG: T½ leído del DECAY.dat de CADA simulación, no un
+    único valor aplicado globalmente a toda la carpeta. Se copia ref_sim dos
+    veces (mismo fort.6, misma física) y se edita el T½(I131) del DECAY.dat
+    de UNA de las copias — antes de esta corrección, analizar_carpeta solo
+    leía el DECAY.dat de la PRIMERA simulación descubierta y lo aplicaba a
+    ambas; con la corrección, cada una resuelve el suyo propio.
+    """
+    section("F13 — DECAY.dat leído por simulación, no globalmente")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        sim_a = root / "simA"
+        sim_b = root / "simB"
+        shutil.copytree(REF_SIM, sim_a)
+        shutil.copytree(REF_SIM, sim_b)
+
+        decay_b = sim_b / "DECAY.dat"
+        text = decay_b.read_text(errors="ignore")
+        # Línea de I131 (ZZAAAS=531310): "...531310  <ST>  <espacios>6.932E+05...".
+        # T½ real de ref_sim = 693200 s; lo cambiamos a 693400 s SOLO en simB.
+        nuevo_texto, n = re.subn(
+            r"(531310\s+\d+\s+)6\.932E\+05",
+            r"\g<1>6.934E+05",
+            text,
+        )
+        check(n == 1, f"línea de I131 (531310, T½=6.932E+05 s) encontrada y editada en simB (obtenido {n} reemplazos)")
+        decay_b.write_text(nuevo_texto)
+
+        fallback_t12 = fa.build_t12_dict(fa.DEFAULT_SEMIVIDAS)
+        all_data, errors = fa.analizar_carpeta(str(root), fallback_t12)
+        check(errors == {}, f"análisis sin errores (errores={errors})")
+        check(set(all_data.keys()) == {"simA", "simB"}, "las 2 simulaciones descubiertas")
+
+        check(all_data["simA"]["t12_source"] == "decay_dat", "simA: T½ resuelto desde su propio DECAY.dat")
+        check(all_data["simB"]["t12_source"] == "decay_dat", "simB: T½ resuelto desde su propio DECAY.dat")
+        check_close(all_data["simA"]["_t12_dict"]["I131"], 693200.0,
+                    "simA resuelve T½(I131) = 693200 s (el original, sin tocar)")
+        check_close(all_data["simB"]["_t12_dict"]["I131"], 693400.0,
+                    "simB resuelve T½(I131) = 693400 s (el editado) — NO hereda el de simA")
+
+        informe = fa.calcular_informe_isotopo(all_data, "I131", fallback_t12)
+        aesp_a = informe["metricas"]["simA"]["nuclear_props"]["A_esp"]
+        aesp_b = informe["metricas"]["simB"]["nuclear_props"]["A_esp"]
+        check(aesp_a is not None and aesp_b is not None,
+              "techo sin portador (A_esp) calculado en ambas simulaciones")
+        check(abs(aesp_a - aesp_b) > 1.0,
+              f"techos DISTINTOS entre simulaciones con DECAY.dat distinto (simA={aesp_a}, simB={aesp_b})")
+        check(aesp_a > aesp_b,
+              "T½ mayor (simB) → λ menor → techo (λ·N_A/A) menor que simA, coherente")
+
+        # F2/F2b: la actividad específica del yodo también usa N(t)=A(t)/λ con
+        # el λ propio de CADA simulación durante el enfriamiento.
+        serie_a = informe["metricas"]["simA"]["actividad_especifica_yodo_serie"]
+        serie_b = informe["metricas"]["simB"]["actividad_especifica_yodo_serie"]
+        check(serie_a is not None and serie_b is not None,
+              "actividad_especifica_yodo_serie presente en ambas simulaciones")
+        if serie_a and serie_b:
+            va = serie_a["serie"][0]["A_esp_MBq_g"]
+            vb = serie_b["serie"][0]["A_esp_MBq_g"]
+            check(abs(va - vb) > 1e-3,
+                  f"actividad específica del yodo distinta entre simulaciones (simA={va}, simB={vb})")
+
+
 def main() -> int:
     print("Tests oro de las métricas de optimización de producción (Fase 5)")
 
@@ -601,6 +667,7 @@ def main() -> int:
     test_actividad_especifica_yodo_i129_congelado_vs_creciente()
     test_actividad_especifica_yodo_techo_fisico()
     test_informe_isotopo_incluye_metricas()
+    test_f13_decay_dat_por_simulacion()
 
     print(f"\n{'-' * 50}")
     print(f"Resultado: {_PASSED} pasados, {_FAILED} fallidos")

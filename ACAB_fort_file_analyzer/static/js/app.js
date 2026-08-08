@@ -342,11 +342,21 @@ function exportReportCSV() {
   const elem = (iso.match(/^([A-Z]{1,2})/) || [])[1] || '';
   const Z = Z_BY_ELEM[elem] !== undefined ? Z_BY_ELEM[elem] : '';
   const A = (iso.match(/(\d+)/) || [])[1] || '';
+  // F13 del BACKLOG: T½ resuelto POR SIMULACIÓN (declarado en la cabecera de
+  // exportación) — puede diferir entre simulaciones de la misma carpeta.
+  const t12SourceCsv = Object.entries(_state.isotopoReport.informe.metricas || {}).map(([name, m]) => {
+    const np = m && m.nuclear_props;
+    if (!np) return null;
+    const srcLabel = np.t12_source === 'decay_dat' ? t('report.t12_source_decay') : t('report.t12_source_default');
+    const t12Txt = np.T12_s != null ? `${np.T12_s} s` : '—';
+    return `${name}: ${srcLabel} (${t12Txt})`;
+  }).filter(Boolean).join(' | ');
   const props = [
     `# ${t('report.za')}: ${Z} / ${A}`,
     `# ${t('report.halflife')} [s]: ${p.T12_s || ''} | ` +
       `${t('report.lambda')} [1/s]: ${p.lam_s || ''} | ` +
       `${t('report.spec_act')} [Bq/g]: ${p.A_esp || ''}`,
+    `# ${t('report.t12_source_note', { detalle: t12SourceCsv })}`,
   ].join('\r\n');
 
   const rows = [];
@@ -1963,6 +1973,20 @@ function renderIsotopoReport() {
   const hasGamma = Array.isArray(report.gamma_spectrum) && report.gamma_spectrum.length > 0;
   const isI131   = iso === 'I131';
 
+  // F13 del BACKLOG: T½ resuelto POR SIMULACIÓN (su propio DECAY.dat si lo
+  // tiene, la tabla interna si no) — puede diferir entre simulaciones de la
+  // misma carpeta (verificado: v2/v3/v4 del experimento de referencia traen
+  // 693200 s, no los 693400 s de la tabla interna). La cabecera de arriba
+  // muestra el T½ de REFERENCIA (informe.nuclear_props); esta nota declara
+  // la procedencia real aplicada a cada simulación.
+  const t12SourceNote = Object.entries(report.metricas || {}).map(([name, m]) => {
+    const np = m && m.nuclear_props;
+    if (!np) return null;
+    const srcLabel = np.t12_source === 'decay_dat' ? t('report.t12_source_decay') : t('report.t12_source_default');
+    const t12Txt = np.T12_s != null ? `${np.T12_s.toExponential(4)} s` : '—';
+    return `${escHtml(name)}: ${srcLabel} (${t12Txt})`;
+  }).filter(Boolean).join(' · ');
+
   // Extra rows shown only for I131
   const extraPropRows = isI131 ? `
     <tr><th>${t('report.decay_mode')}</th><td>${t('report.decay_val')}</td></tr>
@@ -2002,6 +2026,7 @@ function renderIsotopoReport() {
               </tbody>
             </table>
           </div>
+          ${t12SourceNote ? `<div class="card-footer bg-white py-1 px-2 small text-muted">${t('report.t12_source_note', { detalle: t12SourceNote })}</div>` : ''}
         </div>
       </div>
 
