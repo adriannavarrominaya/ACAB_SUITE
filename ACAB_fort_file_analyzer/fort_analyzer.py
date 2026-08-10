@@ -534,13 +534,25 @@ def leer_fort6_irradiacion(filepath: str) -> tuple[np.ndarray, dict[str, np.ndar
                 break
 
             parts = stripped.split()
-            if parts and len(parts) >= n_cols + 1:
-                iso_name = parts[0]
-                if re.match(r"^[A-Z]{1,2}\d{2,3}M?$", iso_name):
+            if parts:
+                # C6 del BACKLOG: elementos de símbolo de UNA letra separan
+                # símbolo y masa en dos tokens ("O 16", "H  1") por la
+                # anchura fija de columnas del fort.6 -- mismo patrón que
+                # leer_concentraciones_iniciales, que sí los reconocía.
+                iso_name: Optional[str] = None
+                vals_tokens: list[str] = []
+                if (len(parts) >= 2 and re.fullmatch(r"[A-Z]{1,2}", parts[0])
+                        and re.fullmatch(r"\d{1,3}M?", parts[1])):
+                    iso_name = parts[0] + parts[1]
+                    vals_tokens = parts[2:]
+                elif re.match(r"^[A-Z]{1,2}\d{2,3}M?$", parts[0]):
+                    iso_name = parts[0]
+                    vals_tokens = parts[1:]
+
+                if iso_name and len(vals_tokens) >= n_cols:
                     try:
-                        all_vals = [float(v) for v in parts[1: n_cols + 1]]
-                        if len(all_vals) >= n_cols:
-                            sec_data[iso_name] = [all_vals[k] for k in new_idx]
+                        all_vals = [float(v) for v in vals_tokens[:n_cols]]
+                        sec_data[iso_name] = [all_vals[k] for k in new_idx]
                     except (ValueError, IndexError):
                         pass
             i += 1
@@ -648,13 +660,25 @@ def leer_fort6_enfriamiento(filepath: str) -> tuple[np.ndarray, dict[str, np.nda
                 break
 
             parts = stripped.split()
-            if parts and len(parts) >= n_cols + 1:
-                iso_name = parts[0]
-                if re.match(r"^[A-Z]{1,2}\d{2,3}M?$", iso_name):
+            if parts:
+                # C6 del BACKLOG: elementos de símbolo de UNA letra separan
+                # símbolo y masa en dos tokens ("O 16", "H  1") por la
+                # anchura fija de columnas del fort.6 -- mismo patrón que
+                # leer_concentraciones_iniciales, que sí los reconocía.
+                iso_name: Optional[str] = None
+                vals_tokens: list[str] = []
+                if (len(parts) >= 2 and re.fullmatch(r"[A-Z]{1,2}", parts[0])
+                        and re.fullmatch(r"\d{1,3}M?", parts[1])):
+                    iso_name = parts[0] + parts[1]
+                    vals_tokens = parts[2:]
+                elif re.match(r"^[A-Z]{1,2}\d{2,3}M?$", parts[0]):
+                    iso_name = parts[0]
+                    vals_tokens = parts[1:]
+
+                if iso_name and len(vals_tokens) >= n_cols:
                     try:
-                        all_vals = [float(v) for v in parts[1: n_cols + 1]]
-                        if len(all_vals) >= n_cols:
-                            sec_data[iso_name] = [all_vals[k] for k in new_idx]
+                        all_vals = [float(v) for v in vals_tokens[:n_cols]]
+                        sec_data[iso_name] = [all_vals[k] for k in new_idx]
                     except (ValueError, IndexError):
                         pass
             i += 1

@@ -122,8 +122,16 @@ def test_irradiacion() -> None:
     section("leer_fort6_irradiacion — NUMBER OF ATOMS")
     t_irr, datos = fa.leer_fort6_irradiacion(FORT6)
 
-    check(len(datos) == 499, f"499 isótopos detectados (obtenido {len(datos)})")
+    # C6 del BACKLOG: antes de esta corrección, los isótopos de elementos de
+    # símbolo de UNA letra (H, C, N, O, F... "O 16", símbolo y masa en
+    # tokens separados por la anchura fija de columnas del fort.6) se
+    # perdían en silencio (499 isótopos detectados). 1211 coincide con el
+    # nº total de nucleidos de la librería DECAY.dat de esta simulación
+    # (ver test_leer_decay_dat / F9 del BACKLOG).
+    check(len(datos) == 1211, f"1211 isótopos detectados, incluidos los de símbolo de una letra (obtenido {len(datos)})")
     check("I131" in datos, "I131 presente en irradiación")
+    check("O16" in datos, "C6: O16 (símbolo de una letra, tokens separados en el fort.6) presente en irradiación")
+    check("H1" in datos, "C6: H1 (símbolo de una letra) presente en irradiación")
 
     # La columna INITIAL corresponde a t=0 (estado pre-irradiación).
     check(t_irr[0] == 0.0, "primer punto temporal = 0 (columna INITIAL)")
@@ -147,6 +155,11 @@ def test_enfriamiento() -> None:
     check("I131" in datos, "I131 presente en enfriamiento")
     # Los arrays de datos deben tener la misma longitud que la malla temporal.
     check(len(datos["I131"]) == 19, "serie I131 alineada con la malla (19 puntos)")
+    # C6 del BACKLOG: O16 (símbolo de una letra, "O 16" en tokens separados
+    # en el fort.6) presente y alineado con la malla -- antes se perdía en
+    # silencio (regex exigía símbolo+masa en un único token).
+    check("O16" in datos, "C6: O16 presente en enfriamiento")
+    check(len(datos["O16"]) == 19, "C6: serie O16 alineada con la malla (19 puntos)")
 
     # Valores oro (Bq/cm³):
     check_close(datos["I131"][0], 38.42, "I131 en RESTART (t=0) = 38.42 Bq/cm³")
