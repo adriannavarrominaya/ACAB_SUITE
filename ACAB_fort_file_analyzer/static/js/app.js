@@ -2278,6 +2278,11 @@ function _renderIsotopoTimeChart(iso, simulations, metricas) {
   // SU simulación de referencia, en la unidad activa (igual que las curvas ACAB).
   const REF_COLORS = ['#212121', '#5d4037', '#37474f', '#4a148c'];
   (_state.refSeries || []).filter(s => s.isotopo === iso).forEach((s, idx) => {
+    // F17/F18 del BACKLOG: series en unidad NO absoluta (cps/adimensional)
+    // no comparten escala física con las curvas ACAB (Bq/cm³ convertido) --
+    // mezclarlas en el mismo eje sería engañoso. No se dibujan aquí; su
+    // comparación vive solo en la tabla de FORMA (renderRefDataMetrics).
+    if (!ACABRefData.isAbsoluteActivityUnit(s.unidadA)) return;
     const refSim = simulations[s.refSimName];
     if (!refSim) return;
     const factor = convFactor(refSim);
@@ -3054,6 +3059,9 @@ function renderRefDataDialog() {
   const metaIso    = (meta.isotopo || _state.selectedIsotopo || '').toUpperCase();
   const metaLabel  = meta.descripcion || filename;
   const metaFuente = meta.fuente || '';
+  // F17/F18 del BACKLOG: 'adimensional' exige declarar respecto a qué se
+  // normalizó (# normalizado_a: en el CSV), o la serie no es reproducible.
+  const metaNormalizadoA = meta.normalizado_a || '';
 
   const sims = _state.analysisData ? _state.analysisData.simulations : {};
   const simOptions = Object.keys(sims)
@@ -3110,7 +3118,10 @@ function renderRefDataDialog() {
           <option value="mbqg" ${metaUnitA === 'mbqg' ? 'selected' : ''}>${t('units.mbqg')}</option>
           <option value="mbq_total" ${metaUnitA === 'mbq_total' ? 'selected' : ''}>${t('units.mbq_total')}</option>
           <option value="mci_total" ${metaUnitA === 'mci_total' ? 'selected' : ''}>${t('units.mci_total')}</option>
+          <option value="cps" ${metaUnitA === 'cps' ? 'selected' : ''}>${t('units.cps')}</option>
+          <option value="adimensional" ${metaUnitA === 'adimensional' ? 'selected' : ''}>${t('units.adimensional')}</option>
         </select>
+        <div class="form-text" id="refdata-unidad-a-hint"></div>
       </div>
       <div class="col-md-4">
         <label class="form-label small fw-semibold mb-1">${t('refdata.field_refsim')}</label>
@@ -3126,8 +3137,30 @@ function renderRefDataDialog() {
         <label class="form-label small fw-semibold mb-1">${t('refdata.field_fuente')}</label>
         <input type="text" id="refdata-fuente" class="form-control form-control-sm" value="${escAttr(metaFuente)}">
       </div>
+
+      <div class="col-md-12" id="refdata-normalizado-a-row" style="display:${metaUnitA === 'adimensional' ? '' : 'none'}">
+        <label class="form-label small fw-semibold mb-1">${t('refdata.field_normalizado_a')}</label>
+        <input type="text" id="refdata-normalizado-a" class="form-control form-control-sm"
+               value="${escAttr(metaNormalizadoA)}" placeholder="${escAttr(t('refdata.field_normalizado_a_ph'))}">
+        <div class="form-text">${t('refdata.field_normalizado_a_hint')}</div>
+      </div>
     </div>
   `;
+
+  // F17/F18 del BACKLOG: 'cps'/'adimensional' no son unidades absolutas --
+  // aviso permanente para cps (la exportación de desviación rehúsa el
+  // cálculo absoluto y ofrece solo comparación de forma) y el campo
+  // # normalizado_a: se muestra/exige SOLO con 'adimensional'.
+  const unidadASel   = document.getElementById('refdata-unidad-a');
+  const unidadAHint  = document.getElementById('refdata-unidad-a-hint');
+  const normARow     = document.getElementById('refdata-normalizado-a-row');
+  const updateUnidadAHint = () => {
+    const v = unidadASel.value;
+    unidadAHint.textContent = !ACABRefData.isAbsoluteActivityUnit(v) ? t('refdata.unidad_a_no_absoluta_hint') : '';
+    normARow.style.display = ACABRefData.requiresNormalizadoA(v) ? '' : 'none';
+  };
+  unidadASel.addEventListener('change', updateUnidadAHint);
+  updateUnidadAHint();
 }
 
 // E2: Read the dialog DOM, validate, build the series and push it to appState.
@@ -3157,19 +3190,30 @@ function confirmRefDataImport() {
   const etiqueta   = document.getElementById('refdata-etiqueta').value.trim() || draft.filename;
   const fuente     = document.getElementById('refdata-fuente').value.trim();
   const refSimName = document.getElementById('refdata-refsim').value;
+  const esAbsoluta = ACABRefData.isAbsoluteActivityUnit(unidadA);
+  // F17/F18 del BACKLOG: 'adimensional' exige declarar respecto a qué se
+  // normalizó (# normalizado_a:), o la serie no es reproducible.
+  const normalizadoA = document.getElementById('refdata-normalizado-a').value.trim();
 
   if (!fase || !unidadT || !unidadA || !isotopo || !refSimName) {
     showToast(t('refdata.err_missing_fields'), 'warning');
     return;
   }
+  if (ACABRefData.requiresNormalizadoA(unidadA) && !normalizadoA) {
+    showToast(t('refdata.err_normalizado_a_requerido'), 'warning');
+    return;
+  }
 
   const refSim = _state.analysisData.simulations[refSimName];
-  const opts   = { density: refSim ? refSim.densidad_g_cm3 : null, volume: activeVolume() };
-  const factor = ACABUnits.unitFactor(unidadA, opts);
-  if (factor === null) {
-    const need = ACABUnits.unitRequires(unidadA);
-    showToast(t(need === 'density' ? 'refdata.err_no_density' : 'refdata.err_no_volume'), 'danger');
-    return;
+  let opts = null, factor = null;
+  if (esAbsoluta) {
+    opts   = { density: refSim ? refSim.densidad_g_cm3 : null, volume: activeVolume() };
+    factor = ACABUnits.unitFactor(unidadA, opts);
+    if (factor === null) {
+      const need = ACABUnits.unitRequires(unidadA);
+      showToast(t(need === 'density' ? 'refdata.err_no_density' : 'refdata.err_no_volume'), 'danger');
+      return;
+    }
   }
 
   const rawPoints = ACABRefData.buildSeriesPoints(draft.parsed.rows, colMap);
@@ -3185,14 +3229,21 @@ function confirmRefDataImport() {
   // absoluto). El desplazamiento a eje absoluto para la SUPERPOSICIÓN en el
   // gráfico combinado se calcula solo al pintar (_renderIsotopoTimeChart),
   // nunca al guardar el dato.
+  //
+  // F17/F18 del BACKLOG: unidades NO absolutas (cps/adimensional) no tienen
+  // factor de conversión a Bq/cm³ -- se guarda el valor RAW tal cual, sin
+  // convertir, y el resto del pipeline (gráfica, métricas) lo identifica
+  // vía s.unidadA/ACABRefData.isAbsoluteActivityUnit y rehúsa el cálculo
+  // absoluto en vez de producir un número sin sentido.
   const points = rawPoints
     .map(p => {
       const t_h = ACABRefData.convertTimeToHours(p.t, unidadT);
+      if (!esAbsoluta) return { t_h, A_raw: p.A, A_err_raw: p.A_err };
       const A_bqcm3 = ACABRefData.bqcm3FromUnit(p.A, unidadA, opts);
       const A_err_bqcm3 = (p.A_err !== null) ? ACABRefData.bqcm3FromUnit(p.A_err, unidadA, opts) : null;
       return { t_h, A_bqcm3, A_err_bqcm3 };
     })
-    .filter(p => p.A_bqcm3 !== null && isFinite(p.t_h))
+    .filter(p => esAbsoluta ? (p.A_bqcm3 !== null && isFinite(p.t_h)) : (isFinite(p.A_raw) && isFinite(p.t_h)))
     .sort((a, b) => a.t_h - b.t_h);
 
   if (!points.length) {
@@ -3202,7 +3253,9 @@ function confirmRefDataImport() {
 
   _state.refSeries.push({
     id: 'ref-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
-    tipo, descripcion: etiqueta, isotopo, fase, unidadT, unidadA, fuente, refSimName, points,
+    tipo, descripcion: etiqueta, isotopo, fase, unidadT, unidadA,
+    normalizadoA: ACABRefData.requiresNormalizadoA(unidadA) ? normalizadoA : null,
+    fuente, refSimName, points,
   });
 
   bootstrap.Modal.getInstance(document.getElementById('modal-refdata'))?.hide();
@@ -3229,6 +3282,11 @@ function renderRefDataList() {
           <span class="badge ${s.tipo === 'experimental' ? 'bg-secondary' : 'bg-info text-dark'}" style="font-size:0.62rem">
             ${s.tipo === 'experimental' ? t('refdata.badge_experimental') : t('refdata.badge_computacional')}
           </span>
+          ${!ACABRefData.isAbsoluteActivityUnit(s.unidadA) ? `
+          <span class="badge bg-warning text-dark" style="font-size:0.62rem"
+                title="${escAttr(t('refdata.unidad_a_no_absoluta_hint'))}">
+            ${escHtml(t('units.' + s.unidadA))}
+          </span>` : ''}
           ${escHtml(s.descripcion)}
           <button type="button" class="btn-close ms-1 btn-remove-refdata" data-id="${escAttr(s.id)}"
                   style="font-size:0.55rem" title="${escAttr(t('refdata.remove_title'))}"></button>
@@ -3250,6 +3308,115 @@ function _refTipoLabel(tipo) {
   return tipo === 'experimental'
     ? t('refdata.metrics_tipo_experimental')
     : t('refdata.metrics_tipo_computacional');
+}
+
+/** Tarjeta de tabla de desviación ABSOLUTA (unidad_A absoluta: Bq/cm³, MBq/g,
+ * MBq, mCi) — comportamiento de la Fase 4/6, sin cambios de F17/F18. */
+function _refDeviationCardHtml(s, sim, iso, targetSimName) {
+  // F12 del BACKLOG: curva ACAB de la MISMA fase que la serie (nunca la
+  // combinada irr+enfriamiento) — mismo origen temporal a ambos lados,
+  // p.t_h ya viene sin desplazar (confirmRefDataImport).
+  const { xs, ys } = ACABRefData.curveForPhase(sim, iso, s.fase);
+  const points = s.points.map(p => ({ t: p.t_h, A: p.A_bqcm3 }));
+  const metrics = ACABRefData.computeDeviationMetrics(points, xs, ys);
+  const factor = convFactor(sim);
+  const originKeys = ACABRefData.interpolationOriginLabel(s.fase);
+  const origin = { metodo: t('refdata.interp_method_' + originKeys.metodoKey), origen: t('refdata.origin_' + originKeys.origenKey) };
+
+  const rows = metrics.rows.map(r => `
+    <tr>
+      <td class="font-monospace small">${r.t.toFixed(3)}</td>
+      <td class="font-monospace small">${(factor !== null && r.A_exp != null) ? (r.A_exp * factor).toExponential(3) : '—'}</td>
+      <td class="font-monospace small">${(factor !== null && r.A_interp != null) ? (r.A_interp * factor).toExponential(3) : '—'}</td>
+      <td class="font-monospace small ${r.dev_pct != null && Math.abs(r.dev_pct) > 10 ? 'text-danger' : ''}">${r.dev_pct != null ? r.dev_pct.toFixed(2) : '—'}</td>
+    </tr>`).join('');
+
+  const mean = metrics.meanDevPct   != null ? metrics.meanDevPct.toFixed(2)   : '—';
+  const max  = metrics.maxAbsDevPct != null ? metrics.maxAbsDevPct.toFixed(2) : '—';
+
+  return `
+    <div class="card shadow-sm mb-2">
+      <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <strong class="small">${t('refdata.metrics_title', { label: escHtml(s.descripcion), tipo: _refTipoLabel(s.tipo), sim: escHtml(targetSimName) })}</strong>
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-secondary">${t('refdata.metrics_mean', { v: mean })}</span>
+          <span class="badge bg-dark">${t('refdata.metrics_max', { v: max })}</span>
+          <button class="btn btn-outline-secondary btn-sm btn-export-refmetrics" data-id="${escAttr(s.id)}"
+                  title="${escAttr(t('refdata.metrics_export'))}">
+            <i class="bi bi-download"></i>
+          </button>
+        </div>
+      </div>
+      <div class="px-2 pt-1 small text-muted">${t('refdata.metrics_origin_note', { metodo: origin.metodo, origen: origin.origen })}</div>
+      <div class="table-responsive" style="max-height:220px">
+        <table class="table table-sm mb-0" style="font-size:0.8rem">
+          <thead><tr>
+            <th>${t('refdata.metrics_th_t')}</th>
+            <th>${t('refdata.metrics_th_aserie', { unit: unitLabel() })}</th>
+            <th>${t('refdata.metrics_th_ainterp', { unit: unitLabel() })}</th>
+            <th>${t('refdata.metrics_th_dev')}</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+/** Tarjeta de comparación de FORMA (F17/F18 del BACKLOG) para series en
+ * unidad NO absoluta (cps/adimensional): la exportación de desviación
+ * ABSOLUTA no tiene sentido (no hay factor de conversión a Bq/cm³), así
+ * que se ofrece solo el ajuste de escala por mínimos cuadrados en escala
+ * logarítmica (ACABRefData.computeShapeFit) -- factor, incertidumbre y
+ * método declarados en la propia tarjeta (y en la cabecera del CSV). */
+function _refShapeFitCardHtml(s, sim, iso, targetSimName) {
+  const { xs, ys } = ACABRefData.curveForPhase(sim, iso, s.fase);
+  const points = s.points.map(p => ({ t: p.t_h, A: p.A_raw }));
+  const fit = ACABRefData.computeShapeFit(points, xs, ys);
+  const originKeys = ACABRefData.interpolationOriginLabel(s.fase);
+  const origin = { metodo: t('refdata.interp_method_' + originKeys.metodoKey), origen: t('refdata.origin_' + originKeys.origenKey) };
+
+  const rows = (fit ? fit.rows : []).map(r => `
+    <tr>
+      <td class="font-monospace small">${r.t.toFixed(3)}</td>
+      <td class="font-monospace small">${r.A_serie != null ? r.A_serie.toExponential(3) : '—'}</td>
+      <td class="font-monospace small">${r.A_interp != null ? r.A_interp.toExponential(3) : '—'}</td>
+      <td class="font-monospace small ${r.ratio_forma != null && Math.abs(r.ratio_forma - 1) > 0.1 ? 'text-danger' : ''}">${r.ratio_forma != null ? r.ratio_forma.toFixed(3) : '—'}</td>
+    </tr>`).join('');
+
+  const factorTxt = (fit && fit.factor != null) ? fit.factor.toExponential(3) : '—';
+  const uncTxt = (fit && fit.factor_se_log != null)
+    ? t('refdata.shape_factor_unc_log', { v: fit.factor_se_log.toFixed(4) })
+    : t('refdata.shape_factor_unc_na');
+
+  return `
+    <div class="card shadow-sm mb-2 border-warning">
+      <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <strong class="small">${t('refdata.shape_title', { label: escHtml(s.descripcion), tipo: _refTipoLabel(s.tipo), sim: escHtml(targetSimName) })}</strong>
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-warning text-dark">${t('refdata.shape_factor', { v: factorTxt })}</span>
+          <button class="btn btn-outline-secondary btn-sm btn-export-refmetrics" data-id="${escAttr(s.id)}"
+                  title="${escAttr(t('refdata.metrics_export'))}">
+            <i class="bi bi-download"></i>
+          </button>
+        </div>
+      </div>
+      <div class="px-2 pt-1 small text-muted">
+        ${t('refdata.shape_no_absoluta_note', { unit: t('units.' + s.unidadA) })}
+        ${uncTxt} · ${t('refdata.shape_metodo_label')}: ${t('refdata.shape_metodo_' + (fit ? fit.metodo : 'least_squares_log'))}.
+        ${t('refdata.metrics_origin_note', { metodo: origin.metodo, origen: origin.origen })}
+      </div>
+      <div class="table-responsive" style="max-height:220px">
+        <table class="table table-sm mb-0" style="font-size:0.8rem">
+          <thead><tr>
+            <th>${t('refdata.metrics_th_t')}</th>
+            <th>${t('refdata.shape_th_aserie', { unit: t('units.' + s.unidadA) })}</th>
+            <th>${t('refdata.shape_th_ainterp')}</th>
+            <th>${t('refdata.shape_th_ratio')}</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
 }
 
 // Deviation-metrics table (mean/max bias vs. the target simulation) for
@@ -3284,55 +3451,10 @@ function renderRefDataMetrics() {
       </select>
     </div>` : '';
 
-  const tablesHtml = metricSeries.map(s => {
-    // F12 del BACKLOG: curva ACAB de la MISMA fase que la serie (nunca la
-    // combinada irr+enfriamiento) — mismo origen temporal a ambos lados,
-    // p.t_h ya viene sin desplazar (confirmRefDataImport).
-    const { xs, ys } = ACABRefData.curveForPhase(sim, iso, s.fase);
-    const points = s.points.map(p => ({ t: p.t_h, A: p.A_bqcm3 }));
-    const metrics = ACABRefData.computeDeviationMetrics(points, xs, ys);
-    const factor = convFactor(sim);
-    const originKeys = ACABRefData.interpolationOriginLabel(s.fase);
-    const origin = { metodo: t('refdata.interp_method_' + originKeys.metodoKey), origen: t('refdata.origin_' + originKeys.origenKey) };
-
-    const rows = metrics.rows.map(r => `
-      <tr>
-        <td class="font-monospace small">${r.t.toFixed(3)}</td>
-        <td class="font-monospace small">${(factor !== null && r.A_exp != null) ? (r.A_exp * factor).toExponential(3) : '—'}</td>
-        <td class="font-monospace small">${(factor !== null && r.A_interp != null) ? (r.A_interp * factor).toExponential(3) : '—'}</td>
-        <td class="font-monospace small ${r.dev_pct != null && Math.abs(r.dev_pct) > 10 ? 'text-danger' : ''}">${r.dev_pct != null ? r.dev_pct.toFixed(2) : '—'}</td>
-      </tr>`).join('');
-
-    const mean = metrics.meanDevPct   != null ? metrics.meanDevPct.toFixed(2)   : '—';
-    const max  = metrics.maxAbsDevPct != null ? metrics.maxAbsDevPct.toFixed(2) : '—';
-
-    return `
-      <div class="card shadow-sm mb-2">
-        <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <strong class="small">${t('refdata.metrics_title', { label: escHtml(s.descripcion), tipo: _refTipoLabel(s.tipo), sim: escHtml(targetSimName) })}</strong>
-          <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-secondary">${t('refdata.metrics_mean', { v: mean })}</span>
-            <span class="badge bg-dark">${t('refdata.metrics_max', { v: max })}</span>
-            <button class="btn btn-outline-secondary btn-sm btn-export-refmetrics" data-id="${escAttr(s.id)}"
-                    title="${escAttr(t('refdata.metrics_export'))}">
-              <i class="bi bi-download"></i>
-            </button>
-          </div>
-        </div>
-        <div class="px-2 pt-1 small text-muted">${t('refdata.metrics_origin_note', { metodo: origin.metodo, origen: origin.origen })}</div>
-        <div class="table-responsive" style="max-height:220px">
-          <table class="table table-sm mb-0" style="font-size:0.8rem">
-            <thead><tr>
-              <th>${t('refdata.metrics_th_t')}</th>
-              <th>${t('refdata.metrics_th_aserie', { unit: unitLabel() })}</th>
-              <th>${t('refdata.metrics_th_ainterp', { unit: unitLabel() })}</th>
-              <th>${t('refdata.metrics_th_dev')}</th>
-            </tr></thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>
-      </div>`;
-  }).join('');
+  const tablesHtml = metricSeries.map(s => ACABRefData.isAbsoluteActivityUnit(s.unidadA)
+    ? _refDeviationCardHtml(s, sim, iso, targetSimName)
+    : _refShapeFitCardHtml(s, sim, iso, targetSimName)
+  ).join('');
 
   container.innerHTML = selectorHtml + tablesHtml;
 
@@ -3349,7 +3471,10 @@ function renderRefDataMetrics() {
   });
 }
 
-/** Export a reference series' deviation table (Fase 3 CSV conventions). */
+/** Export a reference series' deviation table (Fase 3 CSV conventions).
+ * F17/F18 del BACKLOG: series en unidad NO absoluta (cps/adimensional)
+ * exportan la comparación de FORMA (ACABRefData.computeShapeFit), nunca la
+ * desviación absoluta -- ver _refShapeFitCardHtml/exportRefShapeFitCSV. */
 function exportRefMetricsCSV(seriesId) {
   const iso = _state.selectedIsotopo;
   const s = (_state.refSeries || []).find(x => x.id === seriesId);
@@ -3359,6 +3484,11 @@ function exportRefMetricsCSV(seriesId) {
   const targetSimName = ACABRefData.resolveTargetSimName(simNames, _state.refMetricsTargetSim);
   const sim = targetSimName ? sims[targetSimName] : null;
   if (!sim) return;
+
+  if (!ACABRefData.isAbsoluteActivityUnit(s.unidadA)) {
+    exportRefShapeFitCSV(s, sim, iso, targetSimName);
+    return;
+  }
 
   // F12 del BACKLOG: misma fase a ambos lados, sin desplazamiento — ver
   // renderRefDataMetrics.
@@ -3385,6 +3515,39 @@ function exportRefMetricsCSV(seriesId) {
 
   emitCSV(`${ACABExport.slug(iso)}_desviacion_${ACABExport.slug(s.descripcion)}_${folderSlug()}.csv`,
           iso, rows, headers, extraMeta);
+}
+
+/** Export de la comparación de FORMA (F17/F18 del BACKLOG): factor de
+ * escala, incertidumbre y método SIEMPRE declarados en la cabecera del
+ * CSV -- las columnas A_ACAB/A_serie NO son la misma magnitud física
+ * (nunca se declaran como "desviación", que implicaría comparabilidad
+ * absoluta que no existe para cps/adimensional). */
+function exportRefShapeFitCSV(s, sim, iso, targetSimName) {
+  const { xs, ys } = ACABRefData.curveForPhase(sim, iso, s.fase);
+  const points = s.points.map(p => ({ t: p.t_h, A: p.A_raw }));
+  const fit = ACABRefData.computeShapeFit(points, xs, ys);
+  const originKeys = ACABRefData.interpolationOriginLabel(s.fase);
+  const origin = { metodo: t('refdata.interp_method_' + originKeys.metodoKey), origen: t('refdata.origin_' + originKeys.origenKey) };
+
+  const rows = (fit ? fit.rows : []).map(r => [r.t, r.A_serie, r.A_interp, r.ratio_forma]);
+  const headers = ['t [h]', `A_serie [${t('units.' + s.unidadA)}]`, 'A_ACAB_interp [Bq/cm³ interno]', 'ratio_forma'];
+  const metaLines = [
+    `# ${t('refdata.metrics_csv_meta', { tipo: _refTipoLabel(s.tipo), sim: targetSimName })}`,
+    `# ${t('refdata.metrics_csv_origin', { metodo: origin.metodo, origen: origin.origen })}`,
+    `# ${t('refdata.shape_csv_no_absoluta', { unit: t('units.' + s.unidadA) })}`,
+    `# ${t('refdata.shape_csv_factor', {
+      v: fit && fit.factor != null ? fit.factor.toExponential(6) : '',
+      unc: fit && fit.factor_se_log != null ? fit.factor_se_log.toFixed(6) : 'n/a',
+      n: fit ? fit.n_ajuste : 0,
+    })}`,
+    `# ${t('refdata.shape_csv_metodo', { metodo: t('refdata.shape_metodo_' + (fit ? fit.metodo : 'least_squares_log')) })}`,
+  ];
+  if (ACABRefData.requiresNormalizadoA(s.unidadA)) {
+    metaLines.push(`# ${t('refdata.shape_csv_normalizado_a', { v: s.normalizadoA || '' })}`);
+  }
+
+  emitCSV(`${ACABExport.slug(iso)}_forma_${ACABExport.slug(s.descripcion)}_${folderSlug()}.csv`,
+          iso, rows, headers, metaLines.join('\r\n'));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

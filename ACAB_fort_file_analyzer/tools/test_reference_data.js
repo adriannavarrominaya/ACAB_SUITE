@@ -100,6 +100,21 @@ close(R.convertTimeToHours(60, 'min'), 1, '60 min = 1 h');
 close(R.convertTimeToHours(1, 'd'), 24, '1 d = 24 h');
 
 // ─────────────────────────────────────────────────────────────────────────
+section('parseActivityUnitLabel / isAbsoluteActivityUnit — cps y adimensional (F17/F18 del BACKLOG)');
+check(R.parseActivityUnitLabel('cps') === 'cps', "'cps' → 'cps' (NO una clave de ACABUnits)");
+check(R.parseActivityUnitLabel('CPS') === 'cps', "'CPS' → 'cps' (insensible a mayúsculas)");
+check(R.parseActivityUnitLabel('adimensional') === 'adimensional', "'adimensional' → 'adimensional'");
+check(R.isAbsoluteActivityUnit('cps') === false, "'cps' NO es una unidad absoluta");
+check(R.isAbsoluteActivityUnit('adimensional') === false, "'adimensional' NO es una unidad absoluta");
+check(R.isAbsoluteActivityUnit('mbqg') === true, "'mbqg' SÍ es una unidad absoluta");
+check(R.isAbsoluteActivityUnit('bqcm3') === true, "'bqcm3' SÍ es una unidad absoluta");
+check(R.bqcm3FromUnit(1, 'cps', { density: 1 }) === null,
+      "bqcm3FromUnit('cps', ...) → null (ACABUnits no la conoce, sin conversión posible)");
+check(R.requiresNormalizadoA('adimensional') === true, "'adimensional' exige # normalizado_a:");
+check(R.requiresNormalizadoA('cps') === false, "'cps' NO exige # normalizado_a:");
+check(R.requiresNormalizadoA('mbqg') === false, "'mbqg' NO exige # normalizado_a:");
+
+// ─────────────────────────────────────────────────────────────────────────
 section('bqcm3FromUnit — inversa de ACABUnits.unitFactor (densidad de la ref_sim)');
 const DENS = 0.12317;
 // MBq/g → Bq/cm³: valor · densidad · 1e6 (inversa de 1/(densidad·1e6))
@@ -207,6 +222,79 @@ const origCool = R.interpolationOriginLabel('enfriamiento');
 check(origCool.origenKey === 'eoi', "origen declarado de una serie 'enfriamiento' = eoi (fin de irradiación)");
 check(origIrr.metodoKey === 'linear_clamped' && origCool.metodoKey === 'linear_clamped',
       'método de interpolación declarado = linear_clamped en ambas fases');
+
+// ─────────────────────────────────────────────────────────────────────────
+section('computeShapeFit — F17/F18 del BACKLOG: comparación de FORMA (cps/adimensional)');
+
+// Caso exacto: A_ACAB(t) = 50 · A_serie(t) en TODOS los puntos (curva y
+// serie muestreadas en los MISMOS t, sin error de interpolación) → factor
+// = 50 exacto, incertidumbre = 0, ratio_forma = 1 en cada fila.
+const tExact = [0, 1, 2, 3];
+const aSerieExact = tExact.map(tv => 2 * Math.exp(-0.5 * tv));
+const aCurveExact = tExact.map(tv => 100 * Math.exp(-0.5 * tv)); // = 50 · aSerieExact
+const fitExact = R.computeShapeFit(tExact.map((tv, i) => ({ t: tv, A: aSerieExact[i] })), tExact, aCurveExact);
+check(fitExact !== null, 'computeShapeFit calculado');
+close(fitExact.factor, 50.0, 'factor de escala = 50 exacto (curva = 50·serie en todo t)', 1e-9);
+check(fitExact.factor_se_log !== null && fitExact.factor_se_log < 1e-9,
+      `incertidumbre ≈ 0 (ajuste perfecto, obtenido ${fitExact.factor_se_log})`);
+check(fitExact.n_ajuste === 4, 'los 4 puntos entran en el ajuste');
+check(fitExact.metodo === 'least_squares_log', "método declarado = 'least_squares_log'");
+check(fitExact.rows.every(r => Math.abs(r.ratio_forma - 1) < 1e-9),
+      'ratio_forma ≈ 1 en cada fila (ajuste perfecto)');
+
+// Caso con ruido: un punto se desvía del factor común -> factor cercano a
+// 50 pero no exacto, incertidumbre > 0, y su ratio_forma se aleja de 1
+// mientras el resto se mantiene cerca (detecta el desacuerdo de FORMA en
+// ese punto, no solo de escala).
+const aSerieNoisy = aSerieExact.slice();
+const aCurveNoisy = aCurveExact.slice();
+aCurveNoisy[2] = aCurveNoisy[2] * 1.5; // el punto t=2 se desvía ×1.5 del resto
+const fitNoisy = R.computeShapeFit(tExact.map((tv, i) => ({ t: tv, A: aSerieNoisy[i] })), tExact, aCurveNoisy);
+check(fitNoisy.factor_se_log > 0, 'incertidumbre > 0 cuando un punto no encaja en el mismo factor');
+// El punto desviado (×1,5) también tira del factor ajustado (mínimos
+// cuadrados sobre los 4 puntos, no solo los 3 "buenos"): ratio_forma =
+// 1,5^(3/4) ≈ 1,3554, no 1,5 -- el resto de la desviación (1,5^(1/4)) la
+// absorbe el factor común, repartida entre los otros 3 puntos.
+close(fitNoisy.rows[2].ratio_forma, Math.pow(1.5, 3 / 4),
+      'ratio_forma del punto desviado = 1,5^(3/4) (parte de la desviación la absorbe el factor común)', 1e-6);
+check(Math.abs(fitNoisy.rows[0].ratio_forma - 1) < 0.1,
+      'ratio_forma de los puntos SIN desviar sigue cerca de 1');
+
+// Un solo punto válido: factor calculable, incertidumbre NO estimable (null).
+const fitUnPunto = R.computeShapeFit([{ t: 0, A: 2 }], [0], [100]);
+close(fitUnPunto.factor, 50.0, 'un solo punto: factor = A_interp/A_serie exacto');
+check(fitUnPunto.factor_se_log === null, 'un solo punto: incertidumbre no estimable → null');
+check(fitUnPunto.n_ajuste === 1, 'n_ajuste = 1');
+
+// Sin ningún punto con A_interp/A_serie positivos (log indefinido) → factor
+// null, filas con ratio_forma null, sin lanzar.
+const fitSinDatos = R.computeShapeFit([{ t: 0, A: -5 }], [0], [100]);
+check(fitSinDatos.factor === null, 'ningún punto válido (A_serie ≤ 0) → factor null');
+check(fitSinDatos.rows[0].ratio_forma === null, 'fila sin ajuste → ratio_forma null');
+check(R.computeShapeFit([], [0], [100]) === null, 'sin puntos experimentales → null');
+
+// ─────────────────────────────────────────────────────────────────────────
+section('Fixture real fig5_exp2 (cps) — F17/F18 del BACKLOG');
+const fig5Text = fs.readFileSync(
+  path.join(FIXTURES, 'fig5_exp2_experimental_normalizado.csv'), 'utf8');
+const fig5Parsed = R.parseCSV(fig5Text);
+check(fig5Parsed.meta.unidad_a === 'cps', "fixture real: # unidad_A: cps");
+check(R.parseActivityUnitLabel(fig5Parsed.meta.unidad_a) === 'cps',
+      'parseActivityUnitLabel reconoce el valor tal cual viene del fichero');
+check(R.isAbsoluteActivityUnit(R.parseActivityUnitLabel(fig5Parsed.meta.unidad_a)) === false,
+      'la serie del fichero real NO es una unidad absoluta');
+check(fig5Parsed.rows.length > 0, `fixture real parseada (${fig5Parsed.rows.length} filas)`);
+
+// ─────────────────────────────────────────────────────────────────────────
+section('Fixture sintético adimensional_sintetico.csv — normalizado_a obligatorio (F17/F18)');
+const adimText = fs.readFileSync(
+  path.join(FIXTURES, 'adimensional_sintetico.csv'), 'utf8');
+const adimParsed = R.parseCSV(adimText);
+check(adimParsed.meta.unidad_a === 'adimensional', 'fixture: # unidad_A: adimensional');
+check(R.requiresNormalizadoA(R.parseActivityUnitLabel(adimParsed.meta.unidad_a)) === true,
+      'esta serie exige # normalizado_a:');
+check(!!adimParsed.meta.normalizado_a, `el fixture SÍ declara normalizado_a ("${adimParsed.meta.normalizado_a}")`);
+check(adimParsed.rows.length === 6, `6 filas de datos (obtenido ${adimParsed.rows.length})`);
 
 console.log('\n' + '-'.repeat(50));
 console.log('Resultado: ' + passed + ' pasados, ' + failed + ' fallidos');

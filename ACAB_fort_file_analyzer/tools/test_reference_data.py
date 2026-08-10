@@ -193,6 +193,41 @@ def deviation_metrics(exp_points, curve_xs, curve_ys):
     return rows, mean_dev, max_abs_dev
 
 
+def shape_fit_oracle(exp_points, curve_xs, curve_ys):
+    """Mirror exacto de ACABRefData.computeShapeFit (F17/F18 del BACKLOG):
+    factor de escala k tal que A_ACAB(t) ≈ k·A_serie(t), ajustado por
+    mínimos cuadrados en escala LOGARÍTMICA (no lineal, para no dejar que
+    los puntos de mayor valor dominen el ajuste sobre una curva que abarca
+    varios órdenes de magnitud). Devuelve None si no hay puntos.
+    """
+    if not exp_points:
+        return None
+
+    with_interp = [(t, a, linear_interp_clamped(curve_xs, curve_ys, t)) for t, a in exp_points]
+    ds = [math.log(a_interp) - math.log(a_serie)
+          for (_, a_serie, a_interp) in with_interp
+          if a_interp is not None and a_interp > 0 and a_serie > 0]
+
+    if not ds:
+        rows = [{"t": t, "A_serie": a, "A_interp": ai, "ratio_forma": None} for t, a, ai in with_interp]
+        return {"rows": rows, "factor": None, "factor_se_log": None, "n_ajuste": 0, "metodo": "least_squares_log"}
+
+    mean_d = sum(ds) / len(ds)
+    factor = math.exp(mean_d)
+    factor_se_log = None
+    if len(ds) >= 2:
+        variance = sum((d - mean_d) ** 2 for d in ds) / (len(ds) - 1)
+        factor_se_log = math.sqrt(variance) / math.sqrt(len(ds))
+
+    rows = []
+    for t, a_serie, a_interp in with_interp:
+        ratio = (a_interp / (factor * a_serie)) if (a_interp is not None and a_interp > 0 and a_serie > 0) else None
+        rows.append({"t": t, "A_serie": a_serie, "A_interp": a_interp, "ratio_forma": ratio})
+
+    return {"rows": rows, "factor": factor, "factor_se_log": factor_se_log,
+            "n_ajuste": len(ds), "metodo": "least_squares_log"}
+
+
 def series_for_metrics(series, iso):
     """Mirror exacto de ACABRefData.seriesForMetrics (Fase 6 del BACKLOG)."""
     return [s for s in (series or []) if s.get("isotopo") == iso]
@@ -385,6 +420,70 @@ def test_f12_time_origin_no_shift() -> None:
     check(abs(correcto - buggy) > 1e-5, "el valor correcto y el erróneo difieren (F12 deja de reproducirse)")
 
 
+NON_ABSOLUTE_UNITS = {"cps", "adimensional"}
+
+
+def is_absolute_activity_unit(unidad_a: str) -> bool:
+    """Mirror exacto de ACABRefData.isAbsoluteActivityUnit (F17/F18)."""
+    return unidad_a not in NON_ABSOLUTE_UNITS
+
+
+def requires_normalizado_a(unidad_a: str) -> bool:
+    """Mirror exacto de ACABRefData.requiresNormalizadoA (F17/F18)."""
+    return unidad_a == "adimensional"
+
+
+def test_unidades_no_absolutas() -> None:
+    section("cps/adimensional (F17/F18 del BACKLOG) — unidades NO absolutas")
+    check(is_absolute_activity_unit("cps") is False, "'cps' no es absoluta")
+    check(is_absolute_activity_unit("adimensional") is False, "'adimensional' no es absoluta")
+    check(is_absolute_activity_unit("mbqg") is True, "'mbqg' sí es absoluta")
+    check(requires_normalizado_a("adimensional") is True, "'adimensional' exige normalizado_a")
+    check(requires_normalizado_a("cps") is False, "'cps' no exige normalizado_a")
+
+    fig5_text = (FIXTURES_EXP / "fig5_exp2_experimental_normalizado.csv").read_text(encoding="utf-8")
+    fig5_meta = parse_csv_oracle(fig5_text)["meta"]
+    check(fig5_meta.get("unidad_a") == "cps", "fixture real fig5_exp2: # unidad_A: cps")
+
+    adim_text = (FIXTURES_EXP / "adimensional_sintetico.csv").read_text(encoding="utf-8")
+    adim_parsed = parse_csv_oracle(adim_text)
+    check(adim_parsed["meta"].get("unidad_a") == "adimensional", "fixture sintético: # unidad_A: adimensional")
+    check(bool(adim_parsed["meta"].get("normalizado_a")), "fixture sintético declara # normalizado_a:")
+    check(len(adim_parsed["rows"]) == 6, f"6 filas de datos (obtenido {len(adim_parsed['rows'])})")
+
+
+def test_shape_fit_oracle() -> None:
+    section("computeShapeFit (F17/F18 del BACKLOG) — comparación de FORMA, mirror de reference_data.js")
+
+    t_vals = [0, 1, 2, 3]
+    a_serie = [2 * math.exp(-0.5 * tv) for tv in t_vals]
+    a_curve = [100 * math.exp(-0.5 * tv) for tv in t_vals]  # = 50 · a_serie exacto
+
+    fit = shape_fit_oracle(list(zip(t_vals, a_serie)), t_vals, a_curve)
+    check(fit is not None, "computeShapeFit calculado")
+    check_close(fit["factor"], 50.0, "factor de escala = 50 exacto", rtol=1e-9)
+    check(fit["factor_se_log"] is not None and fit["factor_se_log"] < 1e-9,
+          f"incertidumbre ≈ 0 (ajuste perfecto, obtenido {fit['factor_se_log']})")
+    check(fit["n_ajuste"] == 4, "los 4 puntos entran en el ajuste")
+    check(all(abs(r["ratio_forma"] - 1) < 1e-9 for r in fit["rows"]), "ratio_forma ≈ 1 en cada fila")
+
+    # Fixture real fig5_exp2 (cps): el punto de la Fig. 5 del experimento 2,
+    # eje "I-131 Counts Per Second" (F17 del BACKLOG) -- solo se comprueba
+    # que el ajuste corre sin lanzar contra datos reales, no un valor oro
+    # (la comparación físicamente significativa contra el fort.6 real del
+    # experimento 2 vive fuera de este repo).
+    fig5_text = (FIXTURES_EXP / "fig5_exp2_experimental_normalizado.csv").read_text(encoding="utf-8")
+    fig5_parsed = parse_csv_oracle(fig5_text)
+    check(fig5_parsed["meta"].get("unidad_a") == "cps", "fixture real: # unidad_A: cps")
+    fig5_points = [(r[0], r[1]) for r in fig5_parsed["rows"]]
+    curva_sintetica_xs = [p[0] for p in fig5_points]
+    curva_sintetica_ys = [10 * p[1] for p in fig5_points]  # curva ACAB ficticia, factor conocido = 10
+    fit_fig5 = shape_fit_oracle(fig5_points, curva_sintetica_xs, curva_sintetica_ys)
+    check(fit_fig5 is not None and fit_fig5["factor"] is not None,
+          "ajuste sobre datos reales de fig5_exp2 (cps) no lanza y da un factor numérico")
+    check_close(fit_fig5["factor"], 10.0, "con una curva ACAB ficticia = 10·serie, el ajuste recupera 10 exacto", rtol=1e-9)
+
+
 def main() -> int:
     print("Tests oráculo de reference_data.js (Fase 4 del runbook, sin node)")
     print(f"Fixtures: {FIXTURES_EXP}")
@@ -401,6 +500,8 @@ def main() -> int:
     test_resolve_target_sim_name()
     test_bqcm3_inverse_conversion()
     test_f12_time_origin_no_shift()
+    test_unidades_no_absolutas()
+    test_shape_fit_oracle()
 
     print(f"\n{'-' * 50}")
     print(f"Resultado: {_PASSED} pasados, {_FAILED} fallidos")

@@ -3,9 +3,12 @@
 # fase: enfriamiento
 # isotopo: I131
 # unidad_t: h
-# NOTA: el eje Y original es 'Counts Per Second' (CPS), que NO es ninguna de las
-#       unidad_A validas (Bq/cm3 | MBq/g | MBq | mCi). Por eso unidad_A se omite
-#       a proposito: segun el spec, si falta, el dialogo de importacion la pregunta.
+# unidad_A: cps
+# NOTA: el eje Y original es 'Counts Per Second' (CPS) -- F17/F18 del BACKLOG
+#       anadieron 'cps' a las unidad_A validas (antes solo Bq/cm3|MBq/g|MBq|mCi):
+#       la serie NO se convierte a actividad absoluta ni entra en la exportacion
+#       de desviacion absoluta, solo en la comparacion de FORMA (factor de
+#       escala por minimos cuadrados en escala logaritmica).
 # fuente: digitalizado de la grafica fig_5_-_exp2
 t;A
 0,0134;4,253

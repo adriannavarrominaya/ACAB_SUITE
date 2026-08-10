@@ -30,15 +30,40 @@
     'mci': 'mci_total',
   };
 
+  // F17/F18 del BACKLOG: unidades NO absolutas -- 'cps' (tasa de cuentas,
+  // sin eficiencia de detección publicada) y 'adimensional' (normalizada a
+  // algo externo, declarado en `# normalizado_a:`). NO son claves de
+  // ACABUnits (que solo conoce unidades de actividad absolutas
+  // convertibles a Bq/cm³): no hay factor de conversión posible, ni
+  // densidad ni volumen lo arreglan. `parseActivityUnitLabel` las
+  // reconoce aparte para que el resto del pipeline las identifique y
+  // rehúse el cálculo absoluto en vez de producir un número sin sentido.
+  const NON_ABSOLUTE_UNITS = ['cps', 'adimensional'];
+
   function _normLabel(s) {
     return String(s || '').trim().toLowerCase();
   }
 
-  /** "MBq/g" → 'mbqg'; clave de ACABUnits ya válida se devuelve tal cual. */
+  /** "MBq/g" → 'mbqg'; 'cps'/'adimensional' se devuelven tal cual (NO
+   * absolutas); clave de ACABUnits ya válida se devuelve tal cual. */
   function parseActivityUnitLabel(s) {
     const norm = _normLabel(s);
+    if (NON_ABSOLUTE_UNITS.indexOf(norm) !== -1) return norm;
     if (ACABUnits && ACABUnits.isKnownUnit(s)) return s;
     return ACTIVITY_LABEL_TO_UNIT[norm] || null;
+  }
+
+  /** true si `unidadA` es una unidad de actividad ABSOLUTA (convertible a
+   * Bq/cm³ con densidad/volumen); false para 'cps'/'adimensional'. */
+  function isAbsoluteActivityUnit(unidadA) {
+    return NON_ABSOLUTE_UNITS.indexOf(unidadA) === -1;
+  }
+
+  /** true si `unidadA` exige declarar `# normalizado_a:` en la cabecera del
+   * CSV (F17/F18 del BACKLOG): sin esto, una serie 'adimensional' no es
+   * reproducible -- no hay forma de saber respecto a qué se normalizó. */
+  function requiresNormalizadoA(unidadA) {
+    return unidadA === 'adimensional';
   }
 
   /** "h" / "H" / " h " → 'h'; unidad desconocida → null. */
@@ -280,6 +305,66 @@
     return { rows, meanDevPct, maxAbsDevPct };
   }
 
+  /**
+   * F17/F18 del BACKLOG: comparación de FORMA (no de escala absoluta) para
+   * series en unidad NO absoluta ('cps'/'adimensional') -- computeDeviationMetrics
+   * asume que expPoints.A y la curva ACAB están en la MISMA magnitud física
+   * (Bq/cm³ tras convertir); aquí no hay conversión posible, así que en vez
+   * de una desviación % se ajusta un factor de escala k tal que
+   * A_ACAB(t) ≈ k · A_serie(t).
+   *
+   * Ajuste por MÍNIMOS CUADRADOS EN ESCALA LOGARÍTMICA (no lineal): una
+   * curva que abarca crecimiento y decaimiento sobre varios órdenes de
+   * magnitud quedaría dominada por los puntos de mayor valor si se
+   * ajustara en escala lineal, escondiendo el desacuerdo de forma en la
+   * cola de baja actividad. En log, cada punto pesa por igual:
+   *   ln(A_ACAB,i) = ln(k) + ln(A_serie,i) + ε_i
+   *   ln(k) = media(d_i),  d_i = ln(A_ACAB,i) − ln(A_serie,i)
+   * Solución cerrada de mínimos cuadrados con un único parámetro (ln k).
+   * Incertidumbre: error estándar de la media de d_i (σ_d/√n, muestral,
+   * ddof=1); `null` con <2 puntos válidos (no estimable). Puntos con
+   * A_ACAB o A_serie no positivos se excluyen del ajuste (ln indefinido) y
+   * quedan con `ratio_forma: null` en su fila.
+   *
+   * @returns {{rows:{t:number,A_serie:number,A_interp:number,ratio_forma:number|null}[],
+   *            factor:number|null, factor_se_log:number|null, n_ajuste:number,
+   *            metodo:'least_squares_log'}|null} `null` si no hay puntos.
+   */
+  function computeShapeFit(expPoints, curveXs, curveYs) {
+    if (!expPoints || !expPoints.length) return null;
+
+    const withInterp = expPoints.map(p => ({
+      t: p.t, A_serie: p.A, A_interp: linearInterpClamped(curveXs, curveYs, p.t),
+    }));
+
+    const ds = [];
+    withInterp.forEach(r => {
+      if (r.A_interp !== null && r.A_interp > 0 && r.A_serie > 0) ds.push(Math.log(r.A_interp) - Math.log(r.A_serie));
+    });
+    if (ds.length === 0) {
+      return {
+        rows: withInterp.map(r => ({ ...r, ratio_forma: null })),
+        factor: null, factor_se_log: null, n_ajuste: 0, metodo: 'least_squares_log',
+      };
+    }
+
+    const meanD = ds.reduce((a, b) => a + b, 0) / ds.length;
+    const factor = Math.exp(meanD);
+    let factorSeLog = null;
+    if (ds.length >= 2) {
+      const variance = ds.reduce((a, d) => a + (d - meanD) * (d - meanD), 0) / (ds.length - 1);
+      factorSeLog = Math.sqrt(variance) / Math.sqrt(ds.length);
+    }
+
+    const rows = withInterp.map(r => {
+      const ratio_forma = (r.A_interp !== null && r.A_interp > 0 && r.A_serie > 0)
+        ? r.A_interp / (factor * r.A_serie) : null;
+      return { ...r, ratio_forma };
+    });
+
+    return { rows, factor, factor_se_log: factorSeLog, n_ajuste: ds.length, metodo: 'least_squares_log' };
+  }
+
   // ───────────────────────────────────────────────────────────────────────
   // Series que entran en las tablas de desviación + selector de simulación
   // objetivo (Fase 6 del BACKLOG)
@@ -370,6 +455,8 @@
   return {
     TIME_UNIT_TO_H,
     parseActivityUnitLabel,
+    isAbsoluteActivityUnit,
+    requiresNormalizadoA,
     parseTimeUnitLabel,
     convertTimeToHours,
     bqcm3FromUnit,
@@ -378,6 +465,7 @@
     buildSeriesPoints,
     linearInterpClamped,
     computeDeviationMetrics,
+    computeShapeFit,
     seriesForMetrics,
     resolveTargetSimName,
     curveForPhase,

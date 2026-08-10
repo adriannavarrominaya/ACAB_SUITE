@@ -38,10 +38,48 @@ t;A;A_err
 - `fase`: `irradiacion` | `enfriamiento`. Sin defecto: si falta, el diálogo pregunta.
 - `isotopo`: clave estilo fort.6 (`I131`). Si falta, se asume el isótopo activo del informe.
 - `unidad_t`: `s` | `min` | `h` | `d`. Sin defecto: si falta, el diálogo pregunta.
-- `unidad_A`: `Bq/cm3` | `MBq/g` | `MBq` | `mCi` (las de la Fase 2). Sin defecto: si
+- `unidad_A`: `Bq/cm3` | `MBq/g` | `MBq` | `mCi` (las de la Fase 2, ABSOLUTAS) |
+  `cps` | `adimensional` (F17/F18 del BACKLOG, NO absolutas). Sin defecto: si
   falta, el diálogo pregunta. La conversión a la unidad activa de la UI usa la
-  densidad/volumen de la simulación contra la que se compara.
+  densidad/volumen de la simulación contra la que se compara — solo para las
+  unidades ABSOLUTAS (ver más abajo).
+- `normalizado_a`: OBLIGATORIO cuando `unidad_A: adimensional` — declara
+  respecto a qué se normalizó la serie (p. ej. "valor máximo de la serie",
+  "actividad en t=0"). Sin esto la serie no es reproducible; el diálogo de
+  importación rechaza el import si falta.
 - `fuente`: texto libre de trazabilidad.
+
+### Unidades NO absolutas (`cps`, `adimensional`) — F17/F18 del BACKLOG
+
+Algunas series de referencia del mundo real no están en una magnitud
+comparable en escala absoluta con la actividad simulada: una tasa de cuentas
+de un detector (`cps`, Counts Per Second) depende de una eficiencia de
+detección casi nunca publicada, y una serie `adimensional` está normalizada a
+algo externo a la simulación (declarado en `normalizado_a`). Detectado con la
+figura 5 del segundo experimento del paper de referencia, cuyo eje es
+«I-131 Counts Per Second» sin eficiencia de detección publicada: tratarla
+como si fuera una actividad absoluta producía exportaciones de desviación con
+sesgos del +14 al +23 % que en realidad son cocientes entre magnitudes
+distintas, no un desacuerdo físico real.
+
+Con `unidad_A: cps` o `adimensional`:
+
+- La serie **NO** se convierte a Bq/cm³ (no hay factor de conversión posible)
+  y **NO** se superpone en la gráfica de activity-vs-tiempo (no comparte
+  escala física con las curvas ACAB).
+- La exportación de desviación **REHÚSA** el cálculo absoluto (columnas
+  `A_ACAB`/`desv` en % no tienen sentido físico) y ofrece en su lugar
+  **comparación de FORMA**: un factor de escala k tal que
+  `A_ACAB(t) ≈ k · A_serie(t)`, ajustado por **mínimos cuadrados en escala
+  LOGARÍTMICA** — no lineal, porque una curva que abarca crecimiento y
+  decaimiento sobre varios órdenes de magnitud quedaría dominada por los
+  puntos de mayor valor si se ajustara en lineal, escondiendo el desacuerdo
+  de forma en la cola de baja actividad. El factor, su incertidumbre (error
+  estándar de la media en escala log) y el método (`least_squares_log`)
+  quedan siempre declarados en la cabecera de la tarjeta y del CSV
+  exportado, junto con un `ratio_forma` por punto (`A_ACAB/(k·A_serie)`,
+  ideal ≈1) que localiza en qué instantes se aparta la FORMA, no solo la
+  escala.
 
 ## Sintaxis
 
@@ -88,3 +126,10 @@ En `tests/fixtures/experimental/`:
   una de estas dos series es `experimental` y la otra `computacional_referencia`,
   el par sirve tal cual para verificar que AMBAS entran ahora en las métricas de
   desviación (antes solo la experimental).
+- `fig5_exp2_experimental_normalizado.csv` — F17/F18 del BACKLOG: serie REAL
+  (Fig. 5 del segundo experimento, «I-131 Counts Per Second») con
+  `unidad_A: cps` — ejercita el camino de comparación de FORMA
+  (`ACABRefData.computeShapeFit`), nunca la desviación absoluta.
+- `adimensional_sintetico.csv` — fixture sintético con `unidad_A: adimensional`
+  y `normalizado_a` declarado; ejercita la validación de importación (sin
+  `normalizado_a` el diálogo rechaza el import) y el mismo camino de FORMA.

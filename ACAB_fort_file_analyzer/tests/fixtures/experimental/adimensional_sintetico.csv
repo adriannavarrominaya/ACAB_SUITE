@@ -1,0 +1,15 @@
+# tipo: experimental
+# descripcion: Serie sintetica adimensional (F17/F18 del BACKLOG, unidad_A no absoluta)
+# fase: enfriamiento
+# isotopo: I131
+# unidad_t: h
+# unidad_A: adimensional
+# normalizado_a: valor maximo de la serie (A/A_max)
+# fuente: fixture sintetico de test, sin fisica real
+t;A
+0;0.10
+1;0.55
+2;0.90
+3;1.00
+4;0.70
+5;0.40
