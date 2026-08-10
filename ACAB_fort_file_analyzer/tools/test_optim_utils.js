@@ -37,8 +37,8 @@ const manifest = {
   ],
 };
 const reportSimulations = {
-  'TeO2_x0.50': { A_pico: 8250, t_pico: 3.75, fase: 'enfriamiento' },
-  'TeO2_x1.00': { A_pico: 16500, t_pico: 3.75, fase: 'enfriamiento' },
+  'TeO2_x0.50': { A_pico: 8250, t_pico: 3.75, t_pico_declarado_h: 3.75, origen_pico: 'fin_irradiacion', fase: 'enfriamiento' },
+  'TeO2_x1.00': { A_pico: 16500, t_pico: 3.75, t_pico_declarado_h: 3.75, origen_pico: 'fin_irradiacion', fase: 'enfriamiento' },
 };
 const reportMetricas = {
   'TeO2_x0.50': {
@@ -57,9 +57,10 @@ section('mergeSweepRows');
   eq(rows.length, 2, '2 filas para 2 simulaciones con entrada en el manifest');
   eq(rows[0], {
     name: 'TeO2_x0.50', params: { XNORM: 0.5 },
-    A_pico: 8250, t_pico: 3.75, P_pct: 99.1, rendimiento_medio: 343.75,
+    A_pico: 8250, t_pico: 3.75, t_pico_declarado_h: 3.75, origen_pico: 'fin_irradiacion',
+    P_pct: 99.1, rendimiento_medio: 343.75,
     A_esp_yodo_t_cruce: 4.5e9,
-  }, 'fila combinada: params + A_pico/t_pico + pureza/rendimiento/A_esp_yodo (F2)');
+  }, 'fila combinada: params + A_pico/t_pico(_declarado_h, F21) + pureza/rendimiento/A_esp_yodo (F2)');
 
   // Simulación analizada pero SIN entrada en el manifest (p. ej. carpeta
   // suelta añadida a mano dentro de la raíz del barrido) → se omite.
@@ -117,12 +118,15 @@ section('groupByOtherParams');
 section('yRawValue / yNeedsUnitConv');
 {
   const row = {
-    A_pico: 16500, t_pico: 3.75, P_pct: 99.2, rendimiento_medio: 687.5,
+    A_pico: 16500, t_pico: 4.08, t_pico_declarado_h: 3.75, P_pct: 99.2, rendimiento_medio: 687.5,
     A_esp_yodo_t_cruce: 4.5e9,
   };
   eq(O.yRawValue(row, 'a_pico'), 16500, "yVar='a_pico' → A_pico");
   eq(O.yRawValue(row, undefined), 16500, 'yVar por defecto (undefined) → A_pico');
-  eq(O.yRawValue(row, 't_pico'), 3.75, "yVar='t_pico' → t_pico");
+  // F21 del BACKLOG: 't_pico' usa SIEMPRE t_pico_declarado_h (origen
+  // explícito), nunca t_pico (absoluto -- aquí deliberadamente distinto,
+  // 4.08 vs. 3.75, para que el test falle si algún día se revierte).
+  eq(O.yRawValue(row, 't_pico'), 3.75, "yVar='t_pico' → t_pico_declarado_h (F21), NO t_pico absoluto");
   eq(O.yRawValue(row, 'pureza'), 99.2, "yVar='pureza' → P_pct");
   eq(O.yRawValue(row, 'rendimiento'), 687.5, "yVar='rendimiento' → rendimiento_medio");
   eq(O.yRawValue(row, 'a_esp_yodo'), 4.5e9, "yVar='a_esp_yodo' → A_esp_yodo_t_cruce (F2)");

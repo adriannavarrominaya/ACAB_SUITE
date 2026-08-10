@@ -382,13 +382,14 @@ function exportTable1CSV() {
   // evaluó toda la tabla (t_pico_ref) y si ese nodo es el primero de un
   // empate — toda la tabla depende de un único instante, así que la
   // cabecera es el lugar correcto para declararlo (no una columna repetida
-  // en cada fila).
+  // en cada fila). F21 del BACKLOG: SIEMPRE el instante DECLARADO (origen
+  // explícito), nunca el absoluto t_pico_ref.
   const metaLines = Object.entries(json.tabla1).map(([name, tbl]) => {
-    const tp = tbl.t_pico_ref != null ? tbl.t_pico_ref.toFixed(4) : '—';
+    const tp = tbl.t_pico_ref_declarado_h != null ? tbl.t_pico_ref_declarado_h.toFixed(4) : '—';
     const empateTxt = tbl.empate_pico_ref && tbl.intervalo_pico_ref
       ? t('tables.csv_meta_empate', {
-          ini: tbl.intervalo_pico_ref.t_ini_h.toFixed(3),
-          fin: tbl.intervalo_pico_ref.t_fin_h.toFixed(3),
+          ini: tbl.intervalo_pico_ref.t_ini_declarado_h.toFixed(3),
+          fin: tbl.intervalo_pico_ref.t_fin_declarado_h.toFixed(3),
           n: tbl.intervalo_pico_ref.n_nodos,
         })
       : '';
@@ -418,13 +419,14 @@ function exportTable2CSV() {
     (tbl.rows || []).forEach(r => {
       // F15 del BACKLOG: columna "empate" declara si t_pico de ESTA fila es
       // el primero de una meseta (el resto del intervalo se pierde al
-      // volcar un único t_pico por fila; la columna al menos avisa).
+      // volcar un único t_pico por fila; la columna al menos avisa). F21
+      // del BACKLOG: SIEMPRE el instante DECLARADO, nunca el absoluto.
       const empateTxt = r.empate && r.intervalo_pico
-        ? t('tables.csv_empate_val', { ini: r.intervalo_pico.t_ini_h.toFixed(3), fin: r.intervalo_pico.t_fin_h.toFixed(3) })
+        ? t('tables.csv_empate_val', { ini: r.intervalo_pico.t_ini_declarado_h.toFixed(3), fin: r.intervalo_pico.t_fin_declarado_h.toFixed(3) })
         : '';
       rows.push([name, `${r.label} (${r.iso})`,
                  r.A_pico != null ? conv(r.A_pico, sim) : null,
-                 r.t_pico,
+                 r.t_pico_declarado_h,
                  r.A_ref_en != null ? conv(r.A_ref_en, sim) : null,
                  empateTxt]);
     });
@@ -960,7 +962,9 @@ function renderIsotopoSummaryCard(isoKey, report) {
   const sims = _state.analysisData ? _state.analysisData.simulations : {};
   const rows = Object.entries(report.simulations).map(([name, s]) => {
     const Ap = s.A_pico > 0 ? fmtA(s.A_pico, sims[name], 3) : '—';
-    const tp = s.t_pico !== null && s.t_pico !== undefined ? s.t_pico.toFixed(2) : '—';
+    // F21 del BACKLOG: instante DECLARADO, no el absoluto (ver Sección 2).
+    const tp = s.t_pico_declarado_h !== null && s.t_pico_declarado_h !== undefined
+      ? s.t_pico_declarado_h.toFixed(2) : '—';
     const phaseCls = s.fase === 'irradiación' ? 'badge-phase-irr' : 'badge-phase-cool';
     return `
       <div class="mb-2 pb-2 border-bottom" style="font-size:0.78rem">
@@ -2073,7 +2077,12 @@ function renderIsotopoReport() {
               <tbody>
                 ${Object.entries(report.simulations).map(([name, s], i) => {
                   const Ap = s.A_pico > 0 ? fmtA(s.A_pico, sims[name]) : '—';
-                  const tp = s.t_pico !== null && s.t_pico !== undefined ? s.t_pico.toFixed(3) : '—';
+                  // F21 del BACKLOG: SIEMPRE el instante DECLARADO (origen
+                  // explícito, vía fort_analyzer.declarar_instante), nunca
+                  // s.t_pico (absoluto -- T_irr ya sumado si cae en
+                  // enfriamiento, desplaza frente a la malla del inp.5).
+                  const tp = s.t_pico_declarado_h !== null && s.t_pico_declarado_h !== undefined
+                    ? s.t_pico_declarado_h.toFixed(3) : '—';
                   const phaseCls = s.fase === 'irradiación' ? 'badge-phase-irr' : 'badge-phase-cool';
                   // F15 del BACKLOG: cuando el máximo empata en varios
                   // instantes, declarar el intervalo completo — no dejar
@@ -2081,8 +2090,8 @@ function renderIsotopoReport() {
                   // informe, s.nodo_evaluacion) parezca el único.
                   const empateBadge = s.empate && s.intervalo_pico ? `
                     <br><span class="badge bg-warning text-dark mt-1" style="font-size:0.65rem"
-                          title="${escAttr(t('report.tpico_empate_tooltip', { n: s.intervalo_pico.n_nodos, ini: s.intervalo_pico.t_ini_h.toFixed(3), fin: s.intervalo_pico.t_fin_h.toFixed(3) }))}">
-                      <i class="bi bi-exclamation-triangle me-1"></i>${t('report.tpico_empate_badge', { ini: s.intervalo_pico.t_ini_h.toFixed(2), fin: s.intervalo_pico.t_fin_h.toFixed(2) })}
+                          title="${escAttr(t('report.tpico_empate_tooltip', { n: s.intervalo_pico.n_nodos, ini: s.intervalo_pico.t_ini_declarado_h.toFixed(3), fin: s.intervalo_pico.t_fin_declarado_h.toFixed(3) }))}">
+                      <i class="bi bi-exclamation-triangle me-1"></i>${t('report.tpico_empate_badge', { ini: s.intervalo_pico.t_ini_declarado_h.toFixed(2), fin: s.intervalo_pico.t_fin_declarado_h.toFixed(2) })}
                     </span>` : '';
                   return `<tr>
                     <td>
@@ -2970,7 +2979,16 @@ function exportRendimientoCSV() {
  * evaluadas en UN ÚNICO instante), no `metricas[sim].pureza` (cada
  * simulación en su propio pico -- no comparable entre casos cuando los
  * picos no empatan entre sí). La cabecera declara el nodo común, la
- * simulación de referencia y si su pico está empatado. */
+ * simulación de referencia y si su pico está empatado.
+ *
+ * F21 del BACKLOG (bug confirmado, familia de F12): la cabecera declaraba
+ * el nodo común en el eje ABSOLUTO (`pnc.t_comun_h`, T_irr ya sumado) como
+ * si fuera el tiempo de enfriamiento de la malla -- con T_irr = 0,3333 h
+ * del experimento 2 anunciaba "3,833 a 4,333 h" cuando los nodos reales
+ * son 3,50/3,75/4,00 h. Usa SIEMPRE los campos "declarado" que ya resuelve
+ * `fort_analyzer.declarar_instante` (centralizado en el servidor, no
+ * repetido aquí) -- `t_comun_declarado_h`/`origen_comun`, nunca
+ * `t_comun_h` (el absoluto, solo para diagnóstico interno). */
 function exportPurezaCSV() {
   const iso = _state.selectedIsotopo;
   const informe = _state.isotopoReport && _state.isotopoReport.informe;
@@ -2988,14 +3006,17 @@ function exportPurezaCSV() {
   if (!rows.length) return;
   const empateTxt = pnc.empate && pnc.intervalo_pico
     ? t('tables.csv_meta_empate', {
-        ini: pnc.intervalo_pico.t_ini_h.toFixed(3),
-        fin: pnc.intervalo_pico.t_fin_h.toFixed(3),
+        ini: pnc.intervalo_pico.t_ini_declarado_h.toFixed(3),
+        fin: pnc.intervalo_pico.t_fin_declarado_h.toFixed(3),
         n:   pnc.intervalo_pico.n_nodos,
       })
     : '';
+  const origenTxt = t(pnc.origen_comun === 'inicio_irradiacion'
+    ? 'metrics.origen_inicio_irradiacion' : 'metrics.origen_fin_irradiacion');
   const metaLine = `# ${t('metrics.pureza_csv_meta_nodo_comun', {
-    t: pnc.t_comun_h != null ? pnc.t_comun_h.toFixed(4) : '—',
+    t: pnc.t_comun_declarado_h != null ? pnc.t_comun_declarado_h.toFixed(4) : '—',
     sim: pnc.sim_referencia || '—',
+    origen: origenTxt,
   })}${empateTxt}`;
   const headers = [t('overview.th_sim'), 'P [%]', t('metrics.pureza_th_iso'),
                    `A [${unitLabel()}]`, 'contribución [%]'];
@@ -3585,18 +3606,19 @@ function renderTables() {
     const sim = allSims[simName];
     const Ap = tbl.A_pico_ref !== null && tbl.A_pico_ref > 0
       ? fmtA(tbl.A_pico_ref, sim) : '—';
-    const tp = tbl.t_pico_ref !== null
-      ? tbl.t_pico_ref.toFixed(3) : '—';
+    // F21 del BACKLOG: instante DECLARADO, nunca t_pico_ref (absoluto).
+    const tp = tbl.t_pico_ref_declarado_h !== null
+      ? tbl.t_pico_ref_declarado_h.toFixed(3) : '—';
     // F15 del BACKLOG: si el pico de referencia (el nodo que evalúa TODA
     // esta tabla) está empatado, declararlo — el resto de la meseta no es
     // visible en ningún otro sitio de esta tabla.
     const empateT1 = tbl.empate_pico_ref && tbl.intervalo_pico_ref
       ? ` <span class="badge bg-warning text-dark" title="${escAttr(t('report.tpico_empate_tooltip', {
             n: tbl.intervalo_pico_ref.n_nodos,
-            ini: tbl.intervalo_pico_ref.t_ini_h.toFixed(3),
-            fin: tbl.intervalo_pico_ref.t_fin_h.toFixed(3),
+            ini: tbl.intervalo_pico_ref.t_ini_declarado_h.toFixed(3),
+            fin: tbl.intervalo_pico_ref.t_fin_declarado_h.toFixed(3),
           }))}"><i class="bi bi-exclamation-triangle me-1"></i>${t('report.tpico_empate_badge', {
-            ini: tbl.intervalo_pico_ref.t_ini_h.toFixed(2), fin: tbl.intervalo_pico_ref.t_fin_h.toFixed(2),
+            ini: tbl.intervalo_pico_ref.t_ini_declarado_h.toFixed(2), fin: tbl.intervalo_pico_ref.t_fin_declarado_h.toFixed(2),
           })}</span>` : '';
 
     const sortedRows = (tbl.rows || [])
@@ -3664,7 +3686,9 @@ function renderTables() {
 
     const tableRows = sortedRows.map(r => {
       const Ap = r.A_pico  !== null && r.A_pico  > 0 ? fmtA(r.A_pico, sim)  : '—';
-      const tp = r.t_pico  !== null && r.t_pico  !== undefined ? r.t_pico.toFixed(3) : '—';
+      // F21 del BACKLOG: instante DECLARADO, nunca r.t_pico (absoluto).
+      const tp = r.t_pico_declarado_h !== null && r.t_pico_declarado_h !== undefined
+        ? r.t_pico_declarado_h.toFixed(3) : '—';
       const Ai = r.A_ref_en !== null && r.A_ref_en > 0 ? fmtA(r.A_ref_en, sim) : '—';
       const isRef = r.iso === iso;
       // F15 del BACKLOG: pico individual de este isótopo empatado — marcador
@@ -3672,8 +3696,8 @@ function renderTables() {
       const empateT2 = r.empate && r.intervalo_pico
         ? ` <i class="bi bi-exclamation-triangle text-warning" title="${escAttr(t('report.tpico_empate_tooltip', {
               n: r.intervalo_pico.n_nodos,
-              ini: r.intervalo_pico.t_ini_h.toFixed(3),
-              fin: r.intervalo_pico.t_fin_h.toFixed(3),
+              ini: r.intervalo_pico.t_ini_declarado_h.toFixed(3),
+              fin: r.intervalo_pico.t_fin_declarado_h.toFixed(3),
             }))}"></i>` : '';
       return `<tr ${isRef ? 'class="table-warning fw-bold"' : ''}>
         <td>${escHtml(r.label)} <small class="text-muted">(${r.iso})</small></td>
@@ -3823,7 +3847,8 @@ function renderOptimizacion() {
     const cellsParams = keys.map(k =>
       `<td class="font-monospace small">${r.params[k] != null ? r.params[k] : '—'}</td>`).join('');
     const Ap = r.A_pico != null && r.A_pico > 0 ? fmtA(r.A_pico, sim) : '—';
-    const tp = r.t_pico != null ? r.t_pico.toFixed(3) : '—';
+    // F21 del BACKLOG: instante DECLARADO, nunca r.t_pico (absoluto).
+    const tp = r.t_pico_declarado_h != null ? r.t_pico_declarado_h.toFixed(3) : '—';
     const pp = r.P_pct != null ? r.P_pct.toFixed(2) + ' %' : '—';
     const rm = r.rendimiento_medio != null ? fmtA(r.rendimiento_medio, sim) : '—';
     return `
@@ -3955,7 +3980,8 @@ function renderOptimizacionSpectrum(container, iso, manifest, sims, rows) {
   const tableRows = sortedRows.map((r, i) => {
     const sim = sims[r.name];
     const Ap = r.A_pico != null && r.A_pico > 0 ? fmtA(r.A_pico, sim) : '—';
-    const tp = r.t_pico != null ? r.t_pico.toFixed(3) : '—';
+    // F21 del BACKLOG: instante DECLARADO, nunca r.t_pico (absoluto).
+    const tp = r.t_pico_declarado_h != null ? r.t_pico_declarado_h.toFixed(3) : '—';
     const pp = r.P_pct != null ? r.P_pct.toFixed(2) + ' %' : '—';
     const rm = r.rendimiento_medio != null ? fmtA(r.rendimiento_medio, sim) : '—';
     return `
@@ -4126,7 +4152,7 @@ function exportOptimizacionSpectrumCSV() {
     return [
       ACABOptim.spectrumRowLabel(r),
       r.A_pico != null ? conv(r.A_pico, sim) : null,
-      r.t_pico,
+      r.t_pico_declarado_h, // F21 del BACKLOG: declarado, nunca r.t_pico (absoluto).
       r.P_pct,
       r.rendimiento_medio != null ? conv(r.rendimiento_medio, sim) : null,
     ];
@@ -4235,7 +4261,7 @@ function exportOptimizacionCSV() {
       r.name,
       ...keys.map(k => (r.params[k] != null ? r.params[k] : null)),
       r.A_pico != null ? conv(r.A_pico, sim) : null,
-      r.t_pico,
+      r.t_pico_declarado_h, // F21 del BACKLOG: declarado, nunca r.t_pico (absoluto).
       r.P_pct,
       r.rendimiento_medio != null ? conv(r.rendimiento_medio, sim) : null,
     ];

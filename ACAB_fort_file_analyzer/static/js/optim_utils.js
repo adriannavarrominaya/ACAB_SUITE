@@ -40,6 +40,12 @@
         params:              bySimName[name],
         A_pico:              pico.A_pico != null ? pico.A_pico : null,
         t_pico:              pico.t_pico != null ? pico.t_pico : null,
+        // F21 del BACKLOG: instante DECLARADO (origen explícito, vía
+        // fort_analyzer.declarar_instante) -- el que debe mostrarse o
+        // exportarse; `t_pico` (arriba, absoluto) queda solo para usos
+        // internos que de verdad necesiten el eje común irr+enfriamiento.
+        t_pico_declarado_h: pico.t_pico_declarado_h != null ? pico.t_pico_declarado_h : null,
+        origen_pico:        pico.origen_pico || null,
         P_pct:               met.pureza ? met.pureza.P_pct : null,
         rendimiento_medio:   met.rendimiento ? met.rendimiento.rendimiento_medio : null,
         // F2 del BACKLOG: valor destacado (en t_cruce de pureza) de la
@@ -96,9 +102,14 @@
     });
   }
 
-  /** Valor crudo (sin convertir de unidad) de la variable Y elegida. */
+  /** Valor crudo (sin convertir de unidad) de la variable Y elegida.
+   *
+   * F21 del BACKLOG: 't_pico' usa SIEMPRE el instante DECLARADO (origen
+   * explícito) -- necesario también aquí, no solo en exportaciones: un
+   * barrido temporal (U8) puede comparar simulaciones con T_irr distinto,
+   * y el eje absoluto mezclaría orígenes sin decirlo. */
   function yRawValue(row, yVar) {
-    if (yVar === 't_pico')      return row.t_pico;
+    if (yVar === 't_pico')      return row.t_pico_declarado_h;
     if (yVar === 'pureza')      return row.P_pct;
     if (yVar === 'rendimiento') return row.rendimiento_medio;
     if (yVar === 'a_esp_yodo')  return row.A_esp_yodo_t_cruce;

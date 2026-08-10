@@ -1222,6 +1222,40 @@ def actividad_en_t(sim: dict, t_target: float, iso_key: str) -> float:
     return float(np.interp(t_target, t_all, A_all))
 
 
+def declarar_instante(t_abs_h: Optional[float], T_irr_h: float) -> dict:
+    """Declara un instante (medido internamente en el eje ABSOLUTO común a
+    irradiación+enfriamiento, t=0 al inicio de la irradiación) con su
+    ORIGEN físico, para cualquier exportación o vista que lo muestre a un
+    lector humano.
+
+    F21 del BACKLOG (bug confirmado, familia de F12 reaparecida en una
+    exportación nueva): el eje absoluto es imprescindible para interpolar
+    (``actividad_en_t``) y para plantar posiciones en la gráfica combinada,
+    pero el fort.6 -- y por tanto la malla que el usuario reconoce -- rotula
+    el enfriamiento en tiempo DESDE EL APAGADO (RESTART, t=0), no desde el
+    inicio de la irradiación. Publicar el absoluto sin convertir desplaza
+    cualquier instante de enfriamiento en +T_irr (verificado con T_irr =
+    0,3333 h del experimento 2: nodos reales 3,50/3,75/4,00 h aparecían
+    declarados como 3,833/4,083/4,333 h). Con T_irr despreciable (los casos
+    de referencia de este repo) el desplazamiento es invisible, lo que
+    permitió que el defecto reapareciera sin que ningún test lo detectara.
+
+    Devuelve ``{"valor_h", "origen"}`` -- ``origen`` es ``"fin_irradiacion"``
+    (el DEFAULT: el instante cae en enfriamiento, se resta T_irr para
+    declararlo desde el apagado) o ``"inicio_irradiacion"`` (irradiación, el
+    absoluto YA es el valor a declarar, sin conversión). ÚNICA función para
+    TODA exportación/vista que publique un instante -- ``calcular_pico``
+    (abajo) y ``calcular_pureza_nodo_comun`` la reutilizan en vez de repetir
+    la resta de T_irr cada una por su cuenta, que es precisamente lo que
+    dejó reaparecer el defecto una tercera vez.
+    """
+    if t_abs_h is None or (isinstance(t_abs_h, float) and math.isnan(t_abs_h)):
+        return {"valor_h": None, "origen": "n/a"}
+    if t_abs_h <= T_irr_h:
+        return {"valor_h": _safe_val(t_abs_h), "origen": "inicio_irradiacion"}
+    return {"valor_h": _safe_val(t_abs_h - T_irr_h), "origen": "fin_irradiacion"}
+
+
 def calcular_pico(sim: dict, iso_key: str) -> dict:
     """Return peak activity info for iso_key in a simulation.
 
@@ -1241,6 +1275,15 @@ def calcular_pico(sim: dict, iso_key: str) -> dict:
     siendo el PRIMERO del empate — decisión explícita, no oculta, declarada
     en ``nodo_evaluacion``; el intervalo completo viaja en
     ``intervalo_pico`` (``None`` si no hay empate).
+
+    F21 del BACKLOG: además del/de los instante(s) en el eje ABSOLUTO
+    (``t_pico``, ``intervalo_pico[".."]_h``, uso interno -- interpolación y
+    posición en gráficas), expone la versión DECLARADA con origen explícito
+    vía ``declarar_instante`` -- ``t_pico_declarado_h``/``origen_pico`` y,
+    dentro de ``intervalo_pico`` si hay empate, ``t_ini_declarado_h``/
+    ``origen_ini`` y ``t_fin_declarado_h``/``origen_fin``. Toda vista o
+    exportación que publique el pico a un lector debe usar los campos
+    "declarado", nunca los absolutos.
     """
     T_irr = sim["T_IRR_h"]
     t_irr = np.array(sim["t_irr"])
@@ -1265,10 +1308,16 @@ def calcular_pico(sim: dict, iso_key: str) -> dict:
         if n_nodos > 1:
             empate = True
             t_tied = t_all[idx_empate]
+            decl_ini = declarar_instante(float(t_tied.min()), T_irr)
+            decl_fin = declarar_instante(float(t_tied.max()), T_irr)
             intervalo_pico = {
                 "t_ini_h": float(t_tied.min()),
                 "t_fin_h": float(t_tied.max()),
                 "n_nodos": n_nodos,
+                "t_ini_declarado_h": decl_ini["valor_h"],
+                "origen_ini":        decl_ini["origen"],
+                "t_fin_declarado_h": decl_fin["valor_h"],
+                "origen_fin":        decl_fin["origen"],
             }
         nodo_evaluacion = (f"primero de {n_nodos} nodos empatados (t={t_pico:.4g} h)"
                             if empate else "único")
@@ -1278,6 +1327,8 @@ def calcular_pico(sim: dict, iso_key: str) -> dict:
         fase = "n/a"
         nodo_evaluacion = "n/a"
 
+    decl_pico = declarar_instante(t_pico if not math.isnan(t_pico) else None, T_irr)
+
     return {
         "t_pico": _safe_val(t_pico),
         "A_pico": A_pico,
@@ -1285,6 +1336,8 @@ def calcular_pico(sim: dict, iso_key: str) -> dict:
         "empate": empate,
         "intervalo_pico": intervalo_pico,
         "nodo_evaluacion": nodo_evaluacion,
+        "t_pico_declarado_h": decl_pico["valor_h"],
+        "origen_pico":        decl_pico["origen"],
     }
 
 
@@ -1483,6 +1536,11 @@ def calcular_pureza_nodo_comun(
     ``actividad_en_t`` para TODAS las simulaciones, también las que no
     empatan entre sí.
 
+    F21 del BACKLOG: el nodo común, en el eje absoluto (``t_comun_h``, uso
+    interno) y declarado con origen explícito (``t_comun_declarado_h``/
+    ``origen_comun``, vía ``declarar_instante`` -- el mismo T_irr que ya
+    resolvió el pico de la simulación de referencia).
+
     Devuelve ``None`` si no hay simulaciones o ninguna tiene pico válido.
     """
     if not all_data or not isotopos_impureza:
@@ -1498,6 +1556,7 @@ def calcular_pureza_nodo_comun(
 
     pico_ref = validos[sim_referencia]
     t_comun = pico_ref["t_pico"]
+    decl_comun = declarar_instante(t_comun, all_data[sim_referencia]["T_IRR_h"])
 
     por_simulacion: dict[str, dict] = {}
     for name, sim in all_data.items():
@@ -1520,6 +1579,8 @@ def calcular_pureza_nodo_comun(
 
     return {
         "t_comun_h":       _safe_val(t_comun),
+        "t_comun_declarado_h": decl_comun["valor_h"],
+        "origen_comun":         decl_comun["origen"],
         "sim_referencia":  sim_referencia,
         "empate":          pico_ref["empate"],
         "intervalo_pico":  pico_ref["intervalo_pico"],
@@ -2088,6 +2149,11 @@ def calcular_tablas_comparativas(
             "empate_pico_ref":     pk_ref["empate"],
             "intervalo_pico_ref":  pk_ref["intervalo_pico"],
             "nodo_evaluacion_ref": pk_ref["nodo_evaluacion"],
+            # F21 del BACKLOG: versión declarada (origen explícito) del pico
+            # de referencia -- la que debe mostrarse/exportarse, nunca
+            # t_pico_ref (absoluto) directamente.
+            "t_pico_ref_declarado_h": pk_ref["t_pico_declarado_h"],
+            "origen_pico_ref":        pk_ref["origen_pico"],
         }
 
         # ── Table 2 ─────────────────────────────────────────────────────────
@@ -2109,6 +2175,10 @@ def calcular_tablas_comparativas(
                 "A_ref_en": _safe_val(A_ref_),
                 "empate":   pk_iso["empate"],
                 "intervalo_pico": pk_iso["intervalo_pico"],
+                # F21 del BACKLOG: versión declarada del pico de ESTE
+                # isótopo -- la que debe mostrarse/exportarse.
+                "t_pico_declarado_h": pk_iso["t_pico_declarado_h"],
+                "origen_pico":        pk_iso["origen_pico"],
             })
         tabla2[sim_name] = {"rows": rows2}
 

@@ -216,6 +216,144 @@ def test_pureza_dos_isotopos() -> None:
           "lista de impurezas vacía → calcular_pureza devuelve None")
 
 
+def test_f21_declarar_instante() -> None:
+    section("declarar_instante — origen explícito, caso oro del experimento 2 "
+            "(T_irr=0,3333 h, EMPATE 3,50 a 4,00 h, NO 3,833 a 4,333 h)")
+
+    T_irr = 0.3333
+
+    # Irradiación: el absoluto YA es el valor a declarar, sin conversión.
+    d_irr = fa.declarar_instante(0.1, T_irr)
+    check_close(d_irr["valor_h"], 0.1, "instante de irradiación: valor declarado = absoluto")
+    check(d_irr["origen"] == "inicio_irradiacion", "origen = inicio_irradiacion")
+
+    # Frontera exacta (t_abs == T_irr): por convención, irradiación.
+    d_frontera = fa.declarar_instante(T_irr, T_irr)
+    check(d_frontera["origen"] == "inicio_irradiacion", "t_abs == T_irr → origen inicio_irradiacion (borde)")
+
+    # Enfriamiento: EL CASO ORO. t_abs = T_irr + t_cool_local (así se computa
+    # internamente, eje absoluto). Declarado = t_cool_local exacto, el que
+    # aparece en la malla del inp.5 -- NO el absoluto.
+    check_close(fa.declarar_instante(0.3333 + 3.50, T_irr)["valor_h"], 3.50,
+                "t_abs=3,8333h (T_irr+3,50) → declarado 3,50h, NO 3,833h")
+    check_close(fa.declarar_instante(0.3333 + 4.00, T_irr)["valor_h"], 4.00,
+                "t_abs=4,3333h (T_irr+4,00) → declarado 4,00h, NO 4,333h")
+    d_cool = fa.declarar_instante(0.3333 + 3.75, T_irr)
+    check(d_cool["origen"] == "fin_irradiacion", "instante de enfriamiento: origen = fin_irradiacion")
+
+    # None/NaN → declarado None, origen 'n/a'.
+    d_none = fa.declarar_instante(None, T_irr)
+    check(d_none["valor_h"] is None and d_none["origen"] == "n/a", "instante desconocido → valor None, origen n/a")
+    d_nan = fa.declarar_instante(math.nan, T_irr)
+    check(d_nan["valor_h"] is None and d_nan["origen"] == "n/a", "NaN → valor None, origen n/a")
+
+
+def test_f21_calcular_pico_declara_sin_desplazar() -> None:
+    section("calcular_pico (F21) — t_pico_declarado_h / intervalo_pico "
+            "declarado NO desplazan con T_irr = 0,3333 h (caso experimento 2)")
+
+    T_irr = 0.3333
+    t_cool = [3.50, 3.75, 4.00, 4.25]
+    # I131 empata (a 4 cifras, como fort.6) en los 3 primeros nodos de
+    # enfriamiento -- EXACTAMENTE la meseta v1b/v2/v3/v4 del experimento 2.
+    sim = _sim(T_irr, [0.0, T_irr], {"I131": [0.0, 50.0]},
+               t_cool=t_cool, datos_cool={"I131": [16500.0, 16500.0, 16500.0, 16000.0]})
+
+    pico = fa.calcular_pico(sim, "I131")
+    # El absoluto interno SÍ lleva sumado T_irr (imprescindible para
+    # interpolar/posicionar en la gráfica combinada) -- el golden del BUG.
+    check_close(pico["t_pico"], T_irr + 3.50, "t_pico absoluto (interno) = T_irr + 3,50h (sin declarar)")
+    # Pero el DECLARADO -- el que debe publicarse -- es el nodo real de la malla.
+    check_close(pico["t_pico_declarado_h"], 3.50, "t_pico_declarado_h = 3,50h, NO 3,833h")
+    check(pico["origen_pico"] == "fin_irradiacion", "origen_pico = fin_irradiacion")
+
+    assert pico["intervalo_pico"] is not None
+    iv = pico["intervalo_pico"]
+    check_close(iv["t_ini_declarado_h"], 3.50, "cabecera EMPATE declarada: inicio = 3,50h (no 3,833h)")
+    check_close(iv["t_fin_declarado_h"], 4.00, "cabecera EMPATE declarada: fin = 4,00h (no 4,333h) -- test oro F21")
+    check(iv["origen_ini"] == "fin_irradiacion" and iv["origen_fin"] == "fin_irradiacion",
+          "ambos extremos del empate declarados desde fin de irradiación")
+
+
+def test_f21_pureza_nodo_comun_declara_sin_desplazar() -> None:
+    section("calcular_pureza_nodo_comun (F21) — t_comun_declarado_h no "
+            "desplaza con T_irr = 0,3333 h")
+
+    T_irr = 0.3333
+    t_cool = [3.50, 3.75, 4.00, 4.25]
+    sim = _sim(T_irr, [0.0, T_irr], {"I131": [0.0, 50.0], "I130": [0.0, 5.0]},
+               t_cool=t_cool,
+               datos_cool={"I131": [16500.0, 16500.0, 16500.0, 16000.0],
+                           "I130": [400.0, 400.0, 400.0, 400.0]})
+    pnc = fa.calcular_pureza_nodo_comun({"v1b": sim}, "I131", ["I131", "I130"])
+    assert pnc is not None
+    check_close(pnc["t_comun_h"], T_irr + 3.50, "t_comun_h absoluto (interno) = T_irr + 3,50h")
+    check_close(pnc["t_comun_declarado_h"], 3.50, "t_comun_declarado_h = 3,50h, NO 3,833h -- caso oro F21")
+    check(pnc["origen_comun"] == "fin_irradiacion", "origen_comun = fin_irradiacion")
+
+
+def test_f21_ninguna_exportacion_desplaza() -> None:
+    section("F21 — recorrido de TODAS las exportaciones que publican un "
+            "instante (report.simulations, tabla1, tabla2, pureza_nodo_comun): "
+            "ninguna expone un declarado distinto de declarar_instante(absoluto)")
+
+    T_irr = 0.3333
+    t_cool = [3.50, 3.75, 4.00, 4.25]
+    # Dos simulaciones e isótopos con mesetas de longitud distinta, para que
+    # el barrido cubra report.simulations, tabla1 (pico de referencia I131) y
+    # tabla2 (pico propio de CADA isótopo, algunos empatados, otros no).
+    simA = _sim(T_irr, [0.0, T_irr], {"I131": [0.0, 50.0], "I130": [0.0, 10.0]},
+                t_cool=t_cool,
+                datos_cool={"I131": [16500.0, 16500.0, 16500.0, 16000.0],
+                            "I130": [400.0, 380.0, 350.0, 300.0]})
+    simB = _sim(T_irr, [0.0, T_irr], {"I131": [0.0, 40.0], "I130": [0.0, 8.0]},
+                t_cool=t_cool,
+                datos_cool={"I131": [15000.0, 16000.0, 16000.0, 15500.0],
+                            "I130": [200.0, 250.0, 300.0, 300.0]})
+    all_data = {"simA": simA, "simB": simB}
+    t12_dict = {"I131": 693200.0, "I130": 44520.0}
+    isotopos = ["I131", "I130"]
+
+    def _verifica_par(t_abs, t_declarado, origen, contexto: str) -> None:
+        if t_abs is None:
+            return
+        esperado = fa.declarar_instante(t_abs, T_irr)
+        check_close(t_declarado, esperado["valor_h"], f"{contexto}: declarado coincide con declarar_instante(absoluto)")
+        check(origen == esperado["origen"], f"{contexto}: origen coincide con declarar_instante(absoluto)")
+        # El chequeo de displacement real: si el instante cae en enfriamiento
+        # y T_irr no es despreciable, declarado DEBE diferir del absoluto.
+        if t_abs > T_irr:
+            check(abs(t_declarado - t_abs) > 1e-9,
+                  f"{contexto}: declarado ({t_declarado}) SÍ resta T_irr frente al absoluto ({t_abs})")
+
+    informe = fa.calcular_informe_isotopo(all_data, "I131", t12_dict)
+    for name, s in informe["simulations"].items():
+        _verifica_par(s["t_pico"], s["t_pico_declarado_h"], s["origen_pico"], f"report.simulations[{name}]")
+        if s["intervalo_pico"] is not None:
+            iv = s["intervalo_pico"]
+            _verifica_par(iv["t_ini_h"], iv["t_ini_declarado_h"], iv["origen_ini"], f"report.simulations[{name}].intervalo_pico.ini")
+            _verifica_par(iv["t_fin_h"], iv["t_fin_declarado_h"], iv["origen_fin"], f"report.simulations[{name}].intervalo_pico.fin")
+
+    pnc = informe["pureza_nodo_comun"]
+    assert pnc is not None
+    _verifica_par(pnc["t_comun_h"], pnc["t_comun_declarado_h"], pnc["origen_comun"], "pureza_nodo_comun")
+
+    tabla1, tabla2 = fa.calcular_tablas_comparativas(all_data, isotopos, referencia="I131")
+    for name, tbl in tabla1.items():
+        _verifica_par(tbl["t_pico_ref"], tbl["t_pico_ref_declarado_h"], tbl["origen_pico_ref"], f"tabla1[{name}]")
+        if tbl["intervalo_pico_ref"] is not None:
+            iv = tbl["intervalo_pico_ref"]
+            _verifica_par(iv["t_ini_h"], iv["t_ini_declarado_h"], iv["origen_ini"], f"tabla1[{name}].intervalo_pico_ref.ini")
+            _verifica_par(iv["t_fin_h"], iv["t_fin_declarado_h"], iv["origen_fin"], f"tabla1[{name}].intervalo_pico_ref.fin")
+    for name, tbl in tabla2.items():
+        for row in tbl["rows"]:
+            _verifica_par(row["t_pico"], row["t_pico_declarado_h"], row["origen_pico"], f"tabla2[{name}][{row['iso']}]")
+            if row["intervalo_pico"] is not None:
+                iv = row["intervalo_pico"]
+                _verifica_par(iv["t_ini_h"], iv["t_ini_declarado_h"], iv["origen_ini"], f"tabla2[{name}][{row['iso']}].intervalo_pico.ini")
+                _verifica_par(iv["t_fin_h"], iv["t_fin_declarado_h"], iv["origen_fin"], f"tabla2[{name}][{row['iso']}].intervalo_pico.fin")
+
+
 def test_pureza_nodo_comun_dos_simulaciones_mesetas_distinta_longitud() -> None:
     section("calcular_pureza_nodo_comun (F16) — dos simulaciones con mesetas de "
             "distinta longitud evaluadas en el MISMO nodo")
@@ -251,8 +389,13 @@ def test_pureza_nodo_comun_dos_simulaciones_mesetas_distinta_longitud() -> None:
     check(pnc["sim_referencia"] == "simA", f"simulación de referencia = simA (obtenido {pnc['sim_referencia']})")
     check(pnc["empate"] is True, "el pico de referencia (simA) está empatado")
     assert pnc["intervalo_pico"] is not None
-    check(pnc["intervalo_pico"] == {"t_ini_h": 1.0, "t_fin_h": 3.0, "n_nodos": 3},
+    check(pnc["intervalo_pico"]["t_ini_h"] == 1.0 and pnc["intervalo_pico"]["t_fin_h"] == 3.0
+          and pnc["intervalo_pico"]["n_nodos"] == 3,
           f"intervalo del empate = [1,3] con 3 nodos (obtenido {pnc['intervalo_pico']})")
+    # F21 del BACKLOG: instante declarado (T_irr=0 en este fixture, así que
+    # declarado == absoluto, pero el campo debe existir y coincidir).
+    check_close(pnc["t_comun_declarado_h"], 1.0, "t_comun_declarado_h = t_comun_h (T_irr=0 en este fixture)")
+    check(pnc["origen_comun"] == "fin_irradiacion", "origen_comun = fin_irradiacion (t=1 > T_irr=0)")
 
     pA = pnc["por_simulacion"]["simA"]
     pB = pnc["por_simulacion"]["simB"]
@@ -903,6 +1046,10 @@ def main() -> int:
     test_rendimiento_lineal_y_saturante()
     test_isotopos_mismo_elemento()
     test_pureza_dos_isotopos()
+    test_f21_declarar_instante()
+    test_f21_calcular_pico_declara_sin_desplazar()
+    test_f21_pureza_nodo_comun_declara_sin_desplazar()
+    test_f21_ninguna_exportacion_desplaza()
     test_pureza_nodo_comun_dos_simulaciones_mesetas_distinta_longitud()
     test_pureza_serie_ref_sim_tres_timesteps()
     test_pureza_serie_casos_borde_sinteticos()
