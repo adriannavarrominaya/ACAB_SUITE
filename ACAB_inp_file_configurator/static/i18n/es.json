@@ -79,7 +79,6 @@
     "time_add_sim": "Añadir simulación",
     "time_dup": "Duplicar",
     "time_del": "Eliminar",
-    "time_seeded_hint": "Sembrado desde el fichero base con la malla colapsada a un tramo por fase (tiempos finales conservados); revisa los tramos si necesitas la malla original.",
     "time_summary_irr": "irr: {n} tramos hasta {t}",
     "time_summary_irr_one": "irr: 1 tramo hasta {t}",
     "time_summary_cool": "cool: {n} tramos hasta {t}",
@@ -397,7 +396,8 @@
     "no_phase": "Define al menos un tramo de irradiación o de enfriamiento.",
     "error_steps": "Número de pasos inválido ({n}). Debe ser entero entre 1 y 10.",
     "error_time": "Tiempo final {t} debe ser estrictamente mayor que el anterior ({prev}).",
-    "itso_resized_hint": "ITSO redimensionado a {n} sets (todo con salida); edítalo si necesitas suprimir salida de algún set."
+    "itso_resized_hint": "ITSO redimensionado a {n} sets (todo con salida); edítalo si necesitas suprimir salida de algún set.",
+    "mesh_too_irregular": "La malla reconstruida tiene {n} tramos (máximo {max}) por ser demasiado irregular para agrupar en rachas; revísala e introdúcela a mano."
   },
   "b11": {
     "card1_h": "Card #1 — Tipo de cálculo y funciones de respuesta",

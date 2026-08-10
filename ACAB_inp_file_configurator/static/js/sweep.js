@@ -153,20 +153,21 @@
     $('sweep-mass-inpt2').classList.toggle('d-none', !inpt2);
   }
 
-  // Reconstruye las fases del fichero base (para sembrar la primera
-  // tarjeta) a partir de blocks78.times, igual que el generador manual con
-  // _tryPopulateGeneratorFromTimes: colapsa la malla intermedia a UN tramo
-  // por fase (los límites entre tramos no sobreviven al parseo de un
-  // inp.5, solo la lista plana de pasos) — misma limitación aceptada que
-  // ya tenía el generador manual, no algo nuevo de U7.
+  // Reconstruye las fases REALES del fichero base (para sembrar la primera
+  // tarjeta) a partir de blocks78.times — MISMA reconstrucción que usa el
+  // generador manual (reconstructFasesFromBlocks78, sweep_utils.js), F20
+  // del BACKLOG: antes colapsaba la malla intermedia a UN tramo por fase
+  // (se perdían los cortes intermedios, aviso aparte en la propia tarjeta);
+  // ahora la tarjeta sembrada trae los tramos reales, sin aviso porque deja
+  // de ser cierto que se haya colapsado nada.
   function baseFases() {
-    const times = appState.data?.blocks78?.times || [];
-    const irr  = times.filter(([, k]) => k === 1).map(([v]) => v);
-    const cool = times.filter(([, k]) => k === 0).map(([v]) => v);
-    const out = { baseIrr: [], baseCool: [] };
-    if (irr.length)  out.baseIrr  = [{ t_fin: irr[irr.length - 1],   pasos: Math.min(irr.length, 10) }];
-    if (cool.length) out.baseCool = [{ t_fin: cool[cool.length - 1], pasos: Math.min(cool.length, 10) }];
-    return out;
+    try {
+      const { fasesIrr, fasesCool } = reconstructFasesFromBlocks78(appState.data?.blocks78, { t });
+      return { baseIrr: fasesIrr, baseCool: fasesCool };
+    } catch (err) {
+      setMsg('warning', err.message);
+      return { baseIrr: [], baseCool: [] };
+    }
   }
 
   // ── Barrido temporal: acordeón de tarjetas (U7) ─────────────────────────
@@ -231,8 +232,6 @@
       : (_timeSimCards[0] ? _timeSimCards[0].id : null);
     container.innerHTML = _timeSimCards.map((card, idx) => {
       const expanded = card.id === expandId;
-      const seededHint = card.seeded
-        ? `<div class="alert alert-warning py-2 small">${t('sweep.time_seeded_hint')}</div>` : '';
       return `
         <div class="accordion-item">
           <h2 class="accordion-header d-flex">
@@ -253,7 +252,6 @@
           <div id="sweep-time-collapse-${card.id}" class="accordion-collapse collapse ${expanded ? 'show' : ''}"
                data-bs-parent="#sweep-time-accordion">
             <div class="accordion-body">
-              ${seededHint}
               <div id="sweep-time-editor-${card.id}"></div>
             </div>
           </div>

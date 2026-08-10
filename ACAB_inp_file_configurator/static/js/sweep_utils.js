@@ -269,6 +269,115 @@ function buildMassPatches({ masas, formula, volumen, inpt, zoneIdx, baseBlock5, 
   return out;
 }
 
+// ── F20: reconstrucción de tramos reales desde Blocks #7/#8 ────────────────
+/**
+ * Tolerancia relativa por defecto para decidir si dos saltos consecutivos
+ * pertenecen a la misma racha de espaciado constante. Blocks #7/#8 se
+ * escriben con 7 cifras significativas (app.py::_sci), pero un inp.5 ajeno
+ * a esta app puede traer menos precisión -- 1e-4 cubre con holgura el
+ * redondeo típico de formato E sin fundir rachas realmente distintas.
+ */
+const TIME_MESH_REL_TOL = 1e-4;
+
+/**
+ * Nº máximo de tramos (filas del editor) que se reconstruyen por fase antes
+ * de avisar en vez de generar una lista de filas inmanejable -- caso de una
+ * malla irregular sin ninguna racha agrupable. Generoso frente al límite de
+ * 10 tramos del generador Tkinter legacy (generador_acab.py, el editor web
+ * sí hace scroll), pero evita que un fichero con cientos de pasos sin
+ * agrupar bloquee la interfaz en silencio.
+ */
+const TIME_MESH_MAX_TRAMOS = 50;
+
+function _closeEnoughRel(a, b, tol) {
+  return Math.abs(a - b) <= tol * Math.max(Math.abs(a), Math.abs(b), 1e-12);
+}
+
+/**
+ * Segmenta una lista ORDENADA y CRECIENTE de tiempos acumulados de UNA fase
+ * (desde su inicio, t=0) en tramos {t_fin, pasos}, inverso de
+ * calcularVectorTiempos: dentro de una racha real, TODOS los saltos entre
+ * tiempos consecutivos -incluido el salto desde el final de la racha
+ * anterior (o desde 0)- son iguales. Reconstruir con esto y volver a
+ * generar con buildBlocks78 reproduce EXACTAMENTE los mismos tiempos (F20
+ * del BACKLOG: antes, el generador colapsaba la malla entera a un único
+ * tramo por fase, conservando solo el tiempo final y perdiendo los cortes
+ * intermedios sin ningún aviso).
+ *   - Malla uniforme (una sola racha) → un tramo (varios si supera 10
+ *     pasos, límite ya impuesto por calcularVectorTiempos -- se reparte
+ *     conservando el mismo espaciado, nunca se trunca).
+ *   - Varias rachas → un tramo por racha, en el orden en que aparecen.
+ *   - Espaciado irregular no agrupable (ninguna racha de más de 1 punto) →
+ *     un tramo por paso, sin forzar agrupaciones "por simplificar".
+ *   - Si el nº de tramos resultante supera TIME_MESH_MAX_TRAMOS, lanza en
+ *     vez de devolver una lista inmanejable (avisar, no colapsar en
+ *     silencio).
+ * @param {number[]} times  tiempos absolutos crecientes desde el inicio de la fase.
+ * @param {{tol?:number, maxTramos?:number, t?:Function}} [opts]
+ * @returns {{t_fin:number, pasos:number}[]}
+ */
+function reconstructFasesFromTimes(times, opts) {
+  const o = opts || {};
+  const tol = Number.isFinite(o.tol) ? o.tol : TIME_MESH_REL_TOL;
+  const maxTramos = Number.isFinite(o.maxTramos) ? o.maxTramos : TIME_MESH_MAX_TRAMOS;
+  const tr = (typeof o.t === 'function') ? o.t : (k => k);
+  if (!times || times.length === 0) return [];
+
+  // 1. Salto entre cada tiempo y el anterior (el primero, contra t=0).
+  const deltas = times.map((v, i) => v - (i === 0 ? 0 : times[i - 1]));
+
+  // 2. Agrupa índices consecutivos cuyo salto coincide (tolerancia relativa)
+  //    con el salto que abrió la racha -- referencia fija, no el anterior,
+  //    para no acumular deriva en rachas largas.
+  const rachas = [];
+  let cur = [0];
+  for (let i = 1; i < times.length; i++) {
+    if (_closeEnoughRel(deltas[i], deltas[cur[0]], tol)) cur.push(i);
+    else { rachas.push(cur); cur = [i]; }
+  }
+  rachas.push(cur);
+
+  // 3. Cada racha se reparte en tramos de ≤10 pasos (límite del editor),
+  //    conservando el espaciado -- varias filas de la MISMA racha, no una
+  //    racha nueva.
+  const tramos = [];
+  for (const racha of rachas) {
+    for (let i = 0; i < racha.length; i += 10) {
+      const chunk = racha.slice(i, i + 10);
+      const lastIdx = chunk[chunk.length - 1];
+      tramos.push({ t_fin: times[lastIdx], pasos: chunk.length });
+    }
+  }
+
+  if (tramos.length > maxTramos)
+    throw new Error(tr('b78.mesh_too_irregular')
+      .replace('{n}', tramos.length).replace('{max}', maxTramos));
+
+  return tramos;
+}
+
+/**
+ * Reconstruye {fasesIrr, fasesCool} a partir de `blocks78.times` (la lista
+ * plana [[t, esIrradiacion01], ...] que trae un inp.5 ya parseado, formato
+ * F7 -tarjetas por fase- o compactado histórico -mezcladas-, da igual: la
+ * lista plana ya distingue cada tiempo por fase). Camino ÚNICO usado tanto
+ * por el generador manual como por la siembra de la tarjeta 1 del barrido
+ * temporal (F20 del BACKLOG) -- sin este camino común, cualquier fix
+ * aplicado a uno de los dos divergiría del otro.
+ * @param {{times:Array}} b78
+ * @param {{tol?:number, maxTramos?:number, t?:Function}} [opts]
+ * @returns {{fasesIrr:{t_fin:number,pasos:number}[], fasesCool:{t_fin:number,pasos:number}[]}}
+ */
+function reconstructFasesFromBlocks78(b78, opts) {
+  const times = (b78 && b78.times) || [];
+  const irr  = times.filter(([, k]) => k === 1).map(([v]) => v);
+  const cool = times.filter(([, k]) => k === 0).map(([v]) => v);
+  return {
+    fasesIrr:  reconstructFasesFromTimes(irr, opts),
+    fasesCool: reconstructFasesFromTimes(cool, opts),
+  };
+}
+
 // ── Barrido temporal (historial multi-tramo + NOTTS, U7 del BACKLOG) ───────
 /**
  * Cada fila describe una simulación (una tarjeta del acordeón) con un
@@ -345,6 +454,7 @@ if (typeof module !== 'undefined' && module.exports) {
     calcularVectorTiempos, buildBlocks78, parseSweepValues, proposeSuffix,
     buildFluxPatches, fluxBaseTotal, buildMassPatches, buildTimePatches,
     fluxValuesPlaceholder, fluxSweepGuardrail, summarizeFases, insertDuplicate,
-    uniqueSuffix,
+    uniqueSuffix, reconstructFasesFromTimes, reconstructFasesFromBlocks78,
+    TIME_MESH_REL_TOL, TIME_MESH_MAX_TRAMOS,
   };
 }

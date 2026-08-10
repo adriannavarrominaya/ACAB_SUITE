@@ -19,7 +19,7 @@ const {
   calcularVectorTiempos, buildBlocks78, parseSweepValues, proposeSuffix,
   buildFluxPatches, fluxBaseTotal, buildMassPatches, buildTimePatches,
   fluxValuesPlaceholder, fluxSweepGuardrail, summarizeFases, insertDuplicate,
-  uniqueSuffix,
+  uniqueSuffix, reconstructFasesFromTimes, reconstructFasesFromBlocks78,
 } = require('../static/js/sweep_utils.js');
 
 const atomic = JSON.parse(fs.readFileSync(
@@ -317,6 +317,121 @@ tpAB.forEach(p => {
 });
 check('uniqueSuffix aplicado a buildTimePatches: sufijos desambiguados y únicos',
   suffixesAB[0] === 'Tirr040.0h' && suffixesAB[1] === 'Tirr040.0h_2');
+
+// ── reconstructFasesFromTimes / reconstructFasesFromBlocks78 (F20) ─────────
+// Reconstruye los tramos REALES desde la lista plana de tiempos de un
+// inp.5 ya parseado, en vez de colapsar la malla a un tramo por fase. Casos
+// oro tomados de ficheros REALES del repo (examples/Inp5/exp1.inp.5,
+// exp2.inp.5) para que la reconstrucción esté anclada a datos genuinos, no
+// solo sintéticos.
+
+// Propiedad de round-trip: reconstruir y volver a generar debe reproducir
+// EXACTAMENTE el mismo {sets, times} que produjo el fichero original -- la
+// propiedad central de F20 (byte-idéntico depende de esto).
+function checkRoundTrip(name, fasesIrr, fasesCool, opts) {
+  const original = buildBlocks78(fasesIrr, fasesCool, opts);
+  const irrTimes  = original.times.filter(([, k]) => k === 1).map(([v]) => v);
+  const coolTimes = original.times.filter(([, k]) => k === 0).map(([v]) => v);
+  const rIrr  = reconstructFasesFromTimes(irrTimes, {});
+  const rCool = reconstructFasesFromTimes(coolTimes, {});
+  const regenerated = buildBlocks78(rIrr, rCool, opts);
+  check(`${name}: round-trip times idénticos`,
+    JSON.stringify(regenerated.times) === JSON.stringify(original.times));
+  check(`${name}: round-trip sets idénticos (misma malla en el inp.5 regenerado)`,
+    JSON.stringify(regenerated.sets) === JSON.stringify(original.sets));
+  return { rIrr, rCool };
+}
+
+// exp1.inp.5: enfriamiento uniforme de 18 pasos (Δ=0.25h) → 1 racha, partida
+// en 2 tramos de ≤10 pasos (mismos números que el caso oro F7 de arriba).
+const { rCool: rExp1Cool } = checkRoundTrip('F20 malla uniforme (exp1.inp.5, 18 pasos Δ=0.25h)',
+  [{ t_fin: 2.778e-3, pasos: 1 }], [{ t_fin: 2.5, pasos: 10 }, { t_fin: 4.5, pasos: 8 }],
+  { iunit: 3, iout: 1, iplot: 0 });
+check('F20 malla uniforme: reconstruye 2 tramos (no colapsa a 1 con pasos truncados a 10)',
+  JSON.stringify(rExp1Cool) === JSON.stringify([{ t_fin: 2.5, pasos: 10 }, { t_fin: 4.5, pasos: 8 }]));
+
+// exp2.inp.5: enfriamiento con 5 rachas de espaciado distinto (Δ=0.25 → 0.5
+// → 1.0 → 2.0 → 5.0h, 17 pasos) -- ANTES de F20 esto colapsaba a un único
+// tramo {t_fin:25, pasos:10}, perdiendo los 4 cortes intermedios.
+const exp2CoolTramos = [
+  { t_fin: 0.5, pasos: 2 }, { t_fin: 5.0, pasos: 9 }, { t_fin: 6.0, pasos: 1 },
+  { t_fin: 10.0, pasos: 2 }, { t_fin: 25.0, pasos: 3 },
+];
+const { rCool: rExp2Cool } = checkRoundTrip('F20 multi-tramo (exp2.inp.5, 5 rachas)',
+  [{ t_fin: 0.3333333, pasos: 3 }], exp2CoolTramos, { iunit: 3, iout: 1, iplot: 0 });
+check('F20 multi-tramo: reconstruye las 5 rachas reales, en orden',
+  JSON.stringify(rExp2Cool) === JSON.stringify(exp2CoolTramos));
+
+// exp2.inp.5: irradiación con rampa (0.08333, 0.16667, 0.33333h) -- los dos
+// primeros pasos comparten Δ=1/12 (misma racha), el tercero dobla el salto
+// (racha nueva de 1 punto). No es un caso "totalmente irregular", pero SÍ
+// varias rachas distintas dentro de una sola fase de irradiación.
+const { rIrr: rExp2Irr } = checkRoundTrip('F20 varias rachas en irradiación (exp2.inp.5)',
+  [{ t_fin: 0.1666667, pasos: 2 }, { t_fin: 0.3333333, pasos: 1 }], [],
+  { iunit: 3 });
+check('F20 varias rachas en irradiación: 2 tramos, no colapsado a 1',
+  rExp2Irr.length === 2 && rExp2Irr[0].pasos === 2 && rExp2Irr[1].pasos === 1);
+
+// Espaciado irregular NO agrupable (rampa ×2 recomendada por docs/Block#7&#8.md):
+// ningún salto consecutivo coincide → un tramo por paso, sin agrupar.
+const rampaIrregular = [1, 3, 7, 15]; // Δ = 1, 2, 4, 8 (todas distintas)
+const rIrregular = reconstructFasesFromTimes(rampaIrregular, {});
+check('F20 irregular no agrupable: un tramo por paso (4 tramos de 1 paso)',
+  rIrregular.length === 4 && rIrregular.every(f => f.pasos === 1));
+check('F20 irregular no agrupable: t_fin de cada tramo = cada tiempo original',
+  JSON.stringify(rIrregular.map(f => f.t_fin)) === JSON.stringify(rampaIrregular));
+checkRoundTrip('F20 irregular no agrupable: round-trip',
+  rIrregular, [], { iunit: 3 });
+
+// Fase de un solo paso → un tramo.
+check('F20 fase de un solo paso: 1 tramo',
+  JSON.stringify(reconstructFasesFromTimes([2.778e-3], {}))
+  === JSON.stringify([{ t_fin: 2.778e-3, pasos: 1 }]));
+
+// Fase vacía → sin tramos, sin lanzar.
+check('F20 fase vacía: sin tramos', JSON.stringify(reconstructFasesFromTimes([], {})) === '[]');
+
+// Tolerancia relativa: dos tiempos regenerados con redondeo de imprenta
+// (formato E) siguen agrupándose en la misma racha en vez de fragmentarse.
+const casiUniforme = [0.25, 0.500001, 0.75, 1.0]; // Δ con ruido de imprenta de 7ª cifra
+const rCasiUniforme = reconstructFasesFromTimes(casiUniforme, {});
+check('F20 tolerancia relativa: ruido de imprenta no fragmenta la racha',
+  rCasiUniforme.length === 1 && rCasiUniforme[0].pasos === 4);
+
+// Máximo de tramos por fase: una malla irregular con más pasos de los que
+// la interfaz admite avisa (lanza) en vez de generar una lista inmanejable.
+threw = false;
+try {
+  const muchosPuntos = Array.from({ length: 60 }, (_, i) => (i + 1) * Math.pow(1.3, i));
+  reconstructFasesFromTimes(muchosPuntos, { maxTramos: 50 });
+} catch (e) { threw = true; }
+check('F20 máximo de tramos: avisa (lanza) en vez de colapsar en silencio', threw);
+// Con el t() de la app (placeholders {n}/{max} sí sustituidos), el mensaje
+// declara el recuento real y el máximo -- nunca un mensaje mudo.
+threw = false;
+const trStub = k => (k === 'b78.mesh_too_irregular' ? '{n} tramos (máximo {max})' : k);
+try {
+  reconstructFasesFromTimes(Array.from({ length: 60 }, (_, i) => (i + 1) * Math.pow(1.3, i)),
+    { maxTramos: 50, t: trStub });
+} catch (e) { threw = e.message === '60 tramos (máximo 50)'; }
+check('F20 máximo de tramos: mensaje declara recuento real y máximo (i18n)', threw);
+
+// reconstructFasesFromBlocks78: combina ambas fases desde `times`, formato-
+// agnóstico -- la lista plana no distingue entre F7 (tarjetas por fase) y
+// compactado histórico (mezcladas), así que ambos formatos reconstruyen
+// idénticamente a partir del mismo `times`.
+const b78FromFile = {
+  times: [
+    [2.778e-3, 1],
+    [0.25, 0], [0.5, 0], [0.75, 0], [1.0, 0], [1.25, 0], [1.5, 0], [1.75, 0], [2.0, 0], [2.25, 0], [2.5, 0],
+    [2.75, 0], [3.0, 0], [3.25, 0], [3.5, 0], [3.75, 0], [4.0, 0], [4.25, 0], [4.5, 0],
+  ],
+};
+const { fasesIrr: b78Irr, fasesCool: b78Cool } = reconstructFasesFromBlocks78(b78FromFile, {});
+check('reconstructFasesFromBlocks78: fase de irradiación reconstruida',
+  JSON.stringify(b78Irr) === JSON.stringify([{ t_fin: 2.778e-3, pasos: 1 }]));
+check('reconstructFasesFromBlocks78: fase de enfriamiento reconstruida (18 pasos → 2 tramos)',
+  JSON.stringify(b78Cool) === JSON.stringify([{ t_fin: 2.5, pasos: 10 }, { t_fin: 4.5, pasos: 8 }]));
 
 console.log(fails === 0 ? '\nTODOS LOS TESTS OK' : `\n${fails} TESTS FALLARON`);
 process.exit(fails === 0 ? 0 : 1);

@@ -2142,18 +2142,36 @@ function populateBlocks78(b78) {
   if (!preview) return;
   if (!b78?.sets?.length) { preview.value = ''; return; }
   preview.value = serializeBlocks78Sets(b78.sets);
-  if (b78.sets[0]) setVal('b78-iunit', b78.sets[0].IUNIT ?? 3);
+  if (b78.sets[0]) {
+    setVal('b78-iunit', b78.sets[0].IUNIT ?? 3);
+    // F20 del BACKLOG: IOUT/IPLOT también deben quedar sincronizados con el
+    // fichero cargado -- sin esto, pulsar "Generar" sin tocar nada podía
+    // pisarlos en silencio con los valores por defecto del formulario
+    // (IOUT=1/IPLOT=0), rompiendo el control de aceptación byte-idéntico
+    // aunque la malla se reconstruyera bien.
+    const ioutEl  = document.getElementById('b78-iout');
+    const iplotEl = document.getElementById('b78-iplot');
+    if (ioutEl)  ioutEl.checked  = !!b78.sets[0].IOUT;
+    if (iplotEl) iplotEl.checked = !!b78.sets[0].IPLOT;
+  }
   _tryPopulateGeneratorFromTimes(b78);
 }
 
 function _tryPopulateGeneratorFromTimes(b78) {
-  if (!b78?.times?.length) return;
   document.getElementById('b78-irr-tbody').innerHTML  = '';
   document.getElementById('b78-cool-tbody').innerHTML = '';
-  const irrTimes  = b78.times.filter(([, t]) => t === 1).map(([v]) => v);
-  const coolTimes = b78.times.filter(([, t]) => t === 0).map(([v]) => v);
-  if (irrTimes.length  > 0) addB78PhaseRow('irr',  irrTimes[irrTimes.length - 1],   Math.min(irrTimes.length,  10));
-  if (coolTimes.length > 0) addB78PhaseRow('cool', coolTimes[coolTimes.length - 1],  Math.min(coolTimes.length, 10));
+  if (!b78?.times?.length) return;
+  // F20 del BACKLOG: reconstruye los tramos REALES (rachas de espaciado
+  // constante) en vez de colapsar la malla a un tramo por fase -- antes,
+  // cargar un inp.5 de malla fina y pulsar "Generar" sin tocar nada
+  // sobrescribía la malla original con una colapsada, sin aviso.
+  try {
+    const { fasesIrr, fasesCool } = reconstructFasesFromBlocks78(b78, { t });
+    fasesIrr.forEach(f  => addB78PhaseRow('irr',  f.t_fin, f.pasos));
+    fasesCool.forEach(f => addB78PhaseRow('cool', f.t_fin, f.pasos));
+  } catch (err) {
+    showToast(err.message, 'warning', 8000);
+  }
 }
 
 function collectBlocks78() {
