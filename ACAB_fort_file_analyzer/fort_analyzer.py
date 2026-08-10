@@ -1267,6 +1267,42 @@ def calcular_pico(sim: dict, iso_key: str) -> dict:
 _MASS_RE = re.compile(r"[A-Z]+(\d+)")
 _ELEM_RE = re.compile(r"^([A-Z]{1,2})(\d+)M?$")
 
+# F19 del BACKLOG (bug confirmado): el techo sin portador y la masa de yodo
+# usaban el NÚMERO MÁSICO (entero, p. ej. 131) como masa molar en vez de la
+# masa atómica real (130,906126 u para ¹³¹I) -- un sesgo de +0,072 % en
+# TODOS los valores ABSOLUTOS de A_esp y del techo (las FRACCIONES del
+# techo no están afectadas: numerador y denominador comparten convenio y el
+# sesgo se cancela). Masas atómicas [u] de los isótopos de YODO implicados
+# en la producción de ¹³¹I (AME2020 -- Wang, M. et al., "The AME 2020
+# atomic mass evaluation", Chinese Physics C 45, 030003 (2021); mismo
+# valor de ¹³¹I citado en el BACKLOG: 130,906126 u). Los isómeros
+# metaestables (130M, 132M) comparten la masa atómica de su estado
+# fundamental -- la energía de excitación (keV) es despreciable frente a
+# la masa del núcleo (~931 MeV/u).
+IODINE_ATOMIC_MASSES: dict[str, float] = {
+    "I127": 126.904473, "I128": 127.905809,
+    "I129": 128.904984, "I130": 129.906670, "I130M": 129.906670,
+    "I131": 130.906126,
+    "I132": 131.907994, "I132M": 131.907994,
+    "I133": 132.907828, "I134": 133.909776,
+}
+
+
+def masa_atomica_u(iso_key: str) -> float:
+    """Masa molar aproximada [u≈g/mol] para convertir átomos↔gramos.
+
+    Isótopos de yodo → masa atómica tabulada (``IODINE_ATOMIC_MASSES``,
+    fuente ahí). Cualquier otro elemento (sin tabla en este proyecto,
+    fuera del alcance de F19) → respaldo al NÚMERO MÁSICO, el mismo
+    convenio aproximado usado en todo el proyecto antes de F19 (error
+    <0,1 %, documentado desde F2/F14).
+    """
+    key = iso_key.upper()
+    if key in IODINE_ATOMIC_MASSES:
+        return IODINE_ATOMIC_MASSES[key]
+    m = _MASS_RE.search(key)
+    return float(m.group(1)) if m else 1.0
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Production-optimisation metrics (Fase 5)
@@ -1779,8 +1815,11 @@ def calcular_actividad_especifica_yodo_serie(
 
     masa_total = np.zeros(len(t_cool))
     for iso in iodine_isos:
-        mk = _ELEM_RE.match(iso.upper())
-        A_num = int(mk.group(2))
+        # F19 del BACKLOG: masa atómica real (tabulada, IODINE_ATOMIC_MASSES),
+        # no el número másico entero -- antes de F19 sesgaba la masa total
+        # (y por tanto A_esp) un +0,072 % bajo, siempre en la misma
+        # dirección para todos los isótopos de yodo.
+        masa_molar = masa_atomica_u(iso)
         lam_iso = lam(t12_dict.get(iso, math.inf))
 
         if iso not in IODINE_ESTABLE_O_VIDA_LARGA and iso in datos_cool and lam_iso > 0:
@@ -1794,7 +1833,7 @@ def calcular_actividad_especifica_yodo_serie(
             n0 = float(atomos_irr[-1]) if atomos_irr else 0.0
             N_t = np.full(len(t_cool), n0)
 
-        masa_total += N_t / N_A * A_num
+        masa_total += N_t / N_A * masa_molar
 
     A_obj = np.asarray(datos_cool.get(iso_key, np.zeros(len(t_cool))), dtype=float)
     aesp_vals: list[Optional[float]] = [
@@ -1906,10 +1945,11 @@ def calcular_informe_isotopo(
     t12_iso = t12_dict.get(isotopo_key, math.inf)
     lam_iso = lam(t12_iso)
 
-    # Derive mass number A from key (e.g. "I131" → 131, "TE132" → 132)
-    m = _MASS_RE.search(isotopo_key)
-    A = int(m.group(1)) if m else 1
-    A_esp = (lam_iso * N_A / A) if (A > 0 and lam_iso > 0) else 0.0
+    # F19 del BACKLOG: masa atómica real (masa_atomica_u), no el número
+    # másico entero, para el techo sin portador (p. ej. "I131" → 130,906126
+    # u, no 131; "TE132" sin tabla propia → respaldo al número másico).
+    masa_molar = masa_atomica_u(isotopo_key)
+    A_esp = (lam_iso * N_A / masa_molar) if (masa_molar > 0 and lam_iso > 0) else 0.0
 
     isotopos_disponibles: set[str] = set()
     for sim in all_data.values():
@@ -1925,7 +1965,7 @@ def calcular_informe_isotopo(
         t12_sim = sim.get("_t12_dict") or t12_dict
         t12_iso_sim = t12_sim.get(isotopo_key, math.inf)
         lam_iso_sim = lam(t12_iso_sim)
-        A_esp_sim = (lam_iso_sim * N_A / A) if (A > 0 and lam_iso_sim > 0) else 0.0
+        A_esp_sim = (lam_iso_sim * N_A / masa_molar) if (masa_molar > 0 and lam_iso_sim > 0) else 0.0
 
         pico = calcular_pico(sim, isotopo_key)
         sim_reports[sim_name] = pico
