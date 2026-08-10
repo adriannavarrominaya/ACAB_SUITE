@@ -355,8 +355,8 @@ def test_f21_ninguna_exportacion_desplaza() -> None:
 
 
 def test_pureza_nodo_comun_dos_simulaciones_mesetas_distinta_longitud() -> None:
-    section("calcular_pureza_nodo_comun (F16) — dos simulaciones con mesetas de "
-            "distinta longitud evaluadas en el MISMO nodo")
+    section("calcular_pureza_nodo_comun (F16→F22) — dos simulaciones con "
+            "mesetas de distinta longitud, nodo común por INTERSECCIÓN")
 
     # simA: mismo patrón que v1b/v2/v3/v4 del experimento 2 -- meseta tied de
     # 3 nodos (t=1,2,3), t_pico reportado = 1 (F15: el primero del empate).
@@ -364,7 +364,8 @@ def test_pureza_nodo_comun_dos_simulaciones_mesetas_distinta_longitud() -> None:
                 t_cool=[1.0, 2.0, 3.0, 4.0],
                 datos_cool={"I131": [100.0, 100.0, 100.0, 90.0],
                             "I130": [25.0, 25.0, 25.0, 25.0]})
-    # simB: mismo patrón que v1 -- pico propio SIN empate, más tarde (t=2).
+    # simB: mismo patrón que v1 -- pico propio SIN empate, más tarde (t=2),
+    # DENTRO de la meseta de simA -- la intersección {1,2,3}∩{2} = {2}.
     simB = _sim(0.0, [0.0], {"I131": [0.0], "I130": [0.0]},
                 t_cool=[1.0, 2.0, 3.0, 4.0],
                 datos_cool={"I131": [80.0, 100.0, 90.0, 70.0],
@@ -380,46 +381,110 @@ def test_pureza_nodo_comun_dos_simulaciones_mesetas_distinta_longitud() -> None:
     check_close(pA_propio["t_pico"], 1.0, "simA (sin F16): evaluada en SU pico, t=1 (primero del empate)")
     check_close(pB_propio["t_pico"], 2.0, "simB (sin F16): evaluada en SU pico, t=2 (sin empate)")
 
-    # F16: nodo común = pico MÁS TEMPRANO entre todas las simulaciones (el de
-    # simA, t=1, empatado) -- AMBAS se evalúan ahí, también simB.
+    # F22: el nodo común es la INTERSECCIÓN de las mesetas -- {1,2,3}∩{2}={2},
+    # NO el pico más temprano de F16 (que habría elegido t=1, el borde de la
+    # meseta de simA, donde el máximo de simB NO se alcanza).
     pnc = fa.calcular_pureza_nodo_comun(all_data, "I131", impurezas)
     check(pnc is not None, "pureza_nodo_comun calculada")
     assert pnc is not None
-    check_close(pnc["t_comun_h"], 1.0, "nodo común = pico más temprano (simA, t=1)")
-    check(pnc["sim_referencia"] == "simA", f"simulación de referencia = simA (obtenido {pnc['sim_referencia']})")
-    check(pnc["empate"] is True, "el pico de referencia (simA) está empatado")
-    assert pnc["intervalo_pico"] is not None
-    check(pnc["intervalo_pico"]["t_ini_h"] == 1.0 and pnc["intervalo_pico"]["t_fin_h"] == 3.0
-          and pnc["intervalo_pico"]["n_nodos"] == 3,
-          f"intervalo del empate = [1,3] con 3 nodos (obtenido {pnc['intervalo_pico']})")
-    # F21 del BACKLOG: instante declarado (T_irr=0 en este fixture, así que
-    # declarado == absoluto, pero el campo debe existir y coincidir).
-    check_close(pnc["t_comun_declarado_h"], 1.0, "t_comun_declarado_h = t_comun_h (T_irr=0 en este fixture)")
-    check(pnc["origen_comun"] == "fin_irradiacion", "origen_comun = fin_irradiacion (t=1 > T_irr=0)")
+    check_close(pnc["t_comun_h"], 2.0, "nodo común = intersección de mesetas = {2} (F22, no ya t=1 de F16)")
+    check(pnc["etiqueta"] == "pico",
+          f"t=2 es máximo de AMBAS simulaciones → etiqueta 'pico' (obtenida {pnc['etiqueta']!r})")
+    check(pnc["interseccion_vacia"] is False, "intersección no vacía")
+    check(pnc["interseccion_h"] == [2.0], f"intersección = [2.0] (obtenida {pnc['interseccion_h']})")
 
     pA = pnc["por_simulacion"]["simA"]
     pB = pnc["por_simulacion"]["simB"]
-    check_close(pA["P_pct"], 100.0 / (100.0 + 25.0) * 100.0, "simA en el nodo común (t=1): P = 100/(100+25)")
-    check_close(pB["P_pct"], 80.0 / (80.0 + 10.0) * 100.0,
-                "simB en el nodo común (t=1, NO su propio pico): P = 80/(80+10), "
-                "distinto del valor evaluado en su propio pico (t=2)")
+    check_close(pA["P_pct"], 100.0 / (100.0 + 25.0) * 100.0,
+                "simA en el nodo común (t=2, DENTRO de su meseta): P = 100/(100+25)")
+    check_close(pB["P_pct"], 100.0 / (100.0 + 10.0) * 100.0,
+                "simB en el nodo común (t=2, SU PROPIO pico): P = 100/(100+10)")
 
-    # Override explícito de la simulación de referencia: fuerza el nodo común
-    # al pico de simB (t=2, sin empate) -- ambas se reevalúan ahí.
-    pnc_b = fa.calcular_pureza_nodo_comun(all_data, "I131", impurezas, sim_referencia="simB")
-    assert pnc_b is not None
-    check_close(pnc_b["t_comun_h"], 2.0, "override sim_referencia='simB' → nodo común = t=2")
-    check(pnc_b["empate"] is False, "el pico de simB no está empatado")
-    check_close(pnc_b["por_simulacion"]["simB"]["P_pct"], 100.0 / (100.0 + 10.0) * 100.0,
-                "simB en su propio nodo (t=2): P = 100/(100+10)")
-    check_close(pnc_b["por_simulacion"]["simA"]["P_pct"], 100.0 / (100.0 + 25.0) * 100.0,
-                "simA reevaluada en t=2 (dentro de su meseta, mismo P que en t=1)")
+    # Orden de carga inverso → mismo resultado (F22: pura función de las
+    # mesetas, no del orden de inserción de all_data).
+    pnc_rev = fa.calcular_pureza_nodo_comun({"simB": simB, "simA": simA}, "I131", impurezas)
+    assert pnc_rev is not None
+    check_close(pnc_rev["t_comun_h"], pnc["t_comun_h"], "orden de carga invertido → mismo nodo común")
+    check(pnc_rev["etiqueta"] == pnc["etiqueta"], "orden de carga invertido → misma etiqueta")
+
+    # Override explícito de la simulación de referencia que fuerza un nodo
+    # FUERA de la intersección (el borde de la meseta de simA, t=1, donde
+    # simB NO tiene su máximo) -- la etiqueta debe declarar "instante_comun",
+    # honesta con que ese instante no es un máximo compartido.
+    pnc_a = fa.calcular_pureza_nodo_comun(all_data, "I131", impurezas, sim_referencia="simA")
+    assert pnc_a is not None
+    check_close(pnc_a["t_comun_h"], 1.0, "override sim_referencia='simA' → nodo común = t=1 (su propio pico)")
+    check(pnc_a["etiqueta"] == "instante_comun",
+          f"t=1 no es máximo de simB → etiqueta 'instante_comun', NO 'pico' (obtenida {pnc_a['etiqueta']!r})")
+    check_close(pnc_a["por_simulacion"]["simA"]["P_pct"], 100.0 / (100.0 + 25.0) * 100.0,
+                "simA en su propio nodo forzado (t=1): P = 100/(100+25)")
+    check_close(pnc_a["por_simulacion"]["simB"]["P_pct"], 80.0 / (80.0 + 10.0) * 100.0,
+                "simB reevaluada en t=1 (NO su propio pico): P = 80/(80+10)")
 
     # Casos borde: sin datos → None, sin lista de impurezas → None.
     check(fa.calcular_pureza_nodo_comun({}, "I131", impurezas) is None,
           "sin simulaciones → None")
     check(fa.calcular_pureza_nodo_comun(all_data, "I131", []) is None,
           "sin isótopos de impureza → None")
+
+
+def test_pureza_nodo_comun_f22_interseccion_no_depende_del_orden() -> None:
+    section("calcular_pureza_nodo_comun (F22) — máximo único contenido en "
+            "cuatro mesetas de 3 nodos: nodo = el máximo único, etiqueta "
+            "'pico', invariante al orden de carga")
+
+    # Reproduce la forma del experimento 2: v1 (única, sin empate en 3.75h,
+    # aquí t=2) + v1b/v2/v3/v4 (meseta tied de 3 nodos que CONTIENE a t=2).
+    def _meseta(pico_unico_en_2: bool) -> dict:
+        if pico_unico_en_2:
+            datos = {"I131": [80.0, 100.0, 90.0, 70.0], "I130": [10.0] * 4}
+        else:
+            datos = {"I131": [90.0, 100.0, 100.0, 100.0], "I130": [20.0] * 4}
+        return _sim(0.0, [0.0], {"I131": [0.0], "I130": [0.0]},
+                    t_cool=[1.0, 2.0, 3.0, 4.0], datos_cool=datos)
+
+    v1 = _meseta(pico_unico_en_2=True)
+    v1b, v2, v3, v4 = (_meseta(pico_unico_en_2=False) for _ in range(4))
+    impurezas = ["I131", "I130"]
+
+    orden_a = {"v1": v1, "v1b": v1b, "v2": v2, "v3": v3, "v4": v4}
+    orden_b = {"v4": v4, "v3": v3, "v1": v1, "v2": v2, "v1b": v1b}
+
+    for etiqueta_orden, all_data in (("original", orden_a), ("invertido", orden_b)):
+        pnc = fa.calcular_pureza_nodo_comun(all_data, "I131", impurezas)
+        assert pnc is not None
+        check_close(pnc["t_comun_h"], 2.0,
+                    f"orden {etiqueta_orden}: nodo elegido = el máximo único de v1 (t=2)")
+        check(pnc["etiqueta"] == "pico",
+              f"orden {etiqueta_orden}: intersección no vacía → etiqueta 'pico' "
+              f"(obtenida {pnc['etiqueta']!r})")
+        check(pnc["interseccion_h"] == [2.0], f"orden {etiqueta_orden}: intersección = [2.0]")
+
+
+def test_pureza_nodo_comun_f22_interseccion_vacia() -> None:
+    section("calcular_pureza_nodo_comun (F22) — mesetas disjuntas: sin nodo "
+            "común de máximo → etiqueta 'instante_comun', NO 'pico'")
+
+    # simX: máximo (empatado) en t=1,2. simY: máximo (empatado) en t=3,4.
+    # Ningún instante es máximo de ambas a la vez.
+    simX = _sim(0.0, [0.0], {"I131": [0.0], "I130": [0.0]},
+                t_cool=[1.0, 2.0, 3.0, 4.0],
+                datos_cool={"I131": [100.0, 100.0, 50.0, 40.0], "I130": [10.0] * 4})
+    simY = _sim(0.0, [0.0], {"I131": [0.0], "I130": [0.0]},
+                t_cool=[1.0, 2.0, 3.0, 4.0],
+                datos_cool={"I131": [40.0, 50.0, 100.0, 100.0], "I130": [10.0] * 4})
+    all_data = {"simX": simX, "simY": simY}
+    impurezas = ["I131", "I130"]
+
+    pnc = fa.calcular_pureza_nodo_comun(all_data, "I131", impurezas)
+    assert pnc is not None
+    check(pnc["interseccion_vacia"] is True, "mesetas {1,2} y {3,4} sin solape → intersección vacía")
+    check(pnc["interseccion_h"] == [], "intersección declarada vacía")
+    check(pnc["etiqueta"] == "instante_comun",
+          f"sin nodo común de máximo → etiqueta 'instante_comun', NO 'pico' (obtenida {pnc['etiqueta']!r})")
+    # Se sigue ofreciendo un instante (el pico más temprano, aquí t=1 de simX)
+    # -- útil, pero declarado sin la etiqueta 'pico' que sería falsa.
+    check_close(pnc["t_comun_h"], 1.0, "sin intersección: se ofrece igualmente el pico más temprano (t=1)")
 
 
 def test_pureza_serie_ref_sim_tres_timesteps() -> None:
@@ -967,8 +1032,10 @@ def test_informe_isotopo_incluye_metricas() -> None:
     # simulación -- es inherentemente cruzada entre simulaciones).
     check("pureza_nodo_comun" in informe, "clave pureza_nodo_comun (F16) presente en el informe")
     pnc = informe["pureza_nodo_comun"]
-    check(pnc is not None and pnc["sim_referencia"] == "simA",
-          "con una única simulación, esa es la propia referencia")
+    # F22: con una única simulación su propia meseta ES la intersección
+    # (trivialmente) -- nodo común = su propio pico, etiqueta 'pico'.
+    check(pnc is not None and pnc["etiqueta"] == "pico",
+          f"con una única simulación, su propio pico es la intersección (etiqueta obtenida {pnc and pnc['etiqueta']!r})")
 
     # Override explícito de la lista de impurezas (solo el propio isótopo).
     informe_solo = fa.calcular_informe_isotopo(all_data, "I131", t12_dict, isotopos_impureza=["I131"])
@@ -1051,6 +1118,8 @@ def main() -> int:
     test_f21_pureza_nodo_comun_declara_sin_desplazar()
     test_f21_ninguna_exportacion_desplaza()
     test_pureza_nodo_comun_dos_simulaciones_mesetas_distinta_longitud()
+    test_pureza_nodo_comun_f22_interseccion_no_depende_del_orden()
+    test_pureza_nodo_comun_f22_interseccion_vacia()
     test_pureza_serie_ref_sim_tres_timesteps()
     test_pureza_serie_casos_borde_sinteticos()
     test_actividad_especifica_yodo_ref_sim()

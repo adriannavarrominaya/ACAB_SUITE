@@ -1284,6 +1284,12 @@ def calcular_pico(sim: dict, iso_key: str) -> dict:
     ``origen_ini`` y ``t_fin_declarado_h``/``origen_fin``. Toda vista o
     exportación que publique el pico a un lector debe usar los campos
     "declarado", nunca los absolutos.
+
+    F22 del BACKLOG: ``t_nodos_pico_h`` expone el conjunto COMPLETO de
+    nodos absolutos empatados en el máximo (un único elemento si no hay
+    empate) -- necesario para que ``calcular_pureza_nodo_comun`` pueda
+    intersecar las MESETAS de varias simulaciones en vez de comparar solo
+    el primer nodo de cada una.
     """
     T_irr = sim["T_IRR_h"]
     t_irr = np.array(sim["t_irr"])
@@ -1296,6 +1302,7 @@ def calcular_pico(sim: dict, iso_key: str) -> dict:
 
     empate = False
     intervalo_pico: Optional[dict] = None
+    t_nodos_pico_h: list[float] = []
 
     if len(A_all) > 0 and A_all.max() > 0:
         A_max = A_all.max()
@@ -1305,6 +1312,7 @@ def calcular_pico(sim: dict, iso_key: str) -> dict:
         A_pico = float(A_all[idx])
         fase = "irradiación" if t_pico <= T_irr else "enfriamiento"
         n_nodos = int(len(idx_empate))
+        t_nodos_pico_h = sorted(float(v) for v in t_all[idx_empate])
         if n_nodos > 1:
             empate = True
             t_tied = t_all[idx_empate]
@@ -1338,6 +1346,7 @@ def calcular_pico(sim: dict, iso_key: str) -> dict:
         "nodo_evaluacion": nodo_evaluacion,
         "t_pico_declarado_h": decl_pico["valor_h"],
         "origen_pico":        decl_pico["origen"],
+        "t_nodos_pico_h":     t_nodos_pico_h,
     }
 
 
@@ -1522,24 +1531,38 @@ def calcular_pureza_nodo_comun(
     ``calcular_pureza`` (arriba) evalúa cada simulación en SU PROPIO
     ``t_pico`` -- correcto para la tabla de contribuciones de una sola
     simulación, pero no comparable entre casos cuando los picos de las
-    distintas simulaciones no empatan entre sí: verificado sobre el
-    experimento 2, v1 se evaluaba en 3,75 h (su máximo, que no empata) y
-    v1b/v2/v3/v4 en 3,50 h, con lo que la fracción de impureza de v1 salía
-    como la MENOR de las cinco cuando en un nodo común es la segunda.
+    distintas simulaciones no empatan entre sí.
 
-    El nodo común es el pico MÁS TEMPRANO (mínimo ``t_pico``) entre todas
-    las simulaciones cargadas -- salvo que se fuerce ``sim_referencia``
-    explícitamente. Desempate determinista por nombre de simulación
-    (orden de descubrimiento). Reutiliza ``calcular_pico`` (F15: ya declara
-    ``empate``/``intervalo_pico``/``nodo_evaluacion``) para el pico de la
-    simulación de referencia; ese mismo instante se evalúa vía
-    ``actividad_en_t`` para TODAS las simulaciones, también las que no
-    empatan entre sí.
+    F22 del BACKLOG (bug confirmado sobre F16): el nodo común NO puede ser
+    simplemente "el pico de una simulación concreta" (antes: la de pico más
+    temprano) -- verificado sobre el experimento 2, ese criterio elegía
+    3,50 h (borde INFERIOR de la meseta de v1b) cuando v1 tiene máximo
+    ÚNICO en 3,75 h: la etiqueta "pico" quedaba falsa para v1 (evaluada
+    FUERA de su propia meseta) y el valor publicado difería un 7,5 % del
+    del capítulo. El nodo común correcto es la INTERSECCIÓN de las MESETAS
+    de máximo (``calcular_pico(...)["t_nodos_pico_h"]``, F22) de todas las
+    simulaciones cargadas -- si no es vacía, cualquier instante de ella es
+    máximo de TODAS a la vez y la etiqueta "pico" es correcta; se elige el
+    MÍNIMO de la intersección (determinista, independiente del orden de
+    carga de las simulaciones -- a diferencia del criterio F16, que sí
+    dependía de qué simulación se hubiera descubierto/cargado primero).
+
+    Si la intersección es vacía (ninguna meseta comparte ni un solo nodo),
+    se sigue ofreciendo un instante -- el pico más temprano entre las
+    simulaciones cargadas, desempatado por nombre para que sea reproducible
+    -- pero declarado como ``"instante_comun"``, NUNCA como ``"pico"``: no
+    es el máximo de ninguna de las simulaciones que no lo alcanzaron ahí.
+
+    ``sim_referencia`` fuerza el nodo común al pico de esa simulación en
+    concreto (override explícito, p. ej. para reproducir la evaluación de
+    una fuente externa); la etiqueta se calcula igual, por PERTENENCIA a la
+    intersección -- si el pico forzado no es un máximo compartido, la
+    etiqueta sale ``"instante_comun"`` también, honesta con lo forzado.
 
     F21 del BACKLOG: el nodo común, en el eje absoluto (``t_comun_h``, uso
     interno) y declarado con origen explícito (``t_comun_declarado_h``/
     ``origen_comun``, vía ``declarar_instante`` -- el mismo T_irr que ya
-    resolvió el pico de la simulación de referencia).
+    resolvió el pico de la simulación que ancla el nodo).
 
     Devuelve ``None`` si no hay simulaciones o ninguna tiene pico válido.
     """
@@ -1551,12 +1574,31 @@ def calcular_pureza_nodo_comun(
     if not validos:
         return None
 
-    if sim_referencia is None or sim_referencia not in validos:
-        sim_referencia = min(validos, key=lambda name: (validos[name]["t_pico"], name))
+    # F22: intersección de las MESETAS de máximo (conjuntos de nodos
+    # absolutos, no solo el primer nodo de cada una) -- pura función de los
+    # datos, nunca del orden de inserción de `all_data`.
+    mesetas = [set(p["t_nodos_pico_h"]) for p in validos.values()]
+    interseccion = set.intersection(*mesetas) if mesetas else set()
 
-    pico_ref = validos[sim_referencia]
-    t_comun = pico_ref["t_pico"]
-    decl_comun = declarar_instante(t_comun, all_data[sim_referencia]["T_IRR_h"])
+    T_irr_ref: float
+    if sim_referencia is not None and sim_referencia in validos:
+        t_comun = validos[sim_referencia]["t_pico"]
+        T_irr_ref = all_data[sim_referencia]["T_IRR_h"]
+    elif interseccion:
+        t_comun = min(interseccion)
+        # Cualquier simulación de la intersección comparte T_irr por
+        # construcción del caso de uso (mismas mallas comparadas); se toma
+        # la primera para declarar el origen.
+        nombre_ancla = next(iter(validos))
+        T_irr_ref = all_data[nombre_ancla]["T_IRR_h"]
+    else:
+        nombre_ancla, pico_ancla = min(validos.items(), key=lambda kv: (kv[1]["t_pico"], kv[0]))
+        t_comun = pico_ancla["t_pico"]
+        T_irr_ref = all_data[nombre_ancla]["T_IRR_h"]
+
+    es_pico = t_comun in interseccion
+    etiqueta = "pico" if es_pico else "instante_comun"
+    decl_comun = declarar_instante(t_comun, T_irr_ref)
 
     por_simulacion: dict[str, dict] = {}
     for name, sim in all_data.items():
@@ -1578,14 +1620,21 @@ def calcular_pureza_nodo_comun(
         por_simulacion[name] = {"P_pct": P_pct, "contribuciones": contribuciones}
 
     return {
-        "t_comun_h":       _safe_val(t_comun),
-        "t_comun_declarado_h": decl_comun["valor_h"],
+        "t_comun_h":            _safe_val(t_comun),
+        "t_comun_declarado_h":  decl_comun["valor_h"],
         "origen_comun":         decl_comun["origen"],
-        "sim_referencia":  sim_referencia,
-        "empate":          pico_ref["empate"],
-        "intervalo_pico":  pico_ref["intervalo_pico"],
-        "nodo_evaluacion": pico_ref["nodo_evaluacion"],
-        "por_simulacion":  por_simulacion,
+        "etiqueta":             etiqueta,
+        "interseccion_vacia":   not bool(interseccion),
+        "interseccion_h":       sorted(interseccion),
+        # F21 del BACKLOG: la intersección declarada -- mismo T_irr_ref que
+        # t_comun_declarado_h, vía declarar_instante -- para que la
+        # exportación pueda anunciar "EMPATE/INTERSECCIÓN de N instantes de
+        # X a Y h" sin repetir la resta de T_irr en el frontend.
+        "interseccion_declarada_h": sorted(
+            declarar_instante(v, T_irr_ref)["valor_h"] for v in interseccion
+        ),
+        "sim_referencia":       sim_referencia if (sim_referencia in validos) else None,
+        "por_simulacion":       por_simulacion,
     }
 
 

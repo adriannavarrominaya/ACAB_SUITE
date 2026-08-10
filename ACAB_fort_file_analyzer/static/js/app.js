@@ -2978,8 +2978,7 @@ function exportRendimientoCSV() {
  * F16 del BACKLOG: usa `informe.pureza_nodo_comun` (TODAS las simulaciones
  * evaluadas en UN ÚNICO instante), no `metricas[sim].pureza` (cada
  * simulación en su propio pico -- no comparable entre casos cuando los
- * picos no empatan entre sí). La cabecera declara el nodo común, la
- * simulación de referencia y si su pico está empatado.
+ * picos no empatan entre sí).
  *
  * F21 del BACKLOG (bug confirmado, familia de F12): la cabecera declaraba
  * el nodo común en el eje ABSOLUTO (`pnc.t_comun_h`, T_irr ya sumado) como
@@ -2987,8 +2986,15 @@ function exportRendimientoCSV() {
  * del experimento 2 anunciaba "3,833 a 4,333 h" cuando los nodos reales
  * son 3,50/3,75/4,00 h. Usa SIEMPRE los campos "declarado" que ya resuelve
  * `fort_analyzer.declarar_instante` (centralizado en el servidor, no
- * repetido aquí) -- `t_comun_declarado_h`/`origen_comun`, nunca
- * `t_comun_h` (el absoluto, solo para diagnóstico interno). */
+ * repetido aquí) -- `t_comun_declarado_h`/`origen_comun` e
+ * `interseccion_declarada_h`, nunca `t_comun_h`/`interseccion_h` (los
+ * absolutos, solo para diagnóstico interno).
+ *
+ * F22 del BACKLOG: el nodo común es la intersección de las mesetas de
+ * máximo -- `pnc.etiqueta` distingue si es un "pico" genuino (máximo de
+ * TODAS las simulaciones cargadas) o, sin intersección, un "instante
+ * común" de referencia sin esa garantía; la cabecera declara cuál de los
+ * dos es. */
 function exportPurezaCSV() {
   const iso = _state.selectedIsotopo;
   const informe = _state.isotopoReport && _state.isotopoReport.informe;
@@ -3004,20 +3010,20 @@ function exportPurezaCSV() {
     ]));
   });
   if (!rows.length) return;
-  const empateTxt = pnc.empate && pnc.intervalo_pico
-    ? t('tables.csv_meta_empate', {
-        ini: pnc.intervalo_pico.t_ini_declarado_h.toFixed(3),
-        fin: pnc.intervalo_pico.t_fin_declarado_h.toFixed(3),
-        n:   pnc.intervalo_pico.n_nodos,
-      })
-    : '';
+
   const origenTxt = t(pnc.origen_comun === 'inicio_irradiacion'
     ? 'metrics.origen_inicio_irradiacion' : 'metrics.origen_fin_irradiacion');
-  const metaLine = `# ${t('metrics.pureza_csv_meta_nodo_comun', {
-    t: pnc.t_comun_declarado_h != null ? pnc.t_comun_declarado_h.toFixed(4) : '—',
-    sim: pnc.sim_referencia || '—',
-    origen: origenTxt,
-  })}${empateTxt}`;
+  const interseccionDecl = pnc.interseccion_declarada_h || [];
+  const interseccionTxt = interseccionDecl.length > 1
+    ? t('metrics.csv_meta_interseccion', {
+        n:   interseccionDecl.length,
+        ini: interseccionDecl[0].toFixed(3),
+        fin: interseccionDecl[interseccionDecl.length - 1].toFixed(3),
+      })
+    : '';
+  const tTxt = pnc.t_comun_declarado_h != null ? pnc.t_comun_declarado_h.toFixed(4) : '—';
+  const baseKey = pnc.etiqueta === 'pico' ? 'metrics.pureza_csv_meta_pico' : 'metrics.pureza_csv_meta_instante_comun';
+  const metaLine = `# ${t(baseKey, { t: tTxt, origen: origenTxt })}${interseccionTxt}`;
   const headers = [t('overview.th_sim'), 'P [%]', t('metrics.pureza_th_iso'),
                    `A [${unitLabel()}]`, 'contribución [%]'];
   emitCSV(`${ACABExport.slug(iso)}_pureza_${unitSlug()}_${folderSlug()}.csv`, iso, rows, headers, metaLine);
