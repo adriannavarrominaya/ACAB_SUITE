@@ -216,6 +216,69 @@ def test_pureza_dos_isotopos() -> None:
           "lista de impurezas vacía → calcular_pureza devuelve None")
 
 
+def test_pureza_nodo_comun_dos_simulaciones_mesetas_distinta_longitud() -> None:
+    section("calcular_pureza_nodo_comun (F16) — dos simulaciones con mesetas de "
+            "distinta longitud evaluadas en el MISMO nodo")
+
+    # simA: mismo patrón que v1b/v2/v3/v4 del experimento 2 -- meseta tied de
+    # 3 nodos (t=1,2,3), t_pico reportado = 1 (F15: el primero del empate).
+    simA = _sim(0.0, [0.0], {"I131": [0.0], "I130": [0.0]},
+                t_cool=[1.0, 2.0, 3.0, 4.0],
+                datos_cool={"I131": [100.0, 100.0, 100.0, 90.0],
+                            "I130": [25.0, 25.0, 25.0, 25.0]})
+    # simB: mismo patrón que v1 -- pico propio SIN empate, más tarde (t=2).
+    simB = _sim(0.0, [0.0], {"I131": [0.0], "I130": [0.0]},
+                t_cool=[1.0, 2.0, 3.0, 4.0],
+                datos_cool={"I131": [80.0, 100.0, 90.0, 70.0],
+                            "I130": [10.0, 10.0, 10.0, 10.0]})
+    all_data = {"simA": simA, "simB": simB}
+    impurezas = ["I131", "I130"]
+
+    # Antes de F16 (calcular_pureza por separado, cada sim en su propio
+    # pico): NO comparables entre sí -- exactamente el defecto reportado.
+    pA_propio = fa.calcular_pureza(simA, "I131", fa.calcular_pico(simA, "I131")["t_pico"], impurezas)
+    pB_propio = fa.calcular_pureza(simB, "I131", fa.calcular_pico(simB, "I131")["t_pico"], impurezas)
+    assert pA_propio is not None and pB_propio is not None
+    check_close(pA_propio["t_pico"], 1.0, "simA (sin F16): evaluada en SU pico, t=1 (primero del empate)")
+    check_close(pB_propio["t_pico"], 2.0, "simB (sin F16): evaluada en SU pico, t=2 (sin empate)")
+
+    # F16: nodo común = pico MÁS TEMPRANO entre todas las simulaciones (el de
+    # simA, t=1, empatado) -- AMBAS se evalúan ahí, también simB.
+    pnc = fa.calcular_pureza_nodo_comun(all_data, "I131", impurezas)
+    check(pnc is not None, "pureza_nodo_comun calculada")
+    assert pnc is not None
+    check_close(pnc["t_comun_h"], 1.0, "nodo común = pico más temprano (simA, t=1)")
+    check(pnc["sim_referencia"] == "simA", f"simulación de referencia = simA (obtenido {pnc['sim_referencia']})")
+    check(pnc["empate"] is True, "el pico de referencia (simA) está empatado")
+    assert pnc["intervalo_pico"] is not None
+    check(pnc["intervalo_pico"] == {"t_ini_h": 1.0, "t_fin_h": 3.0, "n_nodos": 3},
+          f"intervalo del empate = [1,3] con 3 nodos (obtenido {pnc['intervalo_pico']})")
+
+    pA = pnc["por_simulacion"]["simA"]
+    pB = pnc["por_simulacion"]["simB"]
+    check_close(pA["P_pct"], 100.0 / (100.0 + 25.0) * 100.0, "simA en el nodo común (t=1): P = 100/(100+25)")
+    check_close(pB["P_pct"], 80.0 / (80.0 + 10.0) * 100.0,
+                "simB en el nodo común (t=1, NO su propio pico): P = 80/(80+10), "
+                "distinto del valor evaluado en su propio pico (t=2)")
+
+    # Override explícito de la simulación de referencia: fuerza el nodo común
+    # al pico de simB (t=2, sin empate) -- ambas se reevalúan ahí.
+    pnc_b = fa.calcular_pureza_nodo_comun(all_data, "I131", impurezas, sim_referencia="simB")
+    assert pnc_b is not None
+    check_close(pnc_b["t_comun_h"], 2.0, "override sim_referencia='simB' → nodo común = t=2")
+    check(pnc_b["empate"] is False, "el pico de simB no está empatado")
+    check_close(pnc_b["por_simulacion"]["simB"]["P_pct"], 100.0 / (100.0 + 10.0) * 100.0,
+                "simB en su propio nodo (t=2): P = 100/(100+10)")
+    check_close(pnc_b["por_simulacion"]["simA"]["P_pct"], 100.0 / (100.0 + 25.0) * 100.0,
+                "simA reevaluada en t=2 (dentro de su meseta, mismo P que en t=1)")
+
+    # Casos borde: sin datos → None, sin lista de impurezas → None.
+    check(fa.calcular_pureza_nodo_comun({}, "I131", impurezas) is None,
+          "sin simulaciones → None")
+    check(fa.calcular_pureza_nodo_comun(all_data, "I131", []) is None,
+          "sin isótopos de impureza → None")
+
+
 def test_pureza_serie_ref_sim_tres_timesteps() -> None:
     section("calcular_pureza_serie — 3 timesteps verificados a mano (ref_sim, F1 Fase 1)")
 
@@ -687,6 +750,12 @@ def test_informe_isotopo_incluye_metricas() -> None:
           "sin datos de enfriamiento en este fixture → actividad_especifica_yodo_serie = None (coherente)")
     check(informe["isotopos_impureza_default"] == ["I130", "I131"],
           f"impurezas por defecto = mismo elemento (obtenido {informe['isotopos_impureza_default']})")
+    # F16 del BACKLOG: pureza_nodo_comun presente a nivel de informe (no por
+    # simulación -- es inherentemente cruzada entre simulaciones).
+    check("pureza_nodo_comun" in informe, "clave pureza_nodo_comun (F16) presente en el informe")
+    pnc = informe["pureza_nodo_comun"]
+    check(pnc is not None and pnc["sim_referencia"] == "simA",
+          "con una única simulación, esa es la propia referencia")
 
     # Override explícito de la lista de impurezas (solo el propio isótopo).
     informe_solo = fa.calcular_informe_isotopo(all_data, "I131", t12_dict, isotopos_impureza=["I131"])
@@ -764,6 +833,7 @@ def main() -> int:
     test_rendimiento_lineal_y_saturante()
     test_isotopos_mismo_elemento()
     test_pureza_dos_isotopos()
+    test_pureza_nodo_comun_dos_simulaciones_mesetas_distinta_longitud()
     test_pureza_serie_ref_sim_tres_timesteps()
     test_pureza_serie_casos_borde_sinteticos()
     test_actividad_especifica_yodo_ref_sim()

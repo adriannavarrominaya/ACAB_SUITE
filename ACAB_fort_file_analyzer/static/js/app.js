@@ -2582,6 +2582,9 @@ function _renderMetricasOptimizacion(iso, simulations, report) {
             ${t('metrics.pureza_desc')}
             <i class="bi bi-info-circle text-muted ms-1" title="${escAttr(t('metrics.pureza_tooltip'))}"></i>
           </p>
+          <p class="small text-muted mb-2">
+            <i class="bi bi-exclamation-triangle text-warning me-1"></i>${t('metrics.pureza_nodo_comun_note')}
+          </p>
           <div class="mb-2">${checklist}</div>
           <button class="btn btn-primary btn-sm mb-3" id="btn-recalc-pureza">
             <i class="bi bi-arrow-repeat me-1"></i>${t('metrics.pureza_recalc')}
@@ -2956,26 +2959,42 @@ function exportRendimientoCSV() {
   emitCSV(`${ACABExport.slug(iso)}_rendimiento_${unitSlug()}_${folderSlug()}.csv`, iso, rows, headers);
 }
 
-/** Export the purity contribution table (per sim, per isotope considered, Fase 5). */
+/** Export the purity contribution table (per sim, per isotope considered, Fase 5).
+ *
+ * F16 del BACKLOG: usa `informe.pureza_nodo_comun` (TODAS las simulaciones
+ * evaluadas en UN ÚNICO instante), no `metricas[sim].pureza` (cada
+ * simulación en su propio pico -- no comparable entre casos cuando los
+ * picos no empatan entre sí). La cabecera declara el nodo común, la
+ * simulación de referencia y si su pico está empatado. */
 function exportPurezaCSV() {
   const iso = _state.selectedIsotopo;
   const informe = _state.isotopoReport && _state.isotopoReport.informe;
-  if (!iso || !informe || !_state.analysisData) return;
+  const pnc = informe && informe.pureza_nodo_comun;
+  if (!iso || !informe || !_state.analysisData || !pnc) return;
   const sims = _state.analysisData.simulations;
   const rows = [];
-  Object.entries(informe.metricas || {}).forEach(([name, m]) => {
-    const p = m.pureza;
-    if (!p) return;
+  Object.entries(pnc.por_simulacion || {}).forEach(([name, p]) => {
     const sim = sims[name];
-    p.contribuciones.forEach(c => rows.push([
+    (p.contribuciones || []).forEach(c => rows.push([
       name, p.P_pct, `${isoLabel(c.iso)} (${c.iso})`,
       c.A != null ? conv(c.A, sim) : null, c.pct,
     ]));
   });
   if (!rows.length) return;
+  const empateTxt = pnc.empate && pnc.intervalo_pico
+    ? t('tables.csv_meta_empate', {
+        ini: pnc.intervalo_pico.t_ini_h.toFixed(3),
+        fin: pnc.intervalo_pico.t_fin_h.toFixed(3),
+        n:   pnc.intervalo_pico.n_nodos,
+      })
+    : '';
+  const metaLine = `# ${t('metrics.pureza_csv_meta_nodo_comun', {
+    t: pnc.t_comun_h != null ? pnc.t_comun_h.toFixed(4) : '—',
+    sim: pnc.sim_referencia || '—',
+  })}${empateTxt}`;
   const headers = [t('overview.th_sim'), 'P [%]', t('metrics.pureza_th_iso'),
                    `A [${unitLabel()}]`, 'contribución [%]'];
-  emitCSV(`${ACABExport.slug(iso)}_pureza_${unitSlug()}_${folderSlug()}.csv`, iso, rows, headers);
+  emitCSV(`${ACABExport.slug(iso)}_pureza_${unitSlug()}_${folderSlug()}.csv`, iso, rows, headers, metaLine);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1397,6 +1397,77 @@ def calcular_pureza(
     }
 
 
+def calcular_pureza_nodo_comun(
+    all_data: dict,
+    iso_key: str,
+    isotopos_impureza: list[str],
+    sim_referencia: Optional[str] = None,
+) -> Optional[dict]:
+    """Pureza radionucleídica de TODAS las simulaciones evaluada en UN ÚNICO
+    NODO COMÚN (F16 del BACKLOG).
+
+    ``calcular_pureza`` (arriba) evalúa cada simulación en SU PROPIO
+    ``t_pico`` -- correcto para la tabla de contribuciones de una sola
+    simulación, pero no comparable entre casos cuando los picos de las
+    distintas simulaciones no empatan entre sí: verificado sobre el
+    experimento 2, v1 se evaluaba en 3,75 h (su máximo, que no empata) y
+    v1b/v2/v3/v4 en 3,50 h, con lo que la fracción de impureza de v1 salía
+    como la MENOR de las cinco cuando en un nodo común es la segunda.
+
+    El nodo común es el pico MÁS TEMPRANO (mínimo ``t_pico``) entre todas
+    las simulaciones cargadas -- salvo que se fuerce ``sim_referencia``
+    explícitamente. Desempate determinista por nombre de simulación
+    (orden de descubrimiento). Reutiliza ``calcular_pico`` (F15: ya declara
+    ``empate``/``intervalo_pico``/``nodo_evaluacion``) para el pico de la
+    simulación de referencia; ese mismo instante se evalúa vía
+    ``actividad_en_t`` para TODAS las simulaciones, también las que no
+    empatan entre sí.
+
+    Devuelve ``None`` si no hay simulaciones o ninguna tiene pico válido.
+    """
+    if not all_data or not isotopos_impureza:
+        return None
+
+    picos = {name: calcular_pico(sim, iso_key) for name, sim in all_data.items()}
+    validos = {name: p for name, p in picos.items() if p["t_pico"] is not None}
+    if not validos:
+        return None
+
+    if sim_referencia is None or sim_referencia not in validos:
+        sim_referencia = min(validos, key=lambda name: (validos[name]["t_pico"], name))
+
+    pico_ref = validos[sim_referencia]
+    t_comun = pico_ref["t_pico"]
+
+    por_simulacion: dict[str, dict] = {}
+    for name, sim in all_data.items():
+        contribuciones = []
+        total = 0.0
+        A_obj = 0.0
+        for iso in isotopos_impureza:
+            A = actividad_en_t(sim, t_comun, iso)
+            contribuciones.append({"iso": iso, "label": iso_label(iso), "A": _safe_val(A)})
+            total += A
+            if iso == iso_key:
+                A_obj = A
+        if total > 0:
+            for c in contribuciones:
+                c["pct"] = _safe_val(c["A"] / total * 100.0) if c["A"] is not None else None
+            P_pct = _safe_val(A_obj / total * 100.0)
+        else:
+            P_pct = None
+        por_simulacion[name] = {"P_pct": P_pct, "contribuciones": contribuciones}
+
+    return {
+        "t_comun_h":       _safe_val(t_comun),
+        "sim_referencia":  sim_referencia,
+        "empate":          pico_ref["empate"],
+        "intervalo_pico":  pico_ref["intervalo_pico"],
+        "nodo_evaluacion": pico_ref["nodo_evaluacion"],
+        "por_simulacion":  por_simulacion,
+    }
+
+
 # F1 (runbook_F1_pureza_temporal.md): umbral farmacéutico validado.
 UMBRAL_PUREZA_PCT = 99.9
 
@@ -1812,6 +1883,7 @@ def calcular_informe_isotopo(
     isotopo_key: str,
     t12_dict: dict[str, float],
     isotopos_impureza: Optional[list[str]] = None,
+    pureza_sim_referencia: Optional[str] = None,
 ) -> dict:
     """Build full report for any isotope across all simulations.
 
@@ -1894,6 +1966,12 @@ def calcular_informe_isotopo(
         "isotopos_disponibles":     sorted(isotopos_disponibles),
         "isotopos_impureza_default": impureza_default,
         "isotopos_impureza_usada":   impureza_list,
+        # F16 del BACKLOG: pureza de TODAS las simulaciones en un único nodo
+        # común (a diferencia de metricas[sim].pureza, cada una en su propio
+        # pico) -- la magnitud comparable entre casos, usada por la
+        # exportación CSV.
+        "pureza_nodo_comun": calcular_pureza_nodo_comun(
+            all_data, isotopo_key, impureza_list, pureza_sim_referencia),
     }
 
 
