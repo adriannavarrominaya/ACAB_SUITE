@@ -12,13 +12,15 @@
 
 **Fecha:** Julio 2026
 
-**Códigos de simulación:** ACAB 2008 (UPM — Activation code) · COLLAPS (preprocesador de secciones eficaces)
+**Códigos de simulación:** ACAB 2008 (UPM — Activation code) · COLLAPS (preprocesador de secciones eficaces) - CHAINS (análisis de cadenas de activación)
 
 ---
 
 Desarrollada como parte del Trabajo de Fin de Grado en Ingeniería de la Energía.
 
-![ACAB](https://img.shields.io/badge/NucCalc-ACABv2008-orange) ![COLLAPS](https://img.shields.io/badge/NucCalc-COLLAPS-orange) ![Python](https://img.shields.io/badge/Lang-Python314-blue) ![Flask](https://img.shields.io/badge/Web-Flask313-black) ![Bootstrap](https://img.shields.io/badge/Front-Bootstrap533-purple) ![Plotly](https://img.shields.io/badge/Charts-Plotly232-3F4F75)
+![ACAB](https://img.shields.io/badge/NucCalc-ACABv2008-orange) ![COLLAPS](https://img.shields.io/badge/NucCalc-COLLAPS-orange) 
+![CHAINS](https://img.shields.io/badge/NucCalc-CHAINS-orange) 
+![Python](https://img.shields.io/badge/Lang-Python314-blue) ![Flask](https://img.shields.io/badge/Web-Flask313-black) ![Bootstrap](https://img.shields.io/badge/Front-Bootstrap533-purple) ![Plotly](https://img.shields.io/badge/Charts-Plotly232-3F4F75)
 
 ---
 
@@ -208,3 +210,24 @@ Las reglas de trabajo en este árbol multi-repo (commits siempre dentro del repo
 afectado, ficheros duplicados que hay que mantener sincronizados entre apps —
 banner de navegación, `runner.py`, `install_python.ps1` — y demás convenciones)
 están documentadas en [`CLAUDE.md`](CLAUDE.md).
+
+---
+
+## 10. Cita
+
+Si utilizas este material, cita el TFG y el código ACAB utilizado:
+
+> Haffner, R., Miller, W. H., & Morris, S. (2019). *Verification of I-131 Yield from
+> the Neutron Irradiation of Tellurium.*
+
+> Sanz, J., Cabellos, Ó., & García-Herranz, N. (2008). *ACAB — Activation Abacus
+> Code.*
+
+---
+
+## 11. Licencia y alcance
+
+Los ficheros de entrada y salida de las simulaciones se publican para permitir la
+verificación independiente de los resultados de la memoria. **Las bibliotecas de datos
+nucleares están sujetas a las condiciones de sus evaluadores originales** y se
+incluyen únicamente para hacer utilizable la suite.
