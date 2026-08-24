@@ -49,6 +49,9 @@ run.log
 cpu_time.txt
 batch_results.json
 
+# Ejecutables
+*.exe
+
 # Nunca ignorar los fixtures congelados de las suites de tests oro
 !**/tests/fixtures/**
 
