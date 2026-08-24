@@ -42,7 +42,11 @@ Desarrollada como parte del Trabajo de Fin de Grado en Ingeniería de la Energí
 
 ---
 
+
+
 ## 1. Descripción
+
+Si lo que se quiere es iniciar la suite, consultar el apartado [5. Arranque rápido](#5-arranque-rápido)
 
 Este repositorio agrupa las herramientas web desarrolladas para el TFG como apoyo
 al trabajo con **ACAB 2008**, el código de cálculo de activación neutrónica del
@@ -75,7 +79,7 @@ ni están pensadas para despliegue multiusuario.
 
 El TFG estudia la producción de ¹³¹I médico por irradiación neutrónica de TeO₂:
 
-$${}^{130}\text{Te}(n,\gamma){}^{131}\text{Te} \xrightarrow{\beta^-} {}^{131}\text{I} \xrightarrow{\beta^-} {}^{131}\text{Xe}$$
+$${}^{130}\text{Te}(n,\gamma){}^{131}\text{Te} \xrightarrow{\beta^-} {}^{131}\text{I}$$
 
 Este caso guía el diseño de las herramientas (composición asistida de TeO₂ en el
 configurador de `inp.5`, espectro gamma de referencia de ¹³¹I en el analizador,

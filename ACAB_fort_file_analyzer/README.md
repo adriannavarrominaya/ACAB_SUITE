@@ -86,7 +86,7 @@ Este proyecto proporciona una **aplicación web interactiva** (Flask + Plotly.js
 
 El presente TFG estudia la producción de ¹³¹I médico por irradiación de TeO₂:
 
-$${}^{130}\text{Te}(n,\gamma){}^{131}\text{Te} \xrightarrow{\beta^-} {}^{131}\text{I} \xrightarrow{\beta^-} {}^{131}\text{Xe}$$
+$${}^{130}\text{Te}(n,\gamma){}^{131}\text{Te} \xrightarrow{\beta^-} {}^{131}\text{I}$$
 
 La herramienta es completamente genérica y permite analizar **cualquier isótopo** presente en los ficheros de salida de ACABv2008.
 
@@ -267,7 +267,7 @@ Las semividas de todos los isótopos se obtienen, **por orden de prioridad**, de
 
 1. **`DECAY.dat`** en la subcarpeta de la primera simulación → fuente autoritativa, cubre toda la tabla nuclear (miles de isótopos). Codificación ZZAAAS: Z número atómico, A número másico, S = 1 si estado metaestable.
 2. **Sección `semividas` del YAML** → sobreescritura explícita para un subconjunto de isótopos.
-3. **Tabla interna `DEFAULT_SEMIVIDAS`** en `fort_analyzer.py` → fallback si no hay `DECAY.dat` (cubre los isótopos del sistema Te/I/Xe del TFG).
+3. **Tabla interna `DEFAULT_SEMIVIDAS`** en `fort_analyzer.py` → fallback si no hay `DECAY.dat` (cubre los isótopos del sistema Te/I del TFG).
 
 Gracias a la lectura automática de `DECAY.dat`, la herramienta calcula correctamente la conversión $A = \lambda \cdot N$ para **cualquier isótopo** que aparezca en los ficheros de ACAB, sin necesidad de configuración manual de semividas.
 

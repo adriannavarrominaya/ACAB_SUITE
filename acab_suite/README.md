@@ -120,7 +120,7 @@ Convención de la suite: **simulaciones autocontenidas**. Cada carpeta de simula
   Nota: `XSECTION.dat` es salida de COLLAPS — si se regenera el espectro, actualizar la carpeta base de los barridos antes de generar/ejecutar.
 
 ### COLLAPS
-- Ejecutable: `collaps.exe`, presente EN la carpeta de trabajo, mismo modelo
+- Ejecutable: `collaps.exe`, presente En la carpeta de trabajo, mismo modelo
   que ACAB (sin argumentos, todo por cwd).
 - Fichero de entrada principal: `COLL.inp`.
 - Ficheros requeridos en el workdir: `collaps.exe`, `COLL.inp`, `XSBL.dat`.

@@ -34,7 +34,7 @@
         ],
         "output_file": "XSECTION.dat",
         "timeout_s": 60,
-        "default_workdir": "C:\\trabajo\\Documentos\\Documentos\\cosasNiños\\Adrian\\UNIVERSIDAD\\4º GIE-TE\\2º Semestre\\TFG\\Documentacion\\simulaciones\\Conjunto Simulaciones 1 - Verificacion\\1º Exp (revisado)\\v.3 - DECAY (2025)\\collaps"
+        "default_workdir": "C:\\git\\TFG\\Conjunto Simulaciones 1 - Verificacion\\1º Exp\\v.3 - DECAY (2025)\\collaps"
       }
     }
   ],
