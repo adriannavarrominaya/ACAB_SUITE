@@ -71,7 +71,7 @@ entorno virtual (`...\venv\Scripts\python app.py`) y abre
 - **Archivo** — Nuevo, Cargar COLL.inp…, Descargar, Validar, Vista previa
   del fichero. Es el menú que usarás en casi cada sesión (secciones 3, 4 y 8).
 - **Secciones** — atajo para saltar directamente a cada una de las cuatro
-  pestañas del formulario (Biblioteca, Fisión, Flujo Neutrónico, Opciones).
+  pestañas del formulario (Librería, Fisión, Flujo Neutrónico, Opciones).
 - **Selector de idioma** (esquina superior derecha) — Español/English; la
   preferencia se guarda en el navegador.
 - **Botón "Guardar en carpeta…"** (azul, barra superior) — acción primaria de
@@ -84,12 +84,12 @@ entorno virtual (`...\venv\Scripts\python app.py`) y abre
 
 ### Las cuatro pestañas
 
-Debajo de la barra superior, las pestañas **Biblioteca**, **Fisión**, **Flujo
+Debajo de la barra superior, las pestañas **Librería**, **Fisión**, **Flujo
 Neutrónico** y **Opciones** agrupan las 9 tarjetas del fichero por función:
 
 | Pestaña | Tarjetas |
 |---|---|
-| Biblioteca | #1 (`ILIB`/`IESF`), #2 (`IHEAD`) |
+| Librería | #1 (`ILIB`/`IESF`), #2 (`IHEAD`) |
 | Fisión | #3 (`ISFIS`/`IGEN`/`ISOCA`/`IBEST`), #4 (`EB1`/`EB2`, solo si `ISFIS ≠ 0`) |
 | Flujo Neutrónico | #5 (`NGROUP`/`FF`), #6 (`CX`, solo si `IESF = 5`), #7 (`FT`) |
 | Opciones | #8 (`IUNC3G`), #9 (`ISTOP`) |
@@ -114,7 +114,7 @@ formulario tal como lo dejaste (aviso "Sesión anterior restaurada").
    `ISTOP = 0`). El estado del fichero pasa a "modificado" en cuanto tocas
    cualquier campo.
 2. Recorre las cuatro pestañas en orden:
-   - **Biblioteca**: fija `ILIB` (estructura de la librería de secciones
+   - **Librería**: fija `ILIB` (estructura de la librería de secciones
      eficaces a colapsar) e `IESF` (estructura del espectro de entrada), y
      `IHEAD` (líneas de cabecera de la librería `XSBL.dat`).
    - **Fisión**: decide si necesitas el modo fisión (sección 6 de este
@@ -195,7 +195,7 @@ la **Card #6 se activa** y debes rellenar tú mismo el campo **CX** con las
 signo de `NGROUP`.
 
 > La app cambia automáticamente la visibilidad de la Card #6 al modificar el
-> desplegable **IESF** de la pestaña Biblioteca: no hay que recargar nada.
+> desplegable **IESF** de la pestaña Librería: no hay que recargar nada.
 
 ### Rellenar FT (y CX)
 

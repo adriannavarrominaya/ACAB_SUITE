@@ -90,7 +90,7 @@ Este proyecto proporciona:
 | **Flask** | 3.1.3 | Framework web (servidor de la aplicación) |
 | **Waitress** | ≥ 3.0.2 | Servidor WSGI de producción (sin avisos de desarrollo) |
 
-Únicamente se usan módulos de la biblioteca estándar de Python (`io`, `re`, `pathlib`, `tempfile`, `webbrowser`, `threading`, `collections`) además de Flask y Waitress.
+Únicamente se usan módulos de la librería estándar de Python (`io`, `re`, `pathlib`, `tempfile`, `webbrowser`, `threading`, `collections`) además de Flask y Waitress.
 
 ### Frontend
 
@@ -235,7 +235,7 @@ La interfaz está organizada en **cuatro pestañas** accesibles desde la barra d
 
 | Pestaña | Tarjetas cubiertas |
 |---------|--------------------|
-| **Biblioteca** | #1 (estructura de grupos de la librería XS y del flujo), #2 (cabecera de la librería) |
+| **Librería** | #1 (estructura de grupos de la librería XS y del flujo), #2 (cabecera de la librería) |
 | **Fisión** | #3 (flags del modo de fisión: `ISFIS`, `IGEN`, `ISOCA`, `IBEST`), #4 (fronteras energéticas `EB1`/`EB2`, solo si `ISFIS ≠ 0`) |
 | **Flujo Neutrónico** | #5 (número de grupos y unidades del flujo), #6 (fronteras energéticas personalizadas, solo si `IESF = 5`), #7 (valores del espectro neutrónico `FT`) |
 | **Opciones** | #8 (modo de incertidumbres `IUNC3G`), #9 (modo de ejecución `ISTOP`) |

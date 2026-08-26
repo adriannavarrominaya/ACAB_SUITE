@@ -15,7 +15,7 @@
     "preview"  : "Vista previa del fichero",
     "run"      : "Ejecutar",
     "sections" : "Secciones",
-    "sec_bib"  : "Biblioteca",
+    "sec_bib"  : "Librería",
     "sec_fis"  : "Fisión",
     "sec_flu"  : "Flujo Neutrónico",
     "sec_opt"  : "Opciones",
@@ -29,7 +29,7 @@
   },
 
   "tabs": {
-    "bib" : "Biblioteca",
+    "bib" : "Librería",
     "fis" : "Fisión",
     "flu" : "Flujo Neutrónico",
     "opt" : "Opciones"
