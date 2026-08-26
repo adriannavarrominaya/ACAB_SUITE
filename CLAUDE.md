@@ -15,6 +15,25 @@ Tres aplicaciones web Flask locales (monousuario, 127.0.0.1) que forman el ciclo
 
 Flujo de trabajo del usuario: COLLAPS (espectro) → inp.5 (entrada ACAB) → ejecutar ACAB → fort.6 → analyzer.
 
+## Glosario: dos capas deliberadas (T1–T4 del BACKLOG, 2026-08-26)
+
+- **Lo que ve el usuario** se llama **«cálculo paramétrico»** (en inglés,
+  «parametric study»), con los compuestos por tipo «cálculo paramétrico de
+  flujo / de masa / de historial temporal / de espectro». Es el término de la
+  UI, los manuales y las cabeceras de los ficheros generados. Y **«librería»**,
+  nunca «biblioteca», para DECAY.dat/PHOTON.dat/XS y la pestaña de COLLAPS.
+- **La capa de código sigue diciendo `sweep`/«barrido»**: `sweep_writer.py`,
+  `sweep.js`, `sweep_manifest_view.py`, `SweepError`, `mergeSweepRows`, los
+  comentarios y docstrings, y los `RUNBOOK_barrido_*.md`. No es terminología
+  olvidada: se dejó así a propósito (churn alto, valor nulo).
+- **Nada de lo que viaja a disco se renombró, y no debe renombrarse**:
+  `sweep_manifest.json` / `sweep_manifest.csv`, la clave `sweep_type` y sus
+  valores `flux`/`mass`/`time`/`spectrum`, y las claves i18n (`sweep.*`,
+  `optim.type_*`). Es lo que hace que los análisis del TFG ya generados sigan
+  abriéndose sin capa de compatibilidad. Anclado con tests oro contra un
+  manifiesto real anterior al cambio en los dos repos que lo leen
+  (`tests/fixtures/sweep_pre_renombrado/` de inp-conf y del analyzer).
+
 ## Reglas para trabajar en este árbol
 
 - **Un único repositorio git (monorepo) en la raíz de este árbol** (no hay repos independientes por subcarpeta). Los commits se acotan a un componente siempre que sea posible, con prefijo en el mensaje según el componente tocado: `inp-conf:`, `analyzer:`, `collaps:`, `suite:`. Un cambio genuinamente transversal (p. ej. sincronizar un fragmento duplicado) puede ir en un commit único con prefijo `suite:` que lo explique.

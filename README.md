@@ -63,8 +63,8 @@ entradas → ejecutar → analizar salidas** — mediante una interfaz web local
   espectro neutrónico colapsado (`COLL.inp` → `XSECTION.dat`).
 - **[ACAB_inp_file_configurator](ACAB_inp_file_configurator/)** construye el
   fichero de entrada de ACAB (`inp.5`) a partir de ese espectro y de la
-  composición del blanco, y puede ejecutar la simulación y generar barridos
-  paramétricos.
+  composición del blanco, y puede ejecutar la simulación y generar cálculos paramétricos
+  .
 - **[ACAB_fort_file_analyzer](ACAB_fort_file_analyzer/)** analiza la salida
   (`fort.6`): evolución temporal de la actividad, informes por isótopo, tablas
   comparativas y métricas de optimización de producción.
@@ -96,7 +96,7 @@ métricas de optimización se documentan en el
 | Carpeta | Qué es | Puerto | Documentación |
 |---|---|---|---|
 | `COLLAPS_inp_file_configurator/` | Editor del fichero `COLL.inp` de COLLAPS (colapsado de espectros) | 5002 | [README](COLLAPS_inp_file_configurator/README.md) |
-| `ACAB_inp_file_configurator/` | Editor/generador de ficheros de entrada `inp.5` (14 bloques) y ficheros CHAINS; ejecución y barridos paramétricos | 5000 | [README](ACAB_inp_file_configurator/README.md) |
+| `ACAB_inp_file_configurator/` | Editor/generador de ficheros de entrada `inp.5` (14 bloques) y ficheros CHAINS; ejecución y cálculos paramétricos | 5000 | [README](ACAB_inp_file_configurator/README.md) |
 | `ACAB_fort_file_analyzer/` | Análisis y gráficas de ficheros de salida `fort.6` (multi-simulación) | 5001 | [README](ACAB_fort_file_analyzer/README.md) |
 | `acab_suite/` | Transversal: launcher de la suite, configuración común y runbooks de desarrollo | — | [README](acab_suite/README.md) |
 
@@ -129,7 +129,7 @@ COLL.inp  ──[collaps.exe]──▶ XSECTION.dat
 Las tres apps están enlazadas entre sí mediante un banner de navegación común
 (con indicador de qué apps están arrancadas) y, entre el configurador de `inp.5`
 y el analizador, mediante un enlace directo tras ejecutar una simulación. El
-configurador de `inp.5` puede además generar **barridos paramétricos** (flujo,
+configurador de `inp.5` puede además generar **cálculos paramétricos** (flujo,
 masa o historial temporal) que el analizador consume en su pestaña
 "Optimización".
 
@@ -190,7 +190,7 @@ se versionan) dentro de su propio repo.
 | **Plotly.js 2.32** | Gráficas interactivas (solo en el analizador de `fort.6`) |
 
 Cada app documenta su stack completo (dependencias exactas, módulos de la
-biblioteca estándar usados) en la sección "Tecnologías Utilizadas" de su README.
+librería estándar usados) en la sección "Tecnologías Utilizadas" de su README.
 La interfaz de las tres está disponible en **español** (por defecto) e
 **inglés**, con la preferencia guardada en el navegador.
 
@@ -232,6 +232,6 @@ Si utilizas este material, cita el TFG y el código ACAB utilizado:
 ## 11. Licencia y alcance
 
 Los ficheros de entrada y salida de las simulaciones se publican para permitir la
-verificación independiente de los resultados de la memoria. **Las bibliotecas de datos
+verificación independiente de los resultados de la memoria. **Las librerías de datos
 nucleares están sujetas a las condiciones de sus evaluadores originales** y se
 incluyen únicamente para hacer utilizable la suite.
