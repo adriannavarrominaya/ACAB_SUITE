@@ -242,7 +242,7 @@ function fluxSweepGuardrail(valores, modo, phiBase) {
  */
 function buildMassPatches({ masas, formula, volumen, inpt, zoneIdx, baseBlock5, elements }) {
   if (inpt === 2)
-    throw new Error('El barrido de masa no soporta INPT=2 (isótopos); usa átomos/barn·cm o g/cc.');
+    throw new Error('El cálculo paramétrico de masa no soporta INPT=2 (isótopos); usa átomos/barn·cm o g/cc.');
   const base = baseBlock5 || [];
   const zone = base[zoneIdx];
   if (!zone) throw new Error(`La zona ${zoneIdx + 1} no existe en la composición base.`);

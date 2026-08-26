@@ -272,7 +272,7 @@ def api_sweep_manifest():
     acción posterior sobre lo ya cargado (ver static/js/sweep.js)."""
     root = (request.args.get('root') or '').strip()
     if not root:
-        return jsonify({'ok': False, 'error': 'Falta la carpeta raíz del barrido.'}), 422
+        return jsonify({'ok': False, 'error': 'Falta la carpeta raíz del cálculo paramétrico.'}), 422
     root_p = Path(root)
     if not root_p.is_dir():
         return jsonify({'ok': False, 'error': f'La carpeta no existe: {root}'}), 422
@@ -280,7 +280,7 @@ def api_sweep_manifest():
         view = build_manifest_view(root_p)
     except FileNotFoundError:
         return jsonify({'ok': False, 'error':
-            'Esta carpeta no contiene un barrido generado por la suite '
+            'Esta carpeta no contiene un cálculo paramétrico generado por la suite '
             '(no se encontró sweep_manifest.json).'}), 404
     except ManifestCorruptError as exc:
         return jsonify({'ok': False, 'error':
@@ -666,7 +666,7 @@ def api_run_batch():
     folders = payload.get('folders')
 
     if not root:
-        return jsonify({'error': 'Debes indicar la carpeta raíz del barrido.'}), 422
+        return jsonify({'error': 'Debes indicar la carpeta raíz del cálculo paramétrico.'}), 422
     root_p = Path(root)
     if not root_p.is_dir():
         return jsonify({'error': f'La carpeta raíz no existe: {root}'}), 422
@@ -691,7 +691,7 @@ def api_run_batch():
             manifest = None
 
     if not folders:
-        return jsonify({'error': 'El barrido no tiene simulaciones que ejecutar.'}), 422
+        return jsonify({'error': 'El cálculo paramétrico no tiene simulaciones que ejecutar.'}), 422
 
     is_spectrum = bool(manifest) and manifest.get('sweep_type') == 'spectrum'
 
@@ -732,7 +732,7 @@ def api_run_batch():
 
     if missing_dirs:
         return jsonify({'error':
-            'No existen estas subcarpetas del barrido: ' + ', '.join(missing_dirs)}), 422
+            'No existen estas subcarpetas del cálculo paramétrico: ' + ', '.join(missing_dirs)}), 422
     if missing_files:
         detail = '; '.join(f'{f}: {", ".join(fs)}' for f, fs in missing_files.items())
         return jsonify({'error':

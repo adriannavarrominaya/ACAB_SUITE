@@ -183,6 +183,89 @@ class BuildManifestViewGoldenTests(unittest.TestCase):
         self.assertIsNone(view['simulations'][0]['value_label'])  # el llamador cae a 'folder'
 
 
+class ManifiestoRealPreRenombradoTests(unittest.TestCase):
+    """Compatibilidad hacia atrás del renombrado «barrido paramétrico» →
+    «cálculo paramétrico» (sesión de terminología).
+
+    El renombrado es SOLO de texto visible: el fichero sigue llamándose
+    `sweep_manifest.json`, la clave sigue siendo `sweep_type` y sus valores
+    siguen siendo `flux`/`mass`/`time`/`spectrum`. Este test lo ancla contra un
+    manifiesto REAL anterior al cambio (el cálculo paramétrico de espectro de
+    los nueve reactores, 2026-07-13) para que ningún renombrado futuro lo
+    rompa en silencio: si alguien renombra el fichero, la clave o los valores
+    de tipo, este test se pone en rojo antes de que un análisis del TFG deje de
+    abrirse. Ver `tests/fixtures/sweep_pre_renombrado/PROCEDENCIA.md`.
+    """
+
+    FIXTURE = (Path(__file__).resolve().parents[1]
+               / 'tests' / 'fixtures' / 'sweep_pre_renombrado')
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.root = self.tmp / 'nueve_reactores'
+        self.root.mkdir(parents=True)
+        shutil.copy2(self.FIXTURE / 'sweep_manifest.json',
+                     self.root / 'sweep_manifest.json')
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_manifiesto_real_anterior_al_renombrado_se_abre_igual(self):
+        view = build_manifest_view(self.root)
+
+        # Tipo y tamaño, tal cual los escribió la versión antigua.
+        self.assertEqual(view['sweep_type'], 'spectrum')
+        self.assertEqual(view['n'], 9)
+        self.assertEqual(len(view['simulations']), 9)
+
+        # Descripción en la terminología ANTIGUA: se muestra tal cual, sin
+        # migrar ni "corregir" nada de lo que ya escribió el usuario.
+        self.assertEqual(view['description'], 'Barrido de expectro')
+
+        # Es PRE-C4: sin `excluded_base_files`, degrada a [] sin romper.
+        self.assertEqual(view['excluded_base_files'], [])
+
+        # El identificador de cada simulación sigue siendo el NOMBRE del
+        # espectro (criterio compartido con la pestaña Optimización), nunca un
+        # volcado de params.
+        labels = [s['value_label'] for s in view['simulations']]
+        self.assertIn('112_MURR-G1', labels)
+        self.assertIn('621_SCK-BR2', labels)
+        self.assertTrue(all(lbl and '=' not in lbl for lbl in labels))
+
+    def test_endpoint_abre_el_manifiesto_real_anterior_al_renombrado(self):
+        client = appmod.app.test_client()
+        r = client.get('/api/sweep/manifest', query_string={'root': str(self.root)})
+        self.assertEqual(r.status_code, 200)
+        body = r.get_json()
+        self.assertTrue(body['ok'])
+        self.assertEqual(body['sweep_type'], 'spectrum')
+        self.assertEqual(len(body['simulations']), 9)
+
+    def test_manifiesto_nuevo_conserva_la_forma_del_antiguo(self):
+        """Un manifiesto escrito DESPUÉS del renombrado tiene exactamente las
+        mismas claves y los mismos valores de `sweep_type` que el real de
+        arriba -- lo único que cambió es el texto que ve el usuario."""
+        antiguo = json.loads(
+            (self.FIXTURE / 'sweep_manifest.json').read_text(encoding='utf-8'))
+
+        nuevo_root = self.tmp / 'nuevo'
+        nuevo = dict(SPECTRUM_MANIFEST)
+        nuevo['description'] = 'cálculo paramétrico de espectro - 2 reactores'
+        _write_manifest(nuevo_root, nuevo)
+
+        view_nuevo = build_manifest_view(nuevo_root)
+        view_antiguo = build_manifest_view(self.root)
+
+        self.assertEqual(set(view_nuevo), set(view_antiguo))
+        self.assertEqual(view_nuevo['sweep_type'], view_antiguo['sweep_type'])
+        # Las claves del manifest en disco: el nuevo añade `excluded_base_files`
+        # (C4) y no quita ninguna de las del antiguo.
+        self.assertTrue(set(antiguo).issubset(set(nuevo)))
+        self.assertEqual(
+            set(view_nuevo['simulations'][0]), set(view_antiguo['simulations'][0]))
+
+
 class BuildManifestViewErrorTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())

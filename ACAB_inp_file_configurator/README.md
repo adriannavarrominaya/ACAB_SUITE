@@ -72,8 +72,8 @@ Desarrollada como parte del Trabajo de Fin de Grado en Ingeniería de la Energí
     - [Presets de EGRP (Bloque #2, Card #6)](#presets-de-egrp-bloque-2-card-6)
     - [Validaciones nuevas](#validaciones-nuevas)
     - [Decisiones documentadas y cuestiones pendientes (julio 2026)](#decisiones-documentadas-y-cuestiones-pendientes-julio-2026)
-    - [Barrido paramétrico](#barrido-paramétrico)
-    - [Barrido espectral (COLLAPS)](#barrido-espectral-collaps)
+    - [Cálculo paramétrico](#cálculo-paramétrico)
+    - [Cálculo paramétrico de espectro (COLLAPS)](#cálculo-paramétrico-de-espectro-collaps)
 
 ---
 
@@ -100,7 +100,7 @@ Este proyecto proporciona:
 | **Flask** | 3.1.3 | Framework web (servidor de la aplicación) |
 | **Werkzeug** | — *(dep. Flask)* | Manejo de ficheros en uploads |
 
-Únicamente se usan módulos de la biblioteca estándar de Python (`io`, `re`, `pathlib`, `tempfile`, `webbrowser`, `threading`) además de Flask.
+Únicamente se usan módulos de la librería estándar de Python (`io`, `re`, `pathlib`, `tempfile`, `webbrowser`, `threading`) además de Flask.
 
 ### Frontend
 
@@ -130,10 +130,10 @@ Este proyecto proporciona:
 ```
 ACAB_INO_FILE_Configurator/
 │
-├── app.py                  # Servidor Flask + escritor _write_inp5() + rutas CHAINS + rutas de barrido
+├── app.py                  # Servidor Flask + escritor _write_inp5() + rutas CHAINS + rutas de cálculo paramétrico
 ├── acab_parser.py          # Parser completo de ficheros inp.5
 ├── chains_handler.py       # Parser + escritor + detección de ficheros CHAINS
-├── sweep_writer.py         # Generador de barridos paramétricos (merge de patches, manifest, scripts)
+├── sweep_writer.py         # Generador de cálculos paramétricos (merge de patches, manifest, scripts)
 │
 ├── templates/
 │   ├── index.html          # Interfaz web principal (Bootstrap 5)
@@ -145,8 +145,8 @@ ACAB_INO_FILE_Configurator/
 │   └── js/
 │       ├── app.js          # Lógica del frontend principal (collectAll, populateAll, etc.)
 │       ├── calc_utils.js   # Funciones puras: composición asistida y validador EGRP
-│       ├── sweep_utils.js  # Funciones puras del barrido (mallas, patches, sufijos)
-│       ├── sweep.js        # Lógica del frontend de la pestaña Barrido
+│       ├── sweep_utils.js  # Funciones puras del cálculo paramétrico (mallas, patches, sufijos)
+│       ├── sweep.js        # Lógica del frontend de la pestaña Cálculo paramétrico
 │       └── chains.js       # Lógica del frontend CHAINS
 │
 ├── docs/
@@ -168,7 +168,7 @@ ACAB_INO_FILE_Configurator/
 │   ├── test_calc_utils.js       # Tests de calc_utils.js
 │   ├── test_validate_all.js     # Tests de las validaciones cruzadas
 │   ├── test_sweep_utils.js      # Tests de sweep_utils.js
-│   └── test_sweep_endpoint.py   # Tests de los endpoints de barrido
+│   └── test_sweep_endpoint.py   # Tests de los endpoints de cálculo paramétrico
 │
 └── README.md               # Este fichero
 ```
@@ -293,7 +293,7 @@ La interfaz está organizada en **seis secciones** accesibles desde la barra de 
 | **Materiales y Flujo** | #3 (flujo neutrónico), #5 (composición inicial), #6 (alimentación continua) |
 | **Historial Temporal** | #7/#8 (historial irradiación/enfriamiento), #11 (tipo de cálculo y escenario), #12 (alimentación instantánea), #13 (control de salida) |
 | **Análisis de Incertidumbres** | #14 (Monte Carlo, solo activo cuando IUNC = 1) |
-| **Barrido paramétrico** | genera N carpetas de simulación variando un parámetro (flujo, masa o historial temporal) sobre el fichero base actual |
+| **Cálculo paramétrico** | genera N carpetas de simulación variando un parámetro (flujo, masa o historial temporal) sobre el fichero base actual |
 
 Dentro de cada sección, un **menú lateral** permite saltar directamente a cada bloque.
 
@@ -403,7 +403,7 @@ El servidor Flask expone los siguientes endpoints JSON:
 | `POST` | `/api/save` | Recibe el dict de datos JSON, genera el texto `inp.5` y lo devuelve como descarga |
 | `POST` | `/api/preview` | Recibe el dict de datos JSON y devuelve el texto `inp.5` como string (sin descarga) |
 | `POST` | `/api/browse-folder` | Abre un diálogo nativo del SO para elegir carpeta (tkinter en subproceso) y devuelve la ruta seleccionada |
-| `POST` | `/api/sweep/preview` | Comprueba un barrido sin escribir nada (rutas, tamaño de la carpeta base, coste en disco, colisiones, sufijos) |
+| `POST` | `/api/sweep/preview` | Comprueba un cálculo paramétrico sin escribir nada (rutas, tamaño de la carpeta base, coste en disco, colisiones, sufijos) |
 | `POST` | `/api/sweep` | Genera N carpetas de simulación (merge de patches sobre el fichero base, copia de la carpeta base, manifest y scripts) |
 
 ### Endpoints CHAINS
@@ -567,7 +567,7 @@ node tools/test_calc_utils.js
 # Validaciones cruzadas V23–V25 de validateAll (stubs de DOM)
 node tools/test_validate_all.js
 
-# Funciones puras del generador de barridos (mallas, patches, sufijos)
+# Funciones puras del generador de cálculos paramétricos (mallas, patches, sufijos)
 node tools/test_sweep_utils.js
 
 # Endpoints /api/sweep y /api/sweep/preview (merge, copia, manifest, límites)
@@ -628,9 +628,9 @@ patrones oro usan 6 decimales y no se ven afectados. Si en el futuro hiciera
 falta conservar más precisión, bastaría subir `prec` en `_sci` (`app.py`) y
 re-ejecutar la regresión.
 
-### Barrido paramétrico
+### Cálculo paramétrico
 
-La pestaña **Barrido paramétrico** genera, a partir del fichero base cargado y
+La pestaña **Cálculo paramétrico** genera, a partir del fichero base cargado y
 **válido**, N carpetas de simulación variando **un único** parámetro y dejando
 fijo el resto del fichero. La pestaña re-ejecuta `validateAll()` al entrar y
 antes de generar: si el fichero base tiene errores, se listan y se deshabilita
@@ -640,7 +640,7 @@ La carpeta raíz y la carpeta base pueden escribirse a mano o elegirse con el
 botón de examinar (📁), que abre el diálogo de carpetas nativo del sistema
 operativo (endpoint `/api/browse-folder`) para evitar errores de tecleo.
 
-Tipos de barrido (excluyentes) y qué queda congelado en cada uno:
+Tipos de cálculo paramétrico (excluyentes) y qué queda congelado en cada uno:
 
 | Tipo | Qué varía | Qué queda congelado |
 |------|-----------|---------------------|
@@ -650,7 +650,7 @@ Tipos de barrido (excluyentes) y qué queda congelado en cada uno:
 
 > **Nota física (flujo).** XNORM escala la **magnitud** del flujo, no la
 > **forma** del espectro (las secciones eficaces colapsadas con COLLAPS siguen
-> siendo válidas en todo el barrido). Si el escenario real cambia la forma del
+> siendo válidas en todo el cálculo paramétrico). Si el escenario real cambia la forma del
 > espectro, hay que regenerar con COLLAPS, no con XNORM.
 
 **Salida.** En la carpeta raíz se crean, por simulación, subcarpetas
@@ -660,10 +660,10 @@ Tipos de barrido (excluyentes) y qué queda congelado en cada uno:
 **reemplaza** cualquier `inp.5` presente en la carpeta base. Además, en la raíz
 se escriben:
 
-- `sweep_manifest.json` — timestamp, tipo de barrido, descripción, parámetros
+- `sweep_manifest.json` — timestamp, tipo de cálculo paramétrico, descripción, parámetros
   fijos y lista `[{folder, params}]`.
 - `sweep_manifest.csv` — `folder` + una columna por parámetro.
-- `README.txt` — descripción y resumen legible del barrido.
+- `README.txt` — descripción y resumen legible del cálculo paramétrico.
 - `run_all.ps1` / `run_all.sh` — bucle que entra en cada subcarpeta y ejecuta
   ACAB (`$ACAB_EXE` a rellenar), redirigiendo la salida a `run.log`.
 
@@ -672,11 +672,11 @@ interfaz si N > 30 y aviso destacado si el coste en disco estimado
 (tamaño de la carpeta base × N) supera 2 GB. Las colisiones con subcarpetas
 existentes devuelven HTTP 409 salvo que se confirme sobrescribir. Cada `inp.5`
 generado se verifica re-parseándolo (round-trip) antes de escribir; si alguno
-falla, se aborta **todo** el barrido y se limpia lo ya escrito.
+falla, se aborta **todo** el cálculo paramétrico y se limpia lo ya escrito.
 
-### Barrido espectral (COLLAPS)
+### Cálculo paramétrico de espectro (COLLAPS)
 
-Cuarto tipo de barrido de la pestaña "Barrido": en lugar de variar un valor
+Cuarto tipo de cálculo paramétrico de la pestaña "Cálculo paramétrico": en lugar de variar un valor
 del `inp.5`, varía la **forma** del espectro neutrónico que COLLAPS colapsa a
 la librería de secciones eficaces (tarjeta 7/FT y tarjeta 6/CX del `COLL.inp`),
 importando espectros externos publicados en formato **CONDERC** del OIEA
@@ -685,11 +685,11 @@ Pregunta que responde: a igualdad de densidad de flujo total, ¿en qué tipo de
 reactor (térmico, epitérmico, rápido…) es más eficaz la producción del
 radioisótopo?
 
-**Qué NO toca este barrido.** El `inp.5` queda intacto salvo, opcionalmente,
+**Qué NO toca este cálculo paramétrico.** El `inp.5` queda intacto salvo, opcionalmente,
 un único valor: si se edita el campo **φ_ref** de la pestaña (prefijado con el
 Bloque #3 del fichero base), ese mismo valor se aplica como flujo total a
 **todas** las simulaciones (patch uniforme). `XNORM` (Bloque #9) no se toca —
-queda reservado al barrido de flujo, y permite en el futuro combinar espectro
+queda reservado al cálculo paramétrico de flujo, y permite en el futuro combinar espectro
 × flujo.
 
 **Por qué la comparación es "a flujo total igual" sin normalizar nada.** El
@@ -747,12 +747,12 @@ frontera): **térmica** (E < 0,625 eV), **epitérmica** (0,625 eV – 0,1 MeV) y
 número de grupos, de forma que la pestaña "Optimización" del Fort Analyzer
 puede graficar directamente A_pico frente a la fracción térmica sin cambios.
 
-**Ejecución (pipeline collaps → acab).** Cada simulación del barrido
+**Ejecución (pipeline collaps → acab).** Cada simulación del cálculo paramétrico
 espectral es un pipeline de varios pasos, no una única ejecución: 1) `collaps.exe`
 sobre el `COLL.inp` parcheado con el espectro de esa fila; 2) copia de
 `XSECTION.dat` generado por COLLAPS a la carpeta de la simulación;
 3) `acab.exe` sobre esa carpeta; 4) lectura de verificación de `FLUX.inf`. La
-carpeta base del barrido debe incluir una subcarpeta `collaps/` con
+carpeta base del cálculo paramétrico debe incluir una subcarpeta `collaps/` con
 `collaps.exe`, `XSBL.dat` y un `COLL.inp` de partida. Un fallo en cualquier
 paso marca esa simulación como fallida (con el paso responsable indicado) sin
 detener el resto de la cola. La fila de cada simulación en curso muestra el

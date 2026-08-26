@@ -239,7 +239,7 @@
       <button class="nav-link" id="tab-sweep-btn"
               data-bs-toggle="tab" data-bs-target="#sec-sweep"
               type="button" role="tab" data-i18n="tabs.sweep">
-        <i class="bi bi-collection me-1"></i>Barrido paramétrico
+        <i class="bi bi-collection me-1"></i>Cálculo paramétrico
       </button>
     </li>
     <li class="nav-item" role="presentation">
@@ -2051,12 +2051,12 @@
     </div><!-- /sec-uncertainties -->
 
     <!-- ════════════════════════════════════════
-         SECCIÓN: BARRIDO PARAMÉTRICO
+         SECCIÓN: CÁLCULO PARAMÉTRICO
          ════════════════════════════════════════ -->
     <div class="tab-pane fade" id="sec-sweep" role="tabpanel">
       <div class="p-3">
 
-        <h4 class="mb-1"><i class="bi bi-collection me-2"></i><span data-i18n="sweep.title">Barrido paramétrico</span></h4>
+        <h4 class="mb-1"><i class="bi bi-collection me-2"></i><span data-i18n="sweep.title">Cálculo paramétrico</span></h4>
         <p class="text-muted small" data-i18n="sweep.intro">
           Genera N carpetas de simulación variando UN parámetro (flujo, masa o historial temporal)
           y dejando fijo el resto del fichero base actual. Cada carpeta incluye su inp.5 y una copia
@@ -2077,7 +2077,7 @@
                 <label class="form-label" for="sweep-root" data-i18n="sweep.root_lbl">Carpeta raíz de salida</label>
                 <div class="input-group">
                   <input id="sweep-root" type="text" class="form-control font-monospace"
-                         placeholder="C:\TFG\barridos\flujo_1">
+                         placeholder="C:\TFG\calculos_parametricos\flujo_1">
                   <button class="btn btn-outline-secondary sweep-browse-btn" type="button"
                           data-target="sweep-root" data-i18n-title="sweep.browse" title="Examinar…">
                     <i class="bi bi-folder2-open"></i>
@@ -2102,9 +2102,9 @@
                 <input id="sweep-prefix" type="text" class="form-control font-monospace" placeholder="TeO2_">
               </div>
               <div class="col-md-8">
-                <label class="form-label" for="sweep-desc" data-i18n="sweep.desc_lbl">Descripción del barrido (obligatoria)</label>
+                <label class="form-label" for="sweep-desc" data-i18n="sweep.desc_lbl">Descripción del cálculo paramétrico (obligatoria)</label>
                 <input id="sweep-desc" type="text" class="form-control"
-                       data-i18n-ph="sweep.desc_ph" placeholder="p. ej. barrido de flujo para TeO2, T_irr = 24 h">
+                       data-i18n-ph="sweep.desc_ph" placeholder="p. ej. cálculo paramétrico de flujo para TeO2, T_irr = 24 h">
               </div>
             </div>
           </div>
@@ -2112,7 +2112,7 @@
 
         <!-- Selector de tipo -->
         <div class="card mb-3 block-card">
-          <div class="card-header block-card-header" data-i18n="sweep.type_h">Tipo de barrido</div>
+          <div class="card-header block-card-header" data-i18n="sweep.type_h">Tipo de cálculo paramétrico</div>
           <div class="card-body">
             <div class="row g-2 mb-3">
               <div class="col-md-3">
@@ -2182,7 +2182,7 @@
                 objetivo. No disponible con INPT = 2 (isótopos).
               </div>
               <div id="sweep-mass-inpt2" class="alert alert-warning py-2 small d-none" data-i18n="sweep.mass_inpt2">
-                El fichero base usa INPT = 2 (isótopos); el barrido de masa no está disponible.
+                El fichero base usa INPT = 2 (isótopos); el cálculo paramétrico de masa no está disponible.
               </div>
               <div class="row g-3">
                 <div class="col-md-4">
@@ -2281,7 +2281,7 @@
             <i class="bi bi-list-check me-1"></i><span data-i18n="sweep.preview_btn">Previsualizar</span>
           </button>
           <button class="btn btn-primary" id="sweep-generate-btn" disabled>
-            <i class="bi bi-play-fill me-1"></i><span data-i18n="sweep.generate_btn">Generar barrido</span>
+            <i class="bi bi-play-fill me-1"></i><span data-i18n="sweep.generate_btn">Generar cálculo paramétrico</span>
           </button>
           <span id="sweep-spinner" class="align-self-center d-none">
             <span class="spinner-border spinner-border-sm me-1"></span><span data-i18n="sweep.generating">Generando…</span>
@@ -2318,9 +2318,9 @@
           </div>
         </div>
 
-        <!-- Ejecución del barrido (Fase R4) -->
+        <!-- Ejecución del cálculo paramétrico (Fase R4) -->
         <div id="sweep-run-panel" class="card mb-3 block-card d-none">
-          <div class="card-header block-card-header" data-i18n="sweep.run_h">Ejecución del barrido</div>
+          <div class="card-header block-card-header" data-i18n="sweep.run_h">Ejecución del cálculo paramétrico</div>
           <div class="card-body">
             <p class="small mb-2">
               <span data-i18n="sweep.run_root_lbl">Carpeta raíz:</span>
@@ -2328,7 +2328,7 @@
             </p>
             <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
               <button type="button" class="btn btn-success btn-sm" id="btn-sweep-run-start">
-                <i class="bi bi-play-fill me-1"></i><span data-i18n="sweep.run_start_btn">Ejecutar barrido</span>
+                <i class="bi bi-play-fill me-1"></i><span data-i18n="sweep.run_start_btn">Ejecutar cálculo paramétrico</span>
               </button>
               <button type="button" class="btn btn-outline-danger btn-sm" id="btn-sweep-run-cancel" disabled>
                 <i class="bi bi-stop-fill me-1"></i><span data-i18n="run.cancel_btn">Cancelar</span>
@@ -2358,18 +2358,18 @@
           </div>
         </div>
 
-        <!-- Cargar/consultar un barrido ya generado (U6): cargar SIEMPRE
+        <!-- Cargar/consultar un cálculo paramétrico ya generado (U6): cargar SIEMPRE
              muestra el contenido (solo lectura); "Ejecutar" es una acción
-             sobre el barrido ya cargado, no un segundo camino de carga. -->
+             sobre el cálculo paramétrico ya cargado, no un segundo camino de carga. -->
         <div class="card mb-3 block-card">
-          <div class="card-header block-card-header" data-i18n="sweep.load_h">Cargar un barrido generado</div>
+          <div class="card-header block-card-header" data-i18n="sweep.load_h">Cargar un cálculo paramétrico generado</div>
           <div class="card-body">
             <label class="form-label small" for="sweep-load-root" data-i18n="sweep.load_hint">
-              Selecciona la carpeta raíz de un barrido ya generado por la suite para consultar su contenido.
+              Selecciona la carpeta raíz de un cálculo paramétrico ya generado por la suite para consultar su contenido.
             </label>
             <div class="input-group input-group-sm mb-2" style="max-width:36rem">
               <input id="sweep-load-root" type="text" class="form-control font-monospace"
-                     placeholder="C:\TFG\barridos\flujo_1">
+                     placeholder="C:\TFG\calculos_parametricos\flujo_1">
               <button class="btn btn-outline-secondary sweep-browse-btn" type="button"
                       data-target="sweep-load-root" data-i18n-title="sweep.browse" title="Examinar…">
                 <i class="bi bi-folder2-open"></i>
@@ -2380,10 +2380,10 @@
             </div>
             <div id="sweep-load-msg" class="alert d-none py-2 small"></div>
 
-            <!-- Vista de solo lectura del barrido cargado -->
+            <!-- Vista de solo lectura del cálculo paramétrico cargado -->
             <div id="sweep-loaded-view" class="d-none">
               <p class="mb-2 small">
-                <span data-i18n="sweep.loaded_type_lbl">Tipo de barrido:</span>
+                <span data-i18n="sweep.loaded_type_lbl">Tipo de cálculo paramétrico:</span>
                 <span id="sweep-loaded-type" class="badge bg-secondary"></span>
                 &nbsp;·&nbsp;
                 <span id="sweep-loaded-desc" class="fst-italic"></span>
@@ -2401,7 +2401,7 @@
               </div>
 
               <div id="sweep-loaded-not-run" class="alert alert-secondary py-2 small d-none" data-i18n="sweep.loaded_not_run">
-                Este barrido todavía no se ha ejecutado.
+                Este cálculo paramétrico todavía no se ha ejecutado.
               </div>
               <div id="sweep-loaded-batch-summary" class="small text-muted mb-2"></div>
 
@@ -2420,7 +2420,7 @@
               </div>
 
               <button type="button" class="btn btn-success btn-sm" id="btn-sweep-loaded-run">
-                <i class="bi bi-play-fill me-1"></i><span data-i18n="sweep.run_start_btn">Ejecutar barrido</span>
+                <i class="bi bi-play-fill me-1"></i><span data-i18n="sweep.run_start_btn">Ejecutar cálculo paramétrico</span>
               </button>
             </div>
           </div>

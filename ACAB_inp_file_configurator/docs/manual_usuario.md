@@ -15,7 +15,7 @@
 6. [Generar el historial temporal](#6-generar-el-historial-temporal)
 7. [Guardar y ejecutar ACAB](#7-guardar-y-ejecutar-acab)
 8. [Herramienta CHAINS](#8-herramienta-chains)
-9. [Barridos paramétricos](#9-barridos-paramétricos)
+9. [Cálculos paramétricos](#9-cálculos-paramétricos)
 10. [Análisis de cadenas (ACAB + CHAINS)](#10-análisis-de-cadenas-acab--chains)
 11. [Errores y avisos frecuentes](#11-errores-y-avisos-frecuentes)
 
@@ -40,10 +40,10 @@ Además incluye:
 
 - Una herramienta separada para ficheros **CHAINS** (análisis de caminos de
   transmutación).
-- Una pestaña de **barridos paramétricos**, que genera automáticamente varias
+- Una pestaña de **cálculos paramétricos**, que genera automáticamente varias
   carpetas de simulación variando un único parámetro (flujo, masa, historial
   temporal o forma del espectro).
-- Ejecución integrada de ACAB (y, para el barrido espectral, también de
+- Ejecución integrada de ACAB (y, para el cálculo paramétrico de espectro, también de
   COLLAPS) sin salir del navegador.
 
 No necesitas saber programar ni conocer el código fuente para usar este
@@ -173,8 +173,8 @@ elegiste un valor, sin que ACAB lo interprete.
    `INPT` y el tipo de identificador usado en el Bloque #5.
 
 La misma validación se ejecuta automáticamente al entrar en la pestaña
-**Barrido** (sección 9): un fichero base con errores no permite previsualizar
-ni generar barridos.
+**Cálculo paramétrico** (sección 9): un fichero base con errores no permite previsualizar
+ni generar cálculos paramétricos.
 
 ---
 
@@ -278,8 +278,8 @@ mayor que el anterior, o un número de pasos fuera de 1–10 — ambos se señal
 con un mensaje junto a la fila afectada, y no se genera nada hasta
 corregirlos.
 
-> Esta misma malla es la que usa el barrido de tipo **Historial temporal**
-> (sección 9.3): comparten la función de cálculo, así que un barrido temporal
+> Esta misma malla es la que usa el cálculo paramétrico de tipo **Historial temporal**
+> (sección 9.3): comparten la función de cálculo, así que un cálculo paramétrico de historial temporal
 > y una malla generada a mano con los mismos parámetros producen inp.5
 > idénticos.
 
@@ -377,9 +377,9 @@ Fe-53 → Na-24, `NMAX = 4`, `PCNT = 0,1 %`) que puedes editar campo a campo.
 
 ---
 
-## 9. Barridos paramétricos
+## 9. Cálculos paramétricos
 
-La pestaña **Barrido paramétrico** genera, a partir del `inp.5` actualmente
+La pestaña **Cálculo paramétrico** genera, a partir del `inp.5` actualmente
 cargado (que debe ser **válido**: la pestaña re-ejecuta la validación al
 entrar y antes de generar; si hay errores, quedan listados y se deshabilitan
 Previsualizar/Generar), **N carpetas de simulación** que varían **un único**
@@ -393,19 +393,19 @@ parámetro y dejan fijo el resto del fichero.
   auxiliares) se copia a cada subcarpeta; el `inp.5` generado **reemplaza**
   cualquier `inp.5` que hubiera en la carpeta base. Las salidas de una
   ejecución previa de la propia carpeta base (`fort.6`, `run.log` y, según el
-  tipo de barrido, también `FLUX.inf`/`XSECTION.dat`/salidas de COLLAPS) se
+  tipo de cálculo paramétrico, también `FLUX.inf`/`XSECTION.dat`/salidas de COLLAPS) se
   excluyen de la copia para no arrastrar resultados de otra simulación —
   detalle completo en "Entender el manifest" más abajo.
 - **Prefijo** — antepuesto al sufijo autogenerado de cada carpeta
   (`<prefijo><sufijo>`, p. ej. `TeO2_x0.75`).
-- **Descripción del barrido** (obligatoria) — texto libre que queda en el
+- **Descripción del cálculo paramétrico** (obligatoria) — texto libre que queda en el
   manifest.
 
 Ambos campos de carpeta tienen un botón de examinar (icono de carpeta) que
 abre el selector nativo del sistema operativo, para evitar errores de
 tecleo en las rutas.
 
-### 9.1 Barrido de flujo (XNORM)
+### 9.1 Cálculo paramétrico de flujo (XNORM)
 
 Varía `block9.XNORM` (factor multiplicativo del flujo) manteniendo fija la
 **forma** del espectro; composición, geometría e historial temporal quedan
@@ -429,11 +429,11 @@ fichero base cargado, ejemplos derivados de su flujo total real).
 >
 > **Nota física.** `XNORM` escala la magnitud del flujo, no la forma del
 > espectro: las secciones eficaces colapsadas con COLLAPS siguen siendo
-> válidas en todo el barrido. Si el escenario real cambia la forma del
-> espectro, hace falta regenerar con COLLAPS — usa el barrido espectral
+> válidas en todo el cálculo paramétrico. Si el escenario real cambia la forma del
+> espectro, hace falta regenerar con COLLAPS — usa el cálculo paramétrico de espectro
 > (sección 9.4), no este.
 
-### 9.2 Barrido de masa
+### 9.2 Cálculo paramétrico de masa
 
 Varía `XCOMP` de una **zona objetivo**, dejando fija la estructura de zonas
 (`INUCL`), el compuesto y el volumen. Como el volumen no cambia, variar la
@@ -442,9 +442,9 @@ zona objetivo, compuesto (fórmula), volumen de zona [cm³] y las masas [g] a
 barrer (separadas por comas).
 
 **No disponible con `INPT = 2`** (isótopos) — la app muestra un aviso y
-deshabilita este tipo de barrido si el fichero base usa ese modo.
+deshabilita este tipo de cálculo paramétrico si el fichero base usa ese modo.
 
-### 9.3 Barrido temporal
+### 9.3 Cálculo paramétrico de historial temporal
 
 Cada simulación es una **tarjeta** de un acordeón, y cada tarjeta lleva su
 propio historial temporal **completo** — el mismo editor de tramos del
@@ -471,7 +471,7 @@ propio `IUNIT`/`IOUT`/`IPLOT`, independiente de las demás.
   simulaciones parecidas. **Eliminar** quita la tarjeta.
 - **"Añadir simulación"** duplica la **última** tarjeta del acordeón.
 - Cada tarjeta es un historial **completo y explícito**: a diferencia de
-  los demás tipos de barrido, aquí no existe "deja el campo vacío para
+  los demás tipos de cálculo paramétrico, aquí no existe "deja el campo vacío para
   conservar la fase del fichero base" — si una fase debe quedar igual que
   la de otra simulación, cópiala con **Duplicar**.
 
@@ -492,7 +492,7 @@ por simulación, igual que en el generador manual.
 > historial aparece como JSON dentro de la celda correspondiente, no como
 > un volcado de texto de Python.
 
-### 9.4 Barrido espectral (COLLAPS)
+### 9.4 Cálculo paramétrico de espectro (COLLAPS)
 
 En lugar de tocar un valor del `inp.5`, varía la **forma** del espectro
 neutrónico que COLLAPS colapsa a secciones eficaces (tarjetas `FT`/`CX` del
@@ -501,10 +501,10 @@ neutrónico que COLLAPS colapsa a secciones eficaces (tarjetas `FT`/`CX` del
 qué tipo de reactor (térmico, epitérmico, rápido…) es más eficaz la
 producción del radioisótopo?
 
-**Qué no toca este barrido.** El `inp.5` queda intacto salvo, opcionalmente,
+**Qué no toca este cálculo paramétrico.** El `inp.5` queda intacto salvo, opcionalmente,
 el campo **φ_ref** (prefijado con el Bloque #3 del fichero base): si lo
 editas, ese mismo valor de flujo total se aplica a **todas** las
-simulaciones. `XNORM` no se toca en este tipo de barrido.
+simulaciones. `XNORM` no se toca en este tipo de cálculo paramétrico.
 
 **Importar espectros.** Botón **"Añadir espectro"** para cargar uno o varios
 ficheros `.txt`/`.csv` en formato CONDERC (cabecera `GROUP UPPER LOWER
@@ -526,7 +526,7 @@ librería, la fila lleva un badge de aviso — expandir un espectro con menos
 grupos que la librería es la operación menos fiable de la conversión; es
 informativo, no bloquea la importación.
 
-**Ejecución.** Cada fila del barrido espectral, al ejecutarse, es un
+**Ejecución.** Cada fila del cálculo paramétrico de espectro, al ejecutarse, es un
 **pipeline de varios pasos** (no una única ejecución): `collaps` → `copiar`
 (el `XSECTION.dat` generado a la carpeta de la simulación) → `acab` →
 `comprobar flujo` (lectura de verificación de `FLUX.inf`). La carpeta base
@@ -536,7 +536,7 @@ fallida (indicando el paso responsable) sin detener el resto de la cola.
 
 ### Previsualizar y generar
 
-- **Previsualizar** comprueba el barrido sin escribir nada: muestra el número
+- **Previsualizar** comprueba el cálculo paramétrico sin escribir nada: muestra el número
   de simulaciones, el patrón de nombre de carpeta, el coste en disco
   estimado y una tabla con los valores, el **sufijo** (editable) y la carpeta
   resultante de cada simulación.
@@ -544,84 +544,84 @@ fallida (indicando el paso responsable) sin detener el resto de la cola.
     base ya contiene un `inp.5` (será reemplazado); ya existen subcarpetas
     con el mismo nombre (se pedirá confirmar sobrescritura); el coste en
     disco estimado supera 2 GB.
-- **Generar barrido** escribe las carpetas. Con más de 30 simulaciones pide
+- **Generar cálculo paramétrico** escribe las carpetas. Con más de 30 simulaciones pide
   confirmación explícita; el límite duro es **200 simulaciones** (por encima,
   error HTTP 422). Cada `inp.5` generado se verifica re-parseándolo antes de
-  escribir (round-trip); si alguno falla, se aborta **todo** el barrido y se
-  limpia lo ya escrito — nunca queda un barrido a medias por un fallo aislado.
+  escribir (round-trip); si alguno falla, se aborta **todo** el cálculo paramétrico y se
+  limpia lo ya escrito — nunca queda un cálculo paramétrico a medias por un fallo aislado.
 
 En la carpeta raíz quedan, además de las subcarpetas de simulación:
 `sweep_manifest.json`, `sweep_manifest.csv`, `README.txt` y los scripts
-`run_all.ps1`/`run_all.sh` (útiles si prefieres ejecutar el barrido fuera de
+`run_all.ps1`/`run_all.sh` (útiles si prefieres ejecutar el cálculo paramétrico fuera de
 la app).
 
 ### Entender el manifest
 
-- **`sweep_manifest.json`** — timestamp, tipo de barrido, descripción,
+- **`sweep_manifest.json`** — timestamp, tipo de cálculo paramétrico, descripción,
   parámetros que quedaron fijos, y la lista `[{folder, params}]` con la
   carpeta y los parámetros concretos de cada simulación. Es el fichero que
-  lee tanto el ejecutor de barridos de esta app como la pestaña
+  lee tanto el ejecutor de cálculos paramétricos de esta app como la pestaña
   **Optimización** del Fort Analyzer.
 - **`sweep_manifest.csv`** — la misma información en formato tabular
   (`folder` + una columna por parámetro), cómodo para abrir en una hoja de
   cálculo.
-- **`README.txt`** — descripción legible del barrido para quien abra la
+- **`README.txt`** — descripción legible del cálculo paramétrico para quien abra la
   carpeta sin contexto.
 
-### Ejecutar un barrido y abrir los resultados en el analyzer
+### Ejecutar un cálculo paramétrico y abrir los resultados en el analyzer
 
-Tras generar un barrido aparece el panel **"Ejecución del barrido"**:
+Tras generar un cálculo paramétrico aparece el panel **"Ejecución del cálculo paramétrico"**:
 
-1. Pulsa **"Ejecutar barrido"**.
+1. Pulsa **"Ejecutar cálculo paramétrico"**.
 2. La tabla muestra, por carpeta: **Estado** (Pendiente / En ejecución / OK /
-   Fallo / Timeout / Cancelada), **Paso** actual (para el barrido espectral:
+   Fallo / Timeout / Cancelada), **Paso** actual (para el cálculo paramétrico de espectro:
    `collaps` / `copiar` / `acab` / `comprobar flujo`) y **Duración**. Un
    contador global resume el progreso (`k/n · ok ok · fallos fallos`).
 3. Cada subcarpeta lleva su propia copia del ejecutable (la carpeta base se
-   copió entera al generar el barrido), así que las simulaciones se ejecutan
+   copió entera al generar el cálculo paramétrico), así que las simulaciones se ejecutan
    en cola de forma autocontenida.
 4. Al terminar, los resultados quedan en `batch_results.json` (raíz del
-   barrido) y cada subcarpeta tiene su `fort.6` — ábrelas desde el **Fort
-   Analyzer** apuntando a la carpeta raíz del barrido para comparar todas las
+   cálculo paramétrico) y cada subcarpeta tiene su `fort.6` — ábrelas desde el **Fort
+   Analyzer** apuntando a la carpeta raíz del cálculo paramétrico para comparar todas las
    simulaciones a la vez (pestaña **Optimización** del analyzer: gráfica de
    A_pico/t_pico/pureza/rendimiento/actividad específica de yodo frente al
-   parámetro barrido).
+   parámetro variado).
 
 Este mismo panel de ejecución es el que se dispara desde la tarjeta
-**"Cargar un barrido generado"** de más abajo cuando pulsas **"Ejecutar
-barrido"** sobre un barrido ya cargado.
+**"Cargar un cálculo paramétrico generado"** de más abajo cuando pulsas **"Ejecutar
+cálculo paramétrico"** sobre un cálculo paramétrico ya cargado.
 
-### Consultar un barrido ya generado
+### Consultar un cálculo paramétrico ya generado
 
-La tarjeta **"Cargar un barrido generado"**, al final de la pestaña Barrido,
-permite abrir **cualquier** barrido generado por la suite (en esta sesión o
+La tarjeta **"Cargar un cálculo paramétrico generado"**, al final de la pestaña Cálculo paramétrico,
+permite abrir **cualquier** cálculo paramétrico generado por la suite (en esta sesión o
 en una anterior) para ver de qué se compone, sin necesidad de regenerarlo.
 Es el único camino de carga: cargar una carpeta siempre muestra este
 resumen; **"Ejecutar"** es una acción posterior sobre lo ya cargado, no un
 segundo flujo independiente.
 
-1. Indica la **carpeta raíz** del barrido (la que contiene
+1. Indica la **carpeta raíz** del cálculo paramétrico (la que contiene
    `sweep_manifest.json`), escribiéndola o con el botón de examinar, y pulsa
    **Cargar**.
 2. La app muestra una vista de **solo lectura** con:
-   - **Tipo de barrido** (uno de los 4 de la sección 9) y su **descripción**.
-   - **Datos de la base** — los parámetros que quedaron fijos en toda la
-     barrida.
+   - **Tipo de cálculo paramétrico** (uno de los 4 de la sección 9) y su **descripción**.
+   - **Datos de la base** — los parámetros que quedaron fijos en todo el
+     cálculo paramétrico.
    - **Ficheros excluidos de la copia** — las salidas de ejecuciones previas
      que se excluyeron al copiar la carpeta base a cada subcarpeta (según el
-     tipo de barrido, ver sección 9); "—" si el manifest es de una versión
+     tipo de cálculo paramétrico, ver sección 9); "—" si el manifest es de una versión
      anterior a esta mejora, sin romper la carga.
    - Una tabla con una fila por simulación: **Carpeta**, **Valor** (el valor
-     concreto de esa simulación — en el barrido espectral, el **nombre del
+     concreto de esa simulación — en el cálculo paramétrico de espectro, el **nombre del
      espectro**, el mismo criterio que usa la pestaña Optimización del Fort
      Analyzer), **fort.6** (Existe / No existe) y **Estado de ejecución**
      (Pendiente / En ejecución / OK / Fallo / Timeout / Cancelada si ya
-     existe `batch_results.json`, o un guion si el barrido aún no se ha
+     existe `batch_results.json`, o un guion si el cálculo paramétrico aún no se ha
      ejecutado).
    - Si ya se ejecutó, un resumen agregado (`k OK · f fallo(s) de n`); si no,
-     el aviso "Este barrido todavía no se ha ejecutado."
+     el aviso "Este cálculo paramétrico todavía no se ha ejecutado."
 3. **Editar queda fuera de esta vista a propósito**: para cambiar cualquier
-   parámetro del barrido, regenéralo (secciones anteriores) — cargar aquí es
+   parámetro del cálculo paramétrico, regenéralo (secciones anteriores) — cargar aquí es
    solo para consultar y, si procede, ejecutar lo que ya existe en disco.
 
 ---
@@ -711,8 +711,8 @@ de las dos condiciones no se cumple.
 
 ### Ejecutar el análisis
 
-El panel de ejecución sigue el mismo patrón que el de los barridos
-paramétricos (sección 9): pulsa **"Ejecutar"** y sigue el estado por
+El panel de ejecución sigue el mismo patrón que el de los cálculos paramétricos
+ (sección 9): pulsa **"Ejecutar"** y sigue el estado por
 subcarpeta en la tabla (columnas Carpeta / Estado / **Paso** — `ACAB` /
 `copia de tapes` / `CHAINS`, según en qué punto del pipeline va esa
 subcarpeta / Duración / **Log**). Si reejecutas un análisis que ya se generó
@@ -735,11 +735,11 @@ superior del isótopo — p. ej. si falla el paso `CHAINS`, es el `run.log` de
 Fort Analyzer"**, que navega en la misma pestaña a la pestaña "Análisis de
 cadenas" del Fort Analyzer con esa carpeta raíz ya cargada (usa el parámetro
 `?chains_root=`, distinto del `?folder=` que usan las carpetas de
-"Simulaciones" normales — un `chains_manifest.json` no es un barrido).
+"Simulaciones" normales — un `chains_manifest.json` no es un cálculo paramétrico).
 
 ### Consultar un análisis ya generado
 
-Igual que los barridos (sección 9), indicar la carpeta raíz de un análisis
+Igual que los cálculos paramétricos (sección 9), indicar la carpeta raíz de un análisis
 ya generado (con `chains_manifest.json`) y pulsar **Cargar** muestra su
 configuración y el estado de ejecución de cada isótopo, sin necesidad de
 regenerarlo. Para ver las **tablas de resultados** (R<sub>i</sub>,
@@ -752,24 +752,24 @@ en la pestaña **"Análisis de cadenas"** del **Fort Analyzer**.
 
 | Aviso / error | Dónde aparece | Qué significa | Qué hacer |
 |---|---|---|---|
-| Errores en el modal de Validación | Archivo → Validar, y automáticamente en la pestaña Barrido | Inconsistencia que impide generar el `inp.5` correctamente (dimensiones de array, dependencias entre bloques, valores fuera de rango) | Corrige el campo señalado; el mensaje indica el bloque y, cuando aplica, el valor esperado frente al introducido |
+| Errores en el modal de Validación | Archivo → Validar, y automáticamente en la pestaña Cálculo paramétrico | Inconsistencia que impide generar el `inp.5` correctamente (dimensiones de array, dependencias entre bloques, valores fuera de rango) | Corrige el campo señalado; el mensaje indica el bloque y, cuando aplica, el valor esperado frente al introducido |
 | Advertencias en el modal de Validación | Igual que arriba | Posible inconsistencia que no impide guardar | Revísalas antes de ejecutar ACAB; puedes continuar con "Continuar de todos modos" si sabes que son intencionadas |
 | Aviso de fichero CHAINS al cargar | Archivo → Cargar inp.5… | El fichero subido no es un `inp.5`, es un fichero CHAINS | Sigue el enlace que ofrece el aviso a la herramienta CHAINS (sección 8) |
 | "No hay densidad en la librería para esta fórmula" | Composición asistida (Bloque #5) | El compuesto/elemento no está en `atomic_data.json` para calcular V = m/ρ | Introduce el volumen de zona manualmente |
 | Error de volumen vs. zona | Composición asistida (Bloque #5, sección 5.1) | El volumen introducido no coincide con el volumen efectivo de la zona derivado del Bloque #2 | Corrige el volumen o pulsa "Usar el volumen de zona"; si no lo corriges, la masa realmente simulada es `m·(V_zona/V_tecleado)` |
 | Aviso de densidad efectiva | Composición asistida (Bloque #5, sección 5.2) | `ρ_eff = m/V_zona` supera la densidad tabulada del compuesto/elemento | No físico: revisa la masa, el volumen de zona o la fórmula (un `ρ_eff` por debajo de la tabulada es normal, no un problema) |
-| "El barrido de masa no está disponible" | Pestaña Barrido, tipo Masa | El fichero base usa `INPT = 2` (isótopos), no soportado por este tipo de barrido | Usa `INPT = 1` o `3`, o barre otro parámetro |
-| Aviso de valores fuera del rango habitual de XNORM | Pestaña Barrido, tipo Flujo, al previsualizar | Alguno de los valores introducidos produce un `XNORM` fuera de [10⁻³, 10³] — típico de mezclar factores con flujos absolutos entre los dos modos de entrada | Informativo, no bloquea; revisa si el modo seleccionado (factores / flujo total objetivo) es el que querías usar |
-| Checksum de espectro KO | Barrido espectral, al importar un fichero CONDERC | La suma de `DATA` no coincide con la línea `TOTAL` del fichero (tolerancia 10⁻³) | El fichero CONDERC probablemente está truncado o corrupto; descárgalo de nuevo desde el OIEA |
-| Badge de aviso direccional | Tabla de espectros del barrido espectral | El espectro importado tiene menos grupos que la librería XSBL (211); expandirlo es la operación menos fiable de la transcripción | Informativo, no bloquea; ten en cuenta esta limitación al interpretar resultados de ese espectro en concreto |
-| E_min en keV en "Rango de energía" | Tabla de espectros del barrido espectral | El espectro es de rango parcial (típico de medidas EXFOR): no llega a la región térmica | No lo uses para comparar reactores entre sí — solo espectros de rango completo son comparables. El síntoma equivalente en los índices espectrales es una fracción térmica de 0,0 % en un reactor que debería ser térmico |
-| "Esta carpeta no contiene un barrido generado por la suite" (HTTP 404) | Cargar un barrido generado | La carpeta indicada no tiene `sweep_manifest.json` en su raíz | Indica la carpeta **raíz** del barrido (donde se generó), no una subcarpeta de simulación |
-| "sweep_manifest.json no se pudo leer (JSON inválido)" (HTTP 422) | Cargar un barrido generado | El manifest está corrupto o truncado | Revisa que la carpeta no se haya movido/editado a mano; regenera el barrido si no se puede recuperar |
-| Colisión de carpetas (HTTP 409) | Generar barrido | Ya existen subcarpetas con el mismo nombre en la carpeta raíz | Confirma sobrescribir si es intencionado, o cambia el prefijo/carpeta raíz |
-| Límite de simulaciones (HTTP 422) | Generar barrido | Se ha pedido generar más de 200 simulaciones | Reduce el rango de valores del barrido |
-| Aviso de coste en disco | Previsualizar barrido | El tamaño estimado (carpeta base × N simulaciones) supera 2 GB | Confirma si tienes espacio suficiente, o reduce N/el tamaño de la carpeta base |
+| "El cálculo paramétrico de masa no está disponible" | Pestaña Cálculo paramétrico, tipo Masa | El fichero base usa `INPT = 2` (isótopos), no soportado por este tipo de cálculo paramétrico | Usa `INPT = 1` o `3`, o varía otro parámetro |
+| Aviso de valores fuera del rango habitual de XNORM | Pestaña Cálculo paramétrico, tipo Flujo, al previsualizar | Alguno de los valores introducidos produce un `XNORM` fuera de [10⁻³, 10³] — típico de mezclar factores con flujos absolutos entre los dos modos de entrada | Informativo, no bloquea; revisa si el modo seleccionado (factores / flujo total objetivo) es el que querías usar |
+| Checksum de espectro KO | Cálculo paramétrico de espectro, al importar un fichero CONDERC | La suma de `DATA` no coincide con la línea `TOTAL` del fichero (tolerancia 10⁻³) | El fichero CONDERC probablemente está truncado o corrupto; descárgalo de nuevo desde el OIEA |
+| Badge de aviso direccional | Tabla de espectros del cálculo paramétrico de espectro | El espectro importado tiene menos grupos que la librería XSBL (211); expandirlo es la operación menos fiable de la transcripción | Informativo, no bloquea; ten en cuenta esta limitación al interpretar resultados de ese espectro en concreto |
+| E_min en keV en "Rango de energía" | Tabla de espectros del cálculo paramétrico de espectro | El espectro es de rango parcial (típico de medidas EXFOR): no llega a la región térmica | No lo uses para comparar reactores entre sí — solo espectros de rango completo son comparables. El síntoma equivalente en los índices espectrales es una fracción térmica de 0,0 % en un reactor que debería ser térmico |
+| "Esta carpeta no contiene un cálculo paramétrico generado por la suite" (HTTP 404) | Cargar un cálculo paramétrico generado | La carpeta indicada no tiene `sweep_manifest.json` en su raíz | Indica la carpeta **raíz** del cálculo paramétrico (donde se generó), no una subcarpeta de simulación |
+| "sweep_manifest.json no se pudo leer (JSON inválido)" (HTTP 422) | Cargar un cálculo paramétrico generado | El manifest está corrupto o truncado | Revisa que la carpeta no se haya movido/editado a mano; regenera el cálculo paramétrico si no se puede recuperar |
+| Colisión de carpetas (HTTP 409) | Generar cálculo paramétrico | Ya existen subcarpetas con el mismo nombre en la carpeta raíz | Confirma sobrescribir si es intencionado, o cambia el prefijo/carpeta raíz |
+| Límite de simulaciones (HTTP 422) | Generar cálculo paramétrico | Se ha pedido generar más de 200 simulaciones | Reduce el rango de valores del cálculo paramétrico |
+| Aviso de coste en disco | Previsualizar cálculo paramétrico | El tamaño estimado (carpeta base × N simulaciones) supera 2 GB | Confirma si tienes espacio suficiente, o reduce N/el tamaño de la carpeta base |
 | "Indica el directorio de trabajo antes de ejecutar" | Modal de Ejecución de ACAB | No se ha rellenado el campo Directorio de trabajo | Indica la carpeta donde está `acab.exe` |
-| Ejecución con Timeout | Modal de Ejecución de ACAB / ejecución de barrido | El cálculo no terminó dentro del tiempo indicado en "Timeout (s)" | Sube el timeout para cálculos largos (Monte Carlo, muchos pasos temporales) |
+| Ejecución con Timeout | Modal de Ejecución de ACAB / ejecución de cálculo paramétrico | El cálculo no terminó dentro del tiempo indicado en "Timeout (s)" | Sube el timeout para cálculos largos (Monte Carlo, muchos pasos temporales) |
 
 > **Resultados obsoletos.** Si el Fort Analyzer avisa de que el `inp.5` es más
 > reciente que el `fort.6` que estás analizando, significa que has editado la

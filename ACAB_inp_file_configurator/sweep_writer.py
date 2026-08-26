@@ -98,7 +98,7 @@ def _copy_base_folder(base_p: Path, sub: Path, exclude_names: set[str]) -> list[
 
 
 class SweepError(Exception):
-    """Error de barrido con código HTTP asociado (422 por defecto)."""
+    """Error de cálculo paramétrico con código HTTP asociado (422 por defecto)."""
 
     def __init__(self, message: str, status: int = 422):
         super().__init__(message)
@@ -281,12 +281,12 @@ def _manifest_csv(sims, folders) -> str:
 
 def _readme(sweep_type, description, fixed_params, sims, folders) -> str:
     lines = [
-        'Barrido paramétrico ACAB — generado por ACAB INP File Configurator',
+        'Cálculo paramétrico ACAB — generado por ACAB INP File Configurator',
         '=' * 66,
         '',
-        f'Tipo de barrido : {sweep_type}',
-        f'Simulaciones    : {len(sims)}',
-        f'Fecha (UTC)     : {datetime.now(timezone.utc).isoformat(timespec="seconds")}',
+        f'Tipo de cálculo paramétrico : {sweep_type}',
+        f'Simulaciones                : {len(sims)}',
+        f'Fecha (UTC)                 : {datetime.now(timezone.utc).isoformat(timespec="seconds")}',
         '',
         'Descripción:',
         (description or '(sin descripción)'),
@@ -315,7 +315,7 @@ def _readme(sweep_type, description, fixed_params, sims, folders) -> str:
 def _run_all_ps1(folders) -> str:
     arr = ',\n  '.join(f"'{f}'" for f in folders)
     return (
-        '# run_all.ps1 — lanza ACAB en cada subcarpeta del barrido.\n'
+        '# run_all.ps1 — lanza ACAB en cada subcarpeta del cálculo paramétrico.\n'
         '# Ajusta $ACAB_EXE a la ruta del ejecutable de ACAB.\n'
         '$ACAB_EXE = "acab.exe"\n'
         f'$dirs = @(\n  {arr}\n)\n'
@@ -331,7 +331,7 @@ def _run_all_sh(folders) -> str:
     arr = ' '.join(f'"{f}"' for f in folders)
     return (
         '#!/usr/bin/env bash\n'
-        '# run_all.sh — lanza ACAB en cada subcarpeta del barrido.\n'
+        '# run_all.sh — lanza ACAB en cada subcarpeta del cálculo paramétrico.\n'
         '# Ajusta ACAB_EXE a la ruta del ejecutable de ACAB.\n'
         'set -u\n'
         'ACAB_EXE="${ACAB_EXE:-acab}"\n'
@@ -359,7 +359,7 @@ def generate_sweep(payload: dict, write_fn: Callable[[dict], str]) -> dict:
     if not base_folder:
         raise SweepError('Falta la carpeta base a copiar.', 422)
     if not description.strip():
-        raise SweepError('La descripción del barrido es obligatoria.', 422)
+        raise SweepError('La descripción del cálculo paramétrico es obligatoria.', 422)
 
     n = len(sims)
     if n == 0:
@@ -378,7 +378,7 @@ def generate_sweep(payload: dict, write_fn: Callable[[dict], str]) -> dict:
         coll_base_path = base_p / 'collaps' / 'COLL.inp'
         if not coll_base_path.is_file():
             raise SweepError(
-                "El barrido espectral requiere 'collaps/COLL.inp' en la carpeta base "
+                "El cálculo paramétrico de espectro requiere 'collaps/COLL.inp' en la carpeta base "
                 f"('{coll_base_path}' no existe).", 422)
         try:
             coll_base_data = read_coll_inp(coll_base_path)
