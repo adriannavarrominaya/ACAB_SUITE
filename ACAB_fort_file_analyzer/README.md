@@ -55,7 +55,7 @@ Desarrollada como parte del Trabajo de Fin de Grado en Ingeniería de la Energí
       - [Validación experimental — datos de referencia externos](#validación-experimental--datos-de-referencia-externos)
       - [Métricas de optimización de producción](#métricas-de-optimización-de-producción)
     - [Pestaña 4 — Tablas Comparativas](#pestaña-4--tablas-comparativas)
-    - [Pestaña 5 — Optimización (barrido paramétrico)](#pestaña-5--optimización-barrido-paramétrico)
+    - [Pestaña 5 — Optimización (cálculo paramétrico)](#pestaña-5--optimización-cálculo-paramétrico)
   - [7. Configuración YAML](#7-configuración-yaml)
   - [8. API REST](#8-api-rest)
     - [Formato de `/api/analyze`](#formato-de-apianalyze)
@@ -76,7 +76,7 @@ ACAB (_Activation Code for Accelerator-Based neutron sources_) es un código de 
 Este proyecto proporciona una **aplicación web interactiva** (Flask + Plotly.js) que:
 
 - **Parsea** automáticamente los ficheros `fort.6` (secciones `NUMBER OF ATOMS` e irradiación y `NUCLIDE RADIOACTIVITY` de enfriamiento) y los ficheros de entrada `inp.5` de múltiples simulaciones.
-- **Lee las semividas** desde el fichero `DECAY.dat` de la biblioteca nuclear de ACAB, con posibilidad de sobreescribir o ampliar valores mediante YAML.
+- **Lee las semividas** desde el fichero `DECAY.dat` de la librería nuclear de ACAB, con posibilidad de sobreescribir o ampliar valores mediante YAML.
 - **Convierte** átomos/cm³ → Bq/cm³ durante la fase de irradiación aplicando $A = \lambda \cdot N$.
 - **Visualiza** la evolución temporal de la actividad de todos los isótopos presentes, con gráficas interactivas de Plotly.
 - **Genera informes completos** para el isótopo que seleccione el usuario (actividad de pico, propiedades nucleares, espectro gamma para ¹³¹I).
@@ -104,7 +104,7 @@ La herramienta es completamente genérica y permite analizar **cualquier isótop
 | **NumPy** | ≥ 1.24 | Interpolación y vectorización numérica |
 | **PyYAML** | ≥ 6.0 | Lectura de configuración YAML |
 
-Únicamente se usan módulos de la biblioteca estándar de Python (`math`, `re`, `pathlib`, `subprocess`, `threading`, `webbrowser`) además de los listados.
+Únicamente se usan módulos de la librería estándar de Python (`math`, `re`, `pathlib`, `subprocess`, `threading`, `webbrowser`) además de los listados.
 
 ### Frontend
 
@@ -142,7 +142,7 @@ ACAB_fort_file_analyzer/
 │   ├── Simulacion v.1/
 │   │   ├── fort.6          # Fichero de salida ACAB (obligatorio)
 │   │   ├── inp.5           # Fichero de entrada ACAB (opcional, recomendado)
-│   │   └── DECAY.dat       # Biblioteca nuclear de semividas (opcional)
+│   │   └── DECAY.dat       # Librería nuclear de semividas (opcional)
 │   ├── Simulacion v.2/
 │   │   └── …
 │   └── figuras.yaml         # Config YAML (opcional; nombres legacy también soportados)
@@ -245,7 +245,7 @@ carpeta_padre/
 ├── simulacion_A/
 │   ├── fort.6        ← Resultados ACAB (obligatorio)
 │   ├── inp.5         ← Parámetros de simulación (opcional)
-│   └── DECAY.dat     ← Biblioteca de semividas (opcional)
+│   └── DECAY.dat     ← Librería de semividas (opcional)
 ├── simulacion_B/
 │   └── …
 └── figuras.yaml                            ← Configuración figuras (opcional)
@@ -401,7 +401,7 @@ Generado para el isótopo seleccionado en la pestaña Simulaciones. Contiene:
 > **Espectros gamma — estado actual:** por ahora solo ¹³¹I tiene espectro gamma
 > (tabla ENSDF/NNDC hardcodeada). Está prevista una **Fase 6** (ver
 > `acab_suite/RUNBOOK_fort_analyzer_mejoras.md`) para soporte genérico de
-> cualquier isótopo leyendo `PHOTON.dat` de la biblioteca nuclear de ACAB
+> cualquier isótopo leyendo `PHOTON.dat` de la librería nuclear de ACAB
 > (misma idea que `DECAY.dat` para semividas); pendiente de documentar el
 > formato del fichero antes de implementarla.
 
@@ -497,32 +497,32 @@ Dos tablas cruzadas para todas las simulaciones, usando el isótopo seleccionado
 
 Los encabezados de columna se adaptan dinámicamente al isótopo seleccionado (no son siempre "I-131").
 
-### Pestaña 5 — Optimización (barrido paramétrico)
+### Pestaña 5 — Optimización (cálculo paramétrico)
 
 Fase 5 (opcional) del `RUNBOOK_barrido_parametrico_v2.md`: solo se activa cuando
 la carpeta analizada contiene, en su raíz, un `sweep_manifest.json` generado
-por la pestaña "Barrido" del **ACAB INP File Configurator** (barrido de flujo,
+por la pestaña "Cálculo paramétrico" del **ACAB INP File Configurator** (cálculo paramétrico de flujo,
 masa o historial temporal — ver el README de ese repo). Si no existe ese
 fichero, la pestaña muestra un aviso y el resto de la aplicación funciona
-exactamente igual que sin barrido.
+exactamente igual que sin cálculo paramétrico.
 
 Con un isótopo seleccionado, combina los parámetros del manifest
 (`folder → params`) con el pico, la pureza y el rendimiento **ya calculados**
 en la pestaña Informe Isótopo (Sección 4, Fase 5 de métricas) — no se repite
 ninguna fórmula física:
 
-- **Tabla**: una fila por simulación del barrido, con sus columnas de
+- **Tabla**: una fila por simulación del cálculo paramétrico, con sus columnas de
   parámetros (p. ej. `XNORM`, `mass`, `t_irr_fin`…), A<sub>pico</sub>,
   t<sub>pico</sub>, pureza radionucleídica en el pico y rendimiento medio
   (A<sub>pico</sub>/T<sub>irr</sub>).
 - **Gráfica** (Plotly): variable Y elegible — **A<sub>pico</sub>** (por
   defecto), t<sub>pico</sub>, pureza o rendimiento — frente al parámetro del
-  barrido elegido como eje X; si el barrido varía más de un parámetro
+  cálculo paramétrico elegido como eje X; si el cálculo paramétrico varía más de un parámetro
   numérico (p. ej. temporal: t_irr_fin y pasos_irr), las demás dimensiones se
   muestran como series de color distintas.
 - **Exportación CSV** con todas las columnas de la tabla, en la unidad
   activa.
-- La descripción del barrido (campo `description` del manifest) y su tipo se
+- La descripción del cálculo paramétrico (campo `description` del manifest) y su tipo se
   muestran como subtítulo.
 
 ---
@@ -653,9 +653,9 @@ del cálculo.
 
 `sweep_manifest` (Fase 5 opcional, `RUNBOOK_barrido_parametrico_v2.md`) — si
 la carpeta analizada contiene un `sweep_manifest.json` en su raíz (escrito
-por la pestaña "Barrido" del ACAB INP File Configurator), se devuelve tal
+por la pestaña "Cálculo paramétrico" del ACAB INP File Configurator), se devuelve tal
 cual: `{timestamp, sweep_type, description, fixed_params, n, simulations:
-[{folder, params}, …]}`. `null` para carpetas sin barrido — no afecta al
+[{folder, params}, …]}`. `null` para carpetas sin cálculo paramétrico — no afecta al
 resto de la respuesta ni al análisis. Alimenta la pestaña "Optimización"
 (sección 6).
 
@@ -747,8 +747,8 @@ t12 = leer_decay_dat("simulaciones/sim1/DECAY.dat")
 | `leer_fort6_enfriamiento(path)` | Ruta `fort.6` | `(t_cool_h: ndarray, datos: dict[iso, ndarray])` Bq/cm³ |
 | `leer_fort6_concentraciones(path)` | Ruta `fort.6` | `{"elementos": {SYM: g/cm³}, "total_g_cm3": float}` de `CONCENTRATIONS(GRAM)`, o `None` si la sección no existe |
 | `leer_inp5(path)` | Ruta `inp.5` | Dict con `T_IRR_h`, `T_COOL_h`, `phi_total`, `fluxes`, `xnorm`, `ngrp` |
-| `leer_decay_dat(path)` | Ruta `DECAY.dat` | `{acab_key: T½_s}` para todos los isótopos de la biblioteca |
-| `leer_sweep_manifest(folder)` | Ruta de la carpeta raíz analizada | Dict del `sweep_manifest.json` (Fase 5 opcional, barrido), o `None` si no existe |
+| `leer_decay_dat(path)` | Ruta `DECAY.dat` | `{acab_key: T½_s}` para todos los isótopos de la librería |
+| `leer_sweep_manifest(folder)` | Ruta de la carpeta raíz analizada | Dict del `sweep_manifest.json` (Fase 5 opcional, cálculo paramétrico), o `None` si no existe |
 
 ### Motor de análisis
 

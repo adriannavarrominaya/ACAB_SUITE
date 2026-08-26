@@ -38,7 +38,7 @@
     - [Selección de instante y filtros](#selección-de-instante-y-filtros)
     - [Gráfica y tabla](#gráfica-y-tabla)
   - [11. Tablas Comparativas](#11-tablas-comparativas)
-  - [12. Pestaña "Optimización" (barrido paramétrico)](#12-pestaña-optimización-barrido-paramétrico)
+  - [12. Pestaña "Optimización" (cálculo paramétrico)](#12-pestaña-optimización-cálculo-paramétrico)
   - [13. Pestaña "Análisis de cadenas"](#13-pestaña-análisis-de-cadenas)
     - [Cargar un análisis](#cargar-un-análisis)
     - [Instante t\*](#instante-t)
@@ -74,8 +74,8 @@ sola línea de código:
   nucleido con datos en la librería `PHOTON.dat` de ACAB.
 - Tablas comparativas entre simulaciones.
 - Superposición de datos experimentales o de referencia importados desde CSV.
-- Una pestaña de optimización que combina los resultados con un barrido
-  paramétrico generado desde el ACAB INP File Configurator.
+- Una pestaña de optimización que combina los resultados con un cálculo paramétrico
+   generado desde el ACAB INP File Configurator.
 - Una pestaña de **análisis de contribución por cadenas** (ACAB+CHAINS):
   cuantifica, para un isótopo objetivo, qué isótopo inicial del blanco y qué
   cadena de reacción nuclear concreta produce esa actividad, a partir de un
@@ -105,7 +105,7 @@ carpeta_padre/
 ├── simulacion_A/
 │   ├── fort.6        ← Resultados ACAB (OBLIGATORIO)
 │   ├── inp.5         ← Parámetros de simulación (opcional, recomendado)
-│   └── DECAY.dat     ← Biblioteca de semividas (opcional)
+│   └── DECAY.dat     ← Librería de semividas (opcional)
 ├── simulacion_B/
 │   └── …
 └── figuras.yaml      ← Configuración de figuras (opcional)
@@ -495,7 +495,7 @@ radiactivos), no solo el objetivo.
   resultado físico válido.
 - Esta variable también está disponible como **A<sub>esp</sub> yodo** en el
   selector de la pestaña Optimización (sección 12) para comparar entre
-  espectros o condiciones de un barrido — el valor que se compara es siempre
+  espectros o condiciones de un cálculo paramétrico — el valor que se compara es siempre
   el de t<sub>cruce</sub>, no una serie completa.
 
 > **Unidad fija.** A<sub>esp</sub>(t) siempre se expresa en MBq/g de yodo,
@@ -671,26 +671,26 @@ son siempre "I-131"). Ambas tablas respetan la unidad de actividad activa.
 
 ---
 
-## 12. Pestaña "Optimización" (barrido paramétrico)
+## 12. Pestaña "Optimización" (cálculo paramétrico)
 
 Esta pestaña solo se activa cuando la carpeta analizada contiene, en su
-raíz, un fichero `sweep_manifest.json` — generado por la pestaña "Barrido
-paramétrico" del **ACAB INP File Configurator** (barrido de flujo, masa,
-historial temporal o espectral). Si no existe ese fichero, la pestaña muestra
-el aviso: "Esta carpeta no contiene un barrido paramétrico (no se encontró
-`sweep_manifest.json` en la raíz analizada). Esta pestaña solo se activa con
-carpetas generadas por el barrido del INP File Configurator." — el resto de
-la aplicación funciona exactamente igual.
+raíz, un fichero `sweep_manifest.json` — generado por la pestaña "Cálculo
+paramétrico" del **ACAB INP File Configurator** (cálculo paramétrico de flujo,
+masa, historial temporal o espectro). Si no existe ese fichero, la pestaña
+muestra el aviso: "Esta carpeta no contiene un cálculo paramétrico (no se
+encontró `sweep_manifest.json` en la raíz analizada). Esta pestaña solo se
+activa con carpetas generadas por el generador de cálculos paramétricos del INP
+File Configurator." — el resto de la aplicación funciona exactamente igual.
 
 Con un isótopo ya seleccionado, la pestaña combina los parámetros del
 manifest con el pico, la pureza y el rendimiento **ya calculados** en el
 Informe Isótopo (sección 8) — no repite ninguna fórmula física, solo agrupa
 datos.
 
-1. Selecciona el **Parámetro (eje X)** — la dimensión del barrido a
-   representar. En los barridos de flujo, masa y temporal es uno de los
+1. Selecciona el **Parámetro (eje X)** — la dimensión del cálculo paramétrico a
+   representar. En los cálculos paramétricos de flujo, masa y temporal es uno de los
    parámetros numéricos del `inp.5` (p. ej. `XNORM`, `mass`, `t_irr_fin`…).
-   En el **barrido espectral** el selector ofrece en su lugar:
+   En el **cálculo paramétrico de espectro** el selector ofrece en su lugar:
    - **"Espectro" (categórico)** — una barra por espectro importado,
      etiquetada con su nombre (opción por defecto; ver más abajo).
    - Una **fracción espectral numérica** (`frac_termica`, `frac_epitermica`,
@@ -706,34 +706,34 @@ datos.
    sección 8); para el resto de isótopos las simulaciones aparecen sin dato
    en esa variable.
 3. La **gráfica** de Plotly dibuja Y frente al parámetro elegido:
-   - Flujo, masa y temporal: si el barrido varía más de un parámetro
-     numérico (p. ej. un barrido temporal con tiempo final y número de
+   - Flujo, masa y temporal: si el cálculo paramétrico varía más de un parámetro
+     numérico (p. ej. un cálculo paramétrico de historial temporal con tiempo final y número de
      pasos), las demás dimensiones se representan como series de color
      distintas.
-   - Barrido espectral con eje X **"Espectro"**: **una sola** serie de
+   - Cálculo paramétrico de espectro con eje X **"Espectro"**: **una sola** serie de
      barras (una por espectro, con su nombre en el eje X) — nunca una
      leyenda con el volcado de parámetros de cada simulación.
-   - Barrido espectral con eje X **numérico** (una fracción espectral): **una
+   - Cálculo paramétrico de espectro con eje X **numérico** (una fracción espectral): **una
      sola** serie de dispersión, sin agrupar por parámetros, con el nombre de
      cada espectro como etiqueta de texto junto a su punto (dos puntos muy
      próximos en X se escalonan arriba/abajo para no solaparse — típico con
      varios reactores reales de fracción térmica parecida).
-4. Debajo, la **tabla** lista una fila por simulación del barrido con sus
-   columnas de parámetros (o el nombre del espectro, en el barrido
+4. Debajo, la **tabla** lista una fila por simulación del cálculo paramétrico con sus
+   columnas de parámetros (o el nombre del espectro, en el cálculo paramétrico
    espectral), A<sub>pico</sub>, t<sub>pico</sub>, pureza y rendimiento
    medio.
-5. La descripción y el tipo del barrido (campo `description`/`sweep_type` del
+5. La descripción y el tipo del cálculo paramétrico (campo `description`/`sweep_type` del
    manifest) aparecen como subtítulo.
 6. Botón **Exportar CSV** con todas las columnas de la tabla, en la unidad
    activa.
 
-> **Por qué el barrido espectral no usa el selector de parámetro genérico.**
+> **Por qué el cálculo paramétrico de espectro no usa el selector de parámetro genérico.**
 > Sus dimensiones (`n_grupos`, fracciones espectrales) son numéricas por
 > naturaleza pero identifican reactores distintos, no una variable continua
-> barrida a propósito: agruparlas como series de color produce una leyenda
+> variada a propósito: agruparlas como series de color produce una leyenda
 > con un volcado de parámetros ilegible. El nombre del espectro (columna
 > `espectro` del manifest) es el identificador visual en ambos modos de eje
-> X, igual que en la vista de "Consultar un barrido ya generado" del INP
+> X, igual que en la vista de "Consultar un cálculo paramétrico ya generado" del INP
 > File Configurator.
 
 ---
@@ -892,9 +892,9 @@ unidad interna del fort.6).
 | "Completa fase, unidad de tiempo, unidad de actividad e isótopo antes de importar." | Modal Importar datos de referencia | Faltan campos obligatorios del formulario | Rellena los campos marcados; si el CSV traía metadatos `#` revisa que se hayan interpretado bien |
 | "Esta serie usa MBq/g pero la simulación de referencia no tiene densidad…" | Modal Importar datos de referencia | La simulación de referencia elegida no tiene `CONCENTRATIONS(GRAM)` | Elige otra simulación de referencia, o cambia la unidad de actividad de la serie importada |
 | "Esta serie usa actividad total pero no hay un volumen válido configurado…" | Modal Importar datos de referencia | Falta el campo Volumen en la tarjeta Unidades | Rellena el volumen en la tarjeta Unidades (sección 5) antes de importar |
-| "Esta carpeta no contiene un barrido paramétrico…" | Pestaña Optimización | No hay `sweep_manifest.json` en la raíz de la carpeta analizada | Normal si no analizas un barrido; genera uno desde el INP Configurator si lo necesitas |
-| "Ninguna de las simulaciones analizadas tiene una entrada en el manifest del barrido." | Pestaña Optimización | Las carpetas analizadas no coinciden con las del manifest (p. ej. se analizó una subcarpeta suelta) | Analiza la carpeta **raíz** del barrido, no una subcarpeta individual |
-| "El manifest del barrido no tiene parámetros numéricos con los que graficar." | Pestaña Optimización | El barrido no varía ningún parámetro numérico reconocible | Revisa el `sweep_manifest.json`; puede indicar un barrido mal formado |
+| "Esta carpeta no contiene un cálculo paramétrico…" | Pestaña Optimización | No hay `sweep_manifest.json` en la raíz de la carpeta analizada | Normal si no analizas un cálculo paramétrico; genera uno desde el INP Configurator si lo necesitas |
+| "Ninguna de las simulaciones analizadas tiene una entrada en el manifest del cálculo paramétrico." | Pestaña Optimización | Las carpetas analizadas no coinciden con las del manifest (p. ej. se analizó una subcarpeta suelta) | Analiza la carpeta **raíz** del cálculo paramétrico, no una subcarpeta individual |
+| "El manifest del cálculo paramétrico no tiene parámetros numéricos con los que graficar." | Pestaña Optimización | El cálculo paramétrico no varía ningún parámetro numérico reconocible | Revisa el `sweep_manifest.json`; puede indicar un cálculo paramétrico mal formado |
 | "No se pudo abrir el selector de carpeta." | Botón Examinar (panel lateral) | El selector nativo (tkinter) falló, típico en instalaciones Python sin tkinter | Escribe la ruta manualmente en el campo de carpeta |
 | "Ya existe un figuras.yaml en la carpeta analizada. ¿Sobrescribirlo?" | Editor de Figuras → Guardar en carpeta analizada | Ya hay un `figuras.yaml` en esa carpeta | Confirma si quieres sobrescribirlo, o usa "Descargar YAML" y guárdalo en otra ubicación |
 | "{n} simulación(es) con errores. Ver panel de resultados." | Tras Analizar | Alguna subcarpeta falló al parsear (p. ej. `fort.6` corrupto o incompleto) | Revisa el panel de errores sobre las pestañas de resultados, que detalla la subcarpeta y el motivo |

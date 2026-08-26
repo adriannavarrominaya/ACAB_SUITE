@@ -447,6 +447,51 @@ def test_sweep_manifest() -> None:
               "sweep_manifest.json corrupto → None (sin excepción)")
 
 
+def test_sweep_manifest_pre_renombrado() -> None:
+    """Caso oro de compatibilidad del renombrado «barrido paramétrico» →
+    «cálculo paramétrico»: un manifiesto REAL anterior al cambio (el cálculo
+    paramétrico de espectro de los nueve reactores, 2026-07-13) tiene que
+    seguir abriéndose tal cual, sin avisos ni migraciones.
+
+    El renombrado fue SOLO de texto visible: ni el nombre del fichero
+    (`sweep_manifest.json`), ni la clave `sweep_type`, ni sus valores
+    (`flux`/`mass`/`time`/`spectrum`) cambiaron -- y este test lo ancla, para
+    que un renombrado futuro de cualquiera de los tres se ponga en rojo antes
+    de dejar un análisis del TFG ilegible. Ver
+    `tests/fixtures/sweep_pre_renombrado/PROCEDENCIA.md`.
+    """
+    section("leer_sweep_manifest — manifiesto REAL anterior al renombrado "
+            "(compatibilidad hacia atrás)")
+
+    fixture = FIXTURES / "sweep_pre_renombrado"
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        shutil.copy2(fixture / "sweep_manifest.json", root / "sweep_manifest.json")
+
+        got = fa.leer_sweep_manifest(str(root))
+        check(got is not None, "manifiesto real pre-renombrado → dict devuelto")
+        assert got is not None
+        check(got.get("sweep_type") == "spectrum",
+              "sweep_type = 'spectrum' (valor interno intacto)")
+        check(got.get("n") == 9, "n = 9 reactores")
+        check(len(got.get("simulations", [])) == 9, "9 simulaciones en el manifest")
+        # La descripción del usuario se devuelve TAL CUAL, en su terminología
+        # antigua: no se migra ni se reescribe nada de lo ya generado.
+        check(got.get("description") == "Barrido de expectro",
+              "description antigua devuelta sin migrar")
+        # Es PRE-C4: sin `excluded_base_files`, y eso no rompe la lectura.
+        check("excluded_base_files" not in got,
+              "manifiesto PRE-C4 (sin excluded_base_files) leído sin error")
+        # Lo que la pestaña Optimización usa como etiqueta de fila y como
+        # ejes X numéricos sigue en su sitio.
+        espectros = [s["params"]["espectro"] for s in got["simulations"]]
+        check("112_MURR-G1" in espectros and "621_SCK-BR2" in espectros,
+              "params.espectro presente en cada simulación")
+        check(all({"frac_termica", "frac_epitermica", "frac_rapida"}
+                  <= set(s["params"]) for s in got["simulations"]),
+              "las 3 fracciones espectrales presentes en cada simulación")
+
+
 def test_descubrir_simulaciones_excluye_tapes_con_chains_manifest() -> None:
     section("descubrir_simulaciones — excluye tape22/tape24 si hay chains_manifest.json "
             "(F9d del BACKLOG: ruido de 'No se encontró NUMBER OF ATOMS')")
@@ -500,6 +545,7 @@ def main() -> int:
     test_densidad_en_analisis()
     test_desactualizada()
     test_sweep_manifest()
+    test_sweep_manifest_pre_renombrado()
     test_descubrir_simulaciones_excluye_tapes_con_chains_manifest()
 
     print(f"\n{'-' * 50}")

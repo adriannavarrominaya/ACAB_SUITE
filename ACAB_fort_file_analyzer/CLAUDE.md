@@ -46,9 +46,15 @@ App web Flask (monousuario, 127.0.0.1:5001) para analizar ficheros de salida `fo
     - Tests oro nuevos en `tools/test_chains.py` contra el fixture **totalmente sintético** `tests/fixtures/chains_synthetic/` (2 isótopos ficticios FE56/MN55→CO57, ver su `PROCEDENCIA.md`: R_i/Σ R_i/X_z_i/Y_z_i verificados a mano) y contra el fixture real de Fase 1 (diagrama). `tools/test_api.py::test_chains_report` cubre el endpoint `POST /api/chains_report` (400 sin `root`, 404 sin `chains_manifest.json`, 200 con el caso sintético, selector de instante manual vía `t_h`).
   - `leer_sweep_manifest` (Fase 5 opcional, `RUNBOOK_barrido_parametrico_v2.md`):
     lee `sweep_manifest.json` de la raíz analizada si existe (escrito por la
-    pestaña "Barrido" del ACAB INP File Configurator); `None` si no hay barrido,
-    sin romper el análisis normal. `/api/analyze` lo expone tal cual como
-    `sweep_manifest`.
+    pestaña "Cálculo paramétrico" del ACAB INP File Configurator, la que en el
+    código se llama "Barrido"/`sweep`: ver el glosario de dos capas del
+    CLAUDE.md raíz); `None` si no hay cálculo paramétrico, sin romper el
+    análisis normal. `/api/analyze` lo expone tal cual como `sweep_manifest`.
+    NADA de lo persistido se renombra (`sweep_manifest.json`, `sweep_type` y
+    sus valores `flux`/`mass`/`time`/`spectrum`, ni las claves i18n
+    `optim.type_*`): es lo que mantiene legibles los análisis ya generados,
+    anclado por `test_sweep_manifest_pre_renombrado` y `test_optim_utils.js`
+    contra el fixture real `tests/fixtures/sweep_pre_renombrado/`.
   - `analizar_carpeta` (Fase R5 del runbook runner v2): por simulación calcula
     `fort6_fecha` (mtime de `fort.6`, ISO) y `desactualizada` = `mtime(inp.5) >
     mtime(fort.6)` (si no hay `inp.5` en la subcarpeta, `desactualizada=False`).

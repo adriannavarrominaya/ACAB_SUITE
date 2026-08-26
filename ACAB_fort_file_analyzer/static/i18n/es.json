@@ -411,13 +411,13 @@
   },
 
   "optim": {
-    "placeholder": "Selecciona un isótopo en la pestaña <strong>Simulaciones</strong> para ver la optimización del barrido.",
-    "goto": "Ve a la pestaña <strong>Optimización</strong> para ver el barrido de {label}.",
-    "no_manifest": "Esta carpeta no contiene un barrido paramétrico (no se encontró <code>sweep_manifest.json</code> en la raíz analizada). Esta pestaña solo se activa con carpetas generadas por el barrido del INP File Configurator.",
-    "no_rows": "Ninguna de las simulaciones analizadas tiene una entrada en el manifest del barrido.",
-    "no_numeric_params": "El manifest del barrido no tiene parámetros numéricos con los que graficar.",
-    "title": "Barrido paramétrico — {label}",
-    "desc": "Combina los parámetros del barrido con el pico, la pureza y el rendimiento ya calculados en el Informe Isótopo (sin recalcular ninguna fórmula).",
+    "placeholder": "Selecciona un isótopo en la pestaña <strong>Simulaciones</strong> para ver la optimización del cálculo paramétrico.",
+    "goto": "Ve a la pestaña <strong>Optimización</strong> para ver el cálculo paramétrico de {label}.",
+    "no_manifest": "Esta carpeta no contiene un cálculo paramétrico (no se encontró <code>sweep_manifest.json</code> en la raíz analizada). Esta pestaña solo se activa con carpetas generadas por el generador de cálculos paramétricos del INP File Configurator.",
+    "no_rows": "Ninguna de las simulaciones analizadas tiene una entrada en el manifest del cálculo paramétrico.",
+    "no_numeric_params": "El manifest del cálculo paramétrico no tiene parámetros numéricos con los que graficar.",
+    "title": "Cálculo paramétrico — {label}",
+    "desc": "Combina los parámetros del cálculo paramétrico con el pico, la pureza y el rendimiento ya calculados en el Informe Isótopo (sin recalcular ninguna fórmula).",
     "param_label": "Parámetro (eje X)",
     "x_categorical_sim": "Simulación",
     "yvar_label": "Variable (eje Y)",
@@ -431,15 +431,15 @@
     "th_tpico": "t<sub>pico</sub> [h]",
     "th_pureza": "Pureza [%]",
     "th_rendimiento": "Rendimiento [{unit}/h]",
-    "type_flux": "barrido de flujo",
-    "type_mass": "barrido de masa",
-    "type_time": "barrido temporal",
-    "type_spectrum": "barrido espectral",
+    "type_flux": "cálculo paramétrico de flujo",
+    "type_mass": "cálculo paramétrico de masa",
+    "type_time": "cálculo paramétrico de historial temporal",
+    "type_spectrum": "cálculo paramétrico de espectro",
     "th_espectro": "Espectro",
     "spectrum_axis_x": "Espectro",
     "spectrum_x_categorical": "Espectro (categórico)",
-    "spectrum_x_key_disabled": "No disponible: este barrido no incluye esta fracción espectral en el manifest",
-    "spectrum_x_all_disabled": "Este barrido no incluye fracciones espectrales en el manifest (generado con una versión anterior); solo está disponible la vista por nombre de espectro."
+    "spectrum_x_key_disabled": "No disponible: este cálculo paramétrico no incluye esta fracción espectral en el manifest",
+    "spectrum_x_all_disabled": "Este cálculo paramétrico no incluye fracciones espectrales en el manifest (generado con una versión anterior); solo está disponible la vista por nombre de espectro."
   },
 
   "espectro": {

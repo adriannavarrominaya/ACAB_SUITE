@@ -236,6 +236,50 @@ section('isTimeSweep / TIME_X_CATEGORICAL / timeRowLabel / sortRowsByName (U8 de
      'sortRowsByName no muta el array original');
 }
 
+// ── Compatibilidad hacia atrás del renombrado terminológico ────────────────
+// «barrido paramétrico» → «cálculo paramétrico» fue un cambio de TEXTO
+// VISIBLE. La pestaña Optimización tiene que seguir abriendo los manifiestos
+// ya generados: aquí se ejercita contra el manifiesto REAL del cálculo
+// paramétrico de espectro de los nueve reactores (2026-07-13), anterior al
+// cambio. Ver tests/fixtures/sweep_pre_renombrado/PROCEDENCIA.md.
+section('manifiesto REAL anterior al renombrado (pestaña Optimización)');
+{
+  const fs = require('fs');
+  const fixture = path.join(__dirname, '..', 'tests', 'fixtures',
+                            'sweep_pre_renombrado', 'sweep_manifest.json');
+  const old = JSON.parse(fs.readFileSync(fixture, 'utf8'));
+
+  eq(O.isSpectrumSweep(old), true,
+     "manifiesto real pre-renombrado reconocido como de espectro (sweep_type='spectrum')");
+  eq(O.isTimeSweep(old), false, 'y no como de historial temporal');
+  eq(old.simulations.length, 9, '9 simulaciones en el manifiesto real');
+  // Es PRE-C4: no trae `excluded_base_files`, y eso no afecta a esta capa.
+  eq(Object.prototype.hasOwnProperty.call(old, 'excluded_base_files'), false,
+     'manifiesto PRE-C4, sin excluded_base_files');
+
+  const folders = old.simulations.map(s => s.folder);
+  const simulations = {}, metricas = {};
+  folders.forEach((f, i) => {
+    simulations[f] = { A_pico: 1000 + i, t_pico: 3.75,
+                       t_pico_declarado_h: 3.75, origen_pico: 'fin_irradiacion',
+                       fase: 'enfriamiento' };
+    metricas[f] = { pureza: { P_pct: 99 }, rendimiento: { rendimiento_medio: 1 },
+                    actividad_especifica_yodo_serie: { valor_destacado_MBq_g: 1 } };
+  });
+
+  const rows = O.mergeSweepRows(old, folders, simulations, metricas);
+  eq(rows.length, 9, 'mergeSweepRows produce una fila por reactor');
+  eq(O.spectrumRowLabel(rows[2]), '112_MURR-G1',
+     'spectrumRowLabel sigue leyendo params.espectro del manifiesto antiguo');
+  eq(rows.every(r => O.spectrumRowLabel(r).length > 0), true,
+     'ninguna fila se queda sin etiqueta de espectro');
+  // U4b: el eje X numérico se alimenta de las fracciones espectrales, que el
+  // manifiesto antiguo ya traía.
+  const xKeys = O.spectrumNumericKeys(rows);
+  eq(xKeys.indexOf('frac_termica') >= 0, true,
+     'frac_termica disponible como eje X numérico en el manifiesto antiguo');
+}
+
 console.log('\n' + '-'.repeat(50));
 console.log(`Resultado: ${passed} pasados, ${failed} fallidos`);
 process.exit(failed === 0 ? 0 : 1);
